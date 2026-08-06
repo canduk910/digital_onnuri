@@ -23,3 +23,6 @@
 | 2026-08-06 | 2차 트리거 수정 5건 (API 연동·배포 가드, 단발 질의 포착, 어휘 축 분리) | skills 전체 | 재검증: 오분류 8/11·오발동 6/7 해소 후 잔존분 |
 | 2026-08-06 | 결제 구조 조사 절 추가 (카드형·모바일형 분리) | onnuri-policy-research | description이 본문보다 넓은 범위를 약속하던 불일치 해소 |
 | 2026-08-06 | writer·data 모델 opus → fable | guide-content-writer, onnuri-data-curator | 사용자 지시 |
+| 2026-08-06 | 수도권 가맹점 검색 기능 추가 (merchants.html + data/merchants/) | 전체 팀 | 사용자 요청. 출처: 공공데이터포털 전국 가맹점 현황(2025-07-31, 차기 2026-08-12). onnuri.gift/place는 인천·경기 미서비스·카테고리 부재로 기각. 갱신: build_merchants.py 재실행 |
+| 2026-08-06 | SSM 단정 정정 (직영/가맹 축 분리) | 03 spec, offline JSON, index.html | 사용자 결함 제보: GS더프레시 가맹점 실존. 직영=불가 유지, 지정구역 내 개인 가맹점=가능 |
+| 2026-08-06 | 배포: GitHub Pages Actions workflow 전환 | .github/workflows/pages.yml | legacy 빌더 즉사(duration 0), stuck deployment 취소 필요했음 |
