@@ -1,0 +1,169 @@
+{
+  "meta": {
+    "source": "index.html(2026-08-06) 판정표 이관 · 요건 ID는 _workspace/01_policy_analysis.md 주장 1의 ①~④",
+    "source_url": "https://www.onnuri.gift/place",
+    "collected_on": "2026-08-06",
+    "note": "basis ID 매핑: R1=요건①(지정구역), R2=요건②(가맹점 등록), R3=요건③(연매출 30억 이하), R4=요건④(제외·제한 업종) — _workspace/01_policy_analysis.md 참조. 요건 변경 시 basis로 영향 업종을 역추적해 재판정할 것.",
+    "basis_definitions": {
+      "R1": "요건① 지정 구역(전통시장·상점가·골목형상점가) 안 점포",
+      "R2": "요건② 온누리 가맹점 등록(스티커/앱 지도 확인)",
+      "R3": "요건③ 연매출 30억 원 이하(2026.6.17 신규·3년 갱신 적용, 기존 가맹점은 최초 갱신 시점부터 적용)",
+      "R4": "요건④ 제외(제한) 업종 — 보건업·법무·회계세무·수의·사행성 추가(2026.6.17), 대형마트·백화점·SSM 종전 유지, 약국 예외"
+    }
+  },
+  "items": [
+    {
+      "id": "traditional-market",
+      "type": "전통시장",
+      "examples": "시장 내 등록 가맹점 — 청과·수산·정육·반찬·떡·건어물 등 (전국 전통시장)",
+      "verdict": "allowed",
+      "verdict_label": "가능",
+      "basis": [
+        "R1",
+        "R2"
+      ],
+      "collected_on": "2026-08-06",
+      "check_point": "시장 안이라도 미가맹 점포는 결제 불가"
+    },
+    {
+      "id": "shopping-district",
+      "type": "상점가",
+      "examples": "지자체 지정 상점가 구역 내 등록 가맹점",
+      "verdict": "allowed",
+      "verdict_label": "가능",
+      "basis": [
+        "R1",
+        "R2"
+      ],
+      "collected_on": "2026-08-06",
+      "check_point": "구역 지정은 지자체 공고 기준"
+    },
+    {
+      "id": "alley-shopping-district",
+      "type": "골목형상점가",
+      "examples": "지정된 골목·블록 단위 구역 내 가맹점",
+      "verdict": "allowed",
+      "verdict_label": "가능",
+      "basis": [
+        "R1",
+        "R2"
+      ],
+      "collected_on": "2026-08-06",
+      "check_point": "지정 확대 추세 — 앱 지도에서 구역 확인"
+    },
+    {
+      "id": "commercial-revitalization-zone",
+      "type": "상권활성화구역",
+      "examples": "구역 내 등록 가맹점",
+      "verdict": "allowed",
+      "verdict_label": "가능",
+      "basis": [
+        "R1",
+        "R2"
+      ],
+      "collected_on": "2026-08-06"
+    },
+    {
+      "id": "restaurant-cafe",
+      "type": "음식점·카페",
+      "examples": "구역 내 개인 운영 식당·분식·카페·베이커리",
+      "verdict": "conditional",
+      "verdict_label": "가맹 시 가능",
+      "basis": [
+        "R1",
+        "R2"
+      ],
+      "collected_on": "2026-08-06",
+      "check_point": "프랜차이즈라도 개인 가맹점주 점포는 등록 시 가능 — 가맹점 지도(onnuri.gift/place)에서 점포 단위 확인"
+    },
+    {
+      "id": "convenience-store",
+      "type": "편의점",
+      "examples": "구역 내 개인사업자 운영 CU·GS25·세븐일레븐·이마트24",
+      "verdict": "conditional",
+      "verdict_label": "조건부",
+      "basis": [
+        "R1",
+        "R2",
+        "R3"
+      ],
+      "collected_on": "2026-08-06",
+      "check_point": "직영점·구역 밖 점포 불가 — 가맹점 지도에서 점포별 개별 확인 + 입구 가맹점 스티커"
+    },
+    {
+      "id": "mart-super",
+      "type": "마트·슈퍼",
+      "examples": "동네 슈퍼, 소형 식자재마트, 하나로마트 일부",
+      "verdict": "conditional",
+      "verdict_label": "조건부",
+      "basis": [
+        "R1",
+        "R2"
+      ],
+      "collected_on": "2026-08-06",
+      "check_point": "점포별 가맹 등록 여부에 따라 다름 — 가맹점 지도에서 점포 단위 확인, 카드형은 결제 직후 앱 차감 알림으로 확인"
+    },
+    {
+      "id": "academy-sports",
+      "type": "학원·체육시설",
+      "examples": "구역 내 보습학원·태권도장·피아노학원 등 (2024.9 제한업종 완화로 가맹 허용)",
+      "verdict": "conditional",
+      "verdict_label": "가맹 시 가능",
+      "basis": [
+        "R1",
+        "R2",
+        "R3"
+      ],
+      "collected_on": "2026-08-06",
+      "check_point": "연매출 30억 이하 + 가맹 등록 점포만 — 가맹점 지도에서 확인"
+    },
+    {
+      "id": "life-service",
+      "type": "생활서비스",
+      "examples": "미용실·세탁소·수선·안경원·약국",
+      "verdict": "conditional",
+      "verdict_label": "가맹 시 가능",
+      "basis": [
+        "R1",
+        "R2",
+        "R4"
+      ],
+      "collected_on": "2026-08-06",
+      "check_point": "약국은 2026 개편에도 가맹 유지(연매출 30억 기준은 동일 적용) — 처방약 결제 가능 범위는 결제 전 약국·앱에서 확인"
+    },
+    {
+      "id": "hypermarket",
+      "type": "대형마트",
+      "examples": "이마트·홈플러스·롯데마트·트레이더스·코스트코",
+      "verdict": "denied",
+      "verdict_label": "불가",
+      "basis": [
+        "R4"
+      ],
+      "collected_on": "2026-08-06"
+    },
+    {
+      "id": "department-ssm",
+      "type": "백화점·SSM",
+      "examples": "백화점·아웃렛·기업형 슈퍼(이마트에브리데이, 홈플러스익스프레스 등)",
+      "verdict": "denied",
+      "verdict_label": "불가",
+      "basis": [
+        "R4"
+      ],
+      "collected_on": "2026-08-06"
+    },
+    {
+      "id": "professional-etc",
+      "type": "전문서비스·기타",
+      "examples": "병·의원·치과·한의원 등 보건업, 수의·법무·회계세무, 유흥·사행성, 일반 오픈마켓 결제",
+      "verdict": "denied",
+      "verdict_label": "불가",
+      "basis": [
+        "R4"
+      ],
+      "collected_on": "2026-08-06",
+      "check_point": "보건업 등은 2026.6.17부터 가맹 제외 (약국 예외) · 일부 시장 배달 서비스는 예외 사례"
+    }
+  ]
+}

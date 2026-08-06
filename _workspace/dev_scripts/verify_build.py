@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""verify_build.py — 생성된 index.html 자체 무결성 점검(브라우저 검증은 verifier 담당)."""
+import json, os, re, sys
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+SRC = os.path.join(ROOT, "index.html.bak-20260806")
+OUT = os.path.join(ROOT, "index.html")
+ONLINE_JSON = os.path.join(ROOT, "data", "online_platforms.json")
+OFFLINE_JSON = os.path.join(ROOT, "data", "offline_categories.json")
+TPL_IDX = 387
+
+fails = []
+def check(cond, msg):
+    print(("  [PASS] " if cond else "  [FAIL] ") + msg)
+    if not cond:
+        fails.append(msg)
+
+with open(OUT, encoding="utf-8") as f:
+    out_lines = f.read().split("\n")
+with open(SRC, encoding="utf-8") as f:
+    src_lines = f.read().split("\n")
+
+# (a) 로더 스크립트 / manifest / base64 blob 무결 — 388행(템플릿) 외 전부 원본과 동일
+print("(a) 로더·manifest·base64 무결성")
+check(len(out_lines) == len(src_lines), f"라인 수 동일 ({len(out_lines)} == {len(src_lines)})")
+diff_lines = [i + 1 for i in range(min(len(out_lines), len(src_lines))) if out_lines[i] != src_lines[i]]
+check(diff_lines == [TPL_IDX + 1], f"변경 라인은 388행(템플릿)뿐: {diff_lines}")
+check(out_lines[375] == src_lines[375], "manifest 라인(376) 불변")
+
+# (b) 템플릿 JSON 파싱 가능
+print("(b) 템플릿 JSON 파싱")
+raw388 = out_lines[TPL_IDX]
+tpl = None
+try:
+    tpl = json.loads(raw388)
+    check(True, f"388행 JSON 디코드 성공 ({len(tpl)} chars)")
+except Exception as e:
+    check(False, f"JSON 디코드 실패: {e}")
+# HTML 파서 조기종료 방지 불변식: script 요소 textContent 안에 리터럴 </ 가 없어야 한다.
+# (원본 번들 불변식과 동일 — json.loads/node --check 로는 못 잡는 파서 레벨 결함을 정적으로 포착)
+check(raw388.count("</") == 0,
+      f"388행 raw 에 리터럴 </ 없음 (실제 {raw388.count('</')}개 — 0 이어야 script 조기종료 안 함)")
+check("<\\u002F" in raw388, "</ 가 <\\u002F 로 이스케이프됨")
+
+if tpl:
+    # (c) 주입 데이터 개수
+    print("(c) 주입 데이터 개수")
+    on_items = re.findall(r"\{c:\"(?:쇼핑|배달)\",", tpl)
+    off_items = re.findall(r"\{t:\"[^\"]+\", d:", tpl)
+    with open(ONLINE_JSON, encoding="utf-8") as f:
+        on_json = [x for x in json.load(f)["items"] if x.get("status") == "active"]
+    with open(OFFLINE_JSON, encoding="utf-8") as f:
+        off_json = json.load(f)["items"]
+    check(len(on_items) == 30, f"ONLINE 30개 (실제 {len(on_items)}, JSON {len(on_json)})")
+    check(len(off_items) == 12, f"OFFLINE 12개 (실제 {len(off_items)}, JSON {len(off_json)})")
+    ship = len(re.findall(r"\{c:\"쇼핑\",", tpl))
+    deli = len(re.findall(r"\{c:\"배달\",", tpl))
+    check(ship == 22 and deli == 8, f"쇼핑 {ship} · 배달 {deli}")
+
+    # (d) 하드코딩 잔재 없음
+    print("(d) 하드코딩 제거 확인")
+    for bad in ["공식 안내 30곳", "2026-08 기준", "쇼핑 22 · 배달 8",
+                "아래 30곳은", "1~3페이지)에 안내",
+                "대구로, 배달특급, 배달의 명수, 전주맛배달"]:
+        check(bad not in tpl, f"하드코딩 '{bad}' 제거됨")
+
+    # (e) 동적 바인딩·신규 섹션 존재
+    print("(e) 동적 바인딩·신규 섹션")
+    for tok in ["{{ baseMonth }}", "{{ onTabText }}", "{{ onIntroMid }}",
+                "{{ onIntroTail }}", "{{ regionApps }}", "{{ mflowArrow }}",
+                "모바일(앱)형 결제 흐름 — QR 방식", "각주 ③ 참고",
+                "대통령령 제36415호", "경과조치"]:
+        check(tok in tpl, f"토큰 '{tok}' 존재")
+
+    # (f) computed 정의 존재
+    print("(f) renderVals computed 정의")
+    for tok in ["const onTabText =", "const baseMonth =", "const regionApps =",
+                "const onIntroTail =", "no: i + 1", "ONLINE_META =", "OFFLINE_META ="]:
+        check(tok in tpl, f"'{tok}' 정의됨")
+
+print()
+if fails:
+    print(f"자체 확인 실패: {len(fails)}건")
+    sys.exit(1)
+print("자체 확인 전체 통과")

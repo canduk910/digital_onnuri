@@ -1,0 +1,91 @@
+# 04 빌드 노트 — index.html 구현 (dev)
+
+- 작성: guide-frontend-dev (2026-08-06)
+- 입력: `_workspace/03_content_spec.md`, `data/online_platforms.json`, `data/offline_categories.json`, 원본 번들 `index.html.bak-20260806`
+- 산출: `index.html`, 빌드/검증 스크립트 `_workspace/dev_scripts/`
+
+## 번들 구조와 작업 방식
+
+`index.html`은 4.15MB 자기해제 번들이다. 통째로 편집하지 않는다.
+
+| 라인 | 내용 | 취급 |
+|------|------|------|
+| L1–373 | HTML head + 로더 스크립트(JS) | **불변** |
+| L376 | `__bundler/manifest` — 4MB base64 blob(폰트·JS 청크) | **불변** |
+| L379–385 | ext_resources / page_order | 불변 |
+| **L388** | `__bundler/template` — JSON 문자열로 이스케이프된 실제 페이지(HTML + DC 앱) | **여기만 수정** |
+
+- 프레임워크는 React 기반 커스텀 **DC**(`class Component extends DCLogic`, `this.setState`, `React.createRef`). 템플릿 바인딩은 머스태시 `{{ }}`, 반복은 `<sc-for>`, 조건은 `<sc-if>`, 이벤트는 `sc-camel-on-click` 등. `{{ }}` 는 `renderVals()` 반환 객체의 키로 해석된다.
+- 빌드는 `_workspace/dev_scripts/build_index.py` 가 전담: **원본 .bak → 템플릿 디코드 → 문자열 치환 → 재인코딩 → index.html 생성**. 항상 pristine 원본에서 시작하므로 멱등(재실행 가능).
+- 모든 치환은 `replace_once()` 로 "정확히 1회 매칭"을 assert — 앵커가 어긋나면 빌드가 즉시 실패한다.
+
+### DC 바인딩 제약 (설계 판단)
+
+기존 템플릿은 `{{ }}` 바인딩을 **항상 자기 요소에 격리**한다(예: `<span>{{ tipsArrow }}</span>` + 형제 정적 텍스트). 텍스트 노드 하나에 정적 문자열과 바인딩을 섞는 예시는 원본에 없다. 리스크 회피를 위해:
+- 정적 문장 중간에 값이 끼는 자리(D1 기준월, D3 인트로, D6 각주)는 값을 `<span>{{ key }}</span>` 로 감싸 격리.
+- 여러 숫자가 한 문장에 모이는 자리(D2 탭 부제, D3 인트로 문장)는 **조합 문자열을 단일 computed** 로 만들어 바인딩 1개로 렌더(`onTabText`, `onIntroMid`, `onIntroTail`). 이렇게 하면 다중 인터폴레이션 미지원 리스크가 사라진다.
+
+## 데이터 주입 (task 1)
+
+- ONLINE 배열: `data/online_platforms.json` 의 `status==='active'` 30곳을 순서대로 `{c,n,d,u,m,rl,st,co}` 로 생성. `c`=배달/쇼핑(kind), `rl`=region_limited, `st`=status, `co`=collected_on. URL·비고는 JSON 최신본(cyso·현대홈쇼핑·공영쇼핑 기획전 딥링크 교체분) 반영.
+- OFFLINE 배열: `offline_categories.json` 12유형을 `{t,d,g,s,p,co}` 로 생성. `g`= allowed→ok / conditional→cond / denied→no. 생활서비스 `check_point` 는 curator 확정본(약국 병기 문구) 그대로 렌더 — 템플릿에 행 텍스트를 남기지 않음.
+- 배열 옆에 `ONLINE_META`(collected_on, pages_checked) · `OFFLINE_META`(collected_on) 를 함께 심어 기준일·페이지수 계산의 출처로 사용.
+
+## 동적 문구 매핑 (D1~D7 → computed)
+
+검증관이 "데이터→렌더" 경계를 검사할 때의 체크리스트다. 모두 `renderVals()` 내 계산.
+
+| # | 자리 | computed / 바인딩 | 계산식 |
+|---|------|-------------------|--------|
+| D1 | 헤더 부제 기준월 | `baseMonth` → `<span>{{ baseMonth }}</span>` | `min(ONLINE.co, OFFLINE.co, ONLINE_META.co, OFFLINE_META.co)` 정렬 최소값의 `slice(0,7)` |
+| D2 | 온라인 탭 부제 | `onTabText` → `{{ onTabText }}` | active 필터 후 `onTotal`/쇼핑·배달 `c` 집계를 문자열 조합 |
+| D3 | 온라인 인트로 | `onIntroMid`·`onIntroTail` → 각 `<span>` | `collectedOn`(ONLINE_META), `onTotal`(D2 동일), `pagesChecked`(meta.pages_checked, `-`→`~`) |
+| D4 | 오프라인 카운트 칩 | 기존 `chips[].count`(`offCnt`) | `OFFLINE` 의 `g`(verdict) 집계 — 기존 로직 유지, 하드코딩 없음 |
+| D5 | 검색 결과 카운트 | 기존 `countText` | 필터 후 표시 행수 — 기존 로직 유지 |
+| D6 | 각주 ④ 지역 배달앱 | `regionApps` → `<span>{{ regionApps }}</span>` | `ONLINE.filter(rl===true).map(n).join(', ')` → 현행 5곳(전주맛배달·배달특급·먹깨비·배달의 명수·대구로) |
+| D7 | 온라인 표 연번 | `onRows.map((r,i)=>({no:i+1,...}))` | **정렬·필터 후** 부여. 기존 `.map((x,i)=>{no})` 초기화 제거 — 이름순 정렬 시에도 연번이 1..n 으로 정합 |
+
+## 변경 섹션 반영 (task 3)
+
+- **S1** 헤더 부제: `2026-08 기준` 하드코딩 제거 → `baseMonth`(D1).
+- **S4 요건3**: "즉시 말소" → 경과조치 명시("최초 갱신 전까지는 이 기준을 적용받지 않습니다").
+- **S4 요건4**: 보건업 등 2026.6.17 추가 명시 + 약국 예외에 "연매출 30억은 약국에도 적용" 병기.
+- **S9 4단계**: 선차감 medium 어조 — "부족분만 청구" 단정 제거, 두 동작 병기 + 앱 잔액 확인 지시. 각주 ③ 연결.
+- **S10 모바일(앱)형 결제 흐름 — QR 방식(신규)**: S9 흐름 카드 바로 아래(isOff 블록 내부)에 **동일 아코디언 패턴**으로 추가. 전용 토글 상태 `mflowOpen`(+`toggleMFlow`/`mflowArrow`) 신설. 5단계(앱 설치·가입 / 충전 / QR 결제 / 인증·차감 / 확인) + 카드형과의 차이 한 줄.
+- **S11 온라인 인트로**: 전용관 확대 뉘앙스를 수집일 앵커 문장으로 반영(D3), 숫자·페이지·수집일 전부 동적화.
+- **S13 각주**: ②(법령 명시·경과조치·취소), ③(선차감 잔액부족 확인지시, 신설), ④(지역앱 동적 D6).
+- **S14 선차감 용어**: "모자란 금액만 카드 청구" 단정 제거 → "충전 잔액이 먼저 빠지는 방식 (…각주 ③ 참고)".
+
+유지 섹션(S2·S3·S5·S6표구조·S7·S8·S12)·디자인·필터·검색·정렬 동작은 원본 그대로. S6 판정표 문구는 SSOT(JSON)에서 렌더되므로 curator 수정이 자동 반영된다.
+
+## 자체 확인 (task 5) — 전체 통과
+
+`_workspace/dev_scripts/verify_build.py`:
+- (a) 로더·manifest·base64 무결: 원본 대비 변경 라인은 388행(템플릿)뿐, 라인 수·manifest 동일.
+- (b) 388행 JSON 파싱 성공(90,434 chars).
+- (c) 주입 개수: ONLINE 30(쇼핑 22·배달 8), OFFLINE 12 — JSON과 일치.
+- (d) 하드코딩 잔재(30곳·2026-08·쇼핑22배달8·1~3페이지·지역앱 4곳 나열) 제거 확인.
+- (e)(f) 동적 바인딩·신규 섹션·computed 정의 존재 확인.
+- 추가로 `node --check` 로 DC 스크립트 문법 유효성 확인(한글·특수문자 이스케이프는 `json.dumps` 로 생성).
+
+## 회귀: 번들 언패킹 실패 → 수정 (D-F1, verifier 지적)
+
+- **증상**: 첫 빌드본이 브라우저에서 전면 미렌더 — 로더 스플래시에 멈추고 토스트 `Error unpacking: Unterminated string in JSON at position 186`. DC 미마운트, 머스태시 리터럴 잔존.
+- **원인**: `json.dumps` 는 `/` 를 이스케이프하지 않는다. 원본 번들은 388행 template 문자열 안의 모든 `</` 를 `</` 로 이스케이프해 리터럴 `</` 를 0개로 유지했는데(그래야 HTML 파서가 `<script type="__bundler/template">` 를 첫 `</script>` 에서 조기 종료하지 않는다), 내 재인코딩은 `</` 를 258개 리터럴로 되살렸다. 브라우저가 template 을 첫 `</script>` 에서 끊어 `textContent` 가 char 186 에서 잘리고 → 로더의 `JSON.parse` 실패.
+- **핵심 교훈**: `json.loads`·`node --check` 등 정적 검사는 이 HTML-파서-레벨 조기종료를 원리적으로 못 잡는다(1차 자체확인도 통과했으나 렌더는 깨졌다).
+- **수정**: `build_index.py` 재인코딩 시 `.replace("</", "<\\u002F")` + `assert 리터럴 </ == 0`. `verify_build.py` 에 **불변식 검사 추가**: 388행 raw 에 리터럴 `</` 가 0개여야 함(원본 번들 불변식과 동일). 이제 이 부류 결함을 정적으로 포착한다.
+
+## 브라우저 실렌더 확인 (수정 후, dev 스모크)
+
+수정 후 로컬 서버에서 실제 마운트를 확인함(에러 토스트·스플래시 없음, 페이지 자체 콘솔 에러 0 — 유일 예외는 크롬 확장 share-modal.js 로 페이지 무관):
+- D1 기준월 `2026-08` · D2 탭 `공식 안내 30곳 — 쇼핑 22 · 배달 8` · D4 칩 `전체 12/가능 4/조건부·가맹 시 5/불가 3` · D5 `12개 유형 중 12개 표시`.
+- 온라인 탭: `총 30곳 중 30곳 표시`, 칩 `전체 30/쇼핑 22/배달 8`, 표 30행 연번 1–30 순차(D7), D3 인트로(수집일 2026-08-06·30곳·1~3페이지 동적), 주입 데이터가 JSON 최신본(사이소·현대홈쇼핑 기획전 직링크 비고)으로 렌더.
+- S4·S9(선차감 병기)·S10(모바일 QR 흐름 헤더)·S11·S13(각주 ②③④, D6 지역앱 5곳 `전주맛배달·배달특급·먹깨비·배달의 명수·대구로`)·S14 문구 모두 반영. 잔여 머스태시 없음.
+
+## 알려진 제약 / 전달
+
+1. **정식 렌더 검증은 verifier**: 위 스모크는 마운트·바인딩 해석만 확인했다. 반응형·색각·정렬/검색 상호작용의 판정은 guide-verifier 의 B2·B4·렌더 재검증 몫.
+2. **다중 인터폴레이션 회피**: 위 "DC 바인딩 제약" 참조. 혹시 검증에서 `<span>{{ }}</span>` 격리가 부자연스러운 줄바꿈을 만들면 라이터와 조율 후 재빌드.
+3. **pages_checked 표기**: JSON meta 는 `"1-3"`, 화면 표기는 관용상 `~` 로 변환(`1~3페이지`). 데이터 원본은 손대지 않음.
+4. **폰트 임베드 불변**: Pretendard woff2 base64(약 4MB)는 원본 유지 — 파일 프로토콜 오프라인 열람 전제. 크기 변화 없음.
+5. **재빌드 방법**: 데이터·문구 갱신 시 `python3 _workspace/dev_scripts/build_index.py` 재실행(항상 .bak 기준). 원본 .bak 자체가 바뀌어야 하는 변경이면 별도 논의.
