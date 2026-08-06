@@ -145,13 +145,14 @@
     {
       "id": "department-ssm",
       "type": "백화점·SSM",
-      "examples": "백화점·아웃렛·기업형 슈퍼(이마트에브리데이, 홈플러스익스프레스 등)",
+      "examples": "백화점·아웃렛·기업형 슈퍼(SSM) 직영점(이마트에브리데이, 홈플러스익스프레스, GS더프레시 직영 등)",
       "verdict": "denied",
       "verdict_label": "불가",
       "basis": [
         "R4"
       ],
-      "collected_on": "2026-08-06"
+      "collected_on": "2026-08-06",
+      "check_point": "직영점은 가맹 제외 — 단, 같은 브랜드라도 전통시장·골목형상점가 안의 개인 가맹점주 점포는 가맹 시 사용 가능, 앱 지도에서 개별 확인"
     },
     {
       "id": "professional-etc",
