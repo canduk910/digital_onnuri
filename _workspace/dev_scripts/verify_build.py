@@ -70,7 +70,8 @@ if tpl:
     for tok in ["{{ baseMonth }}", "{{ onTabText }}", "{{ onIntroMid }}",
                 "{{ onIntroTail }}", "{{ regionApps }}", "{{ mflowArrow }}",
                 "모바일(앱)형 결제 흐름 — QR 방식", "각주 ③ 참고",
-                "대통령령 제36415호", "경과조치"]:
+                "대통령령 제36415호", "경과조치",
+                "href=\"merchants.html\"", "수도권 가맹점 검색 ↗"]:
         check(tok in tpl, f"토큰 '{tok}' 존재")
 
     # (f) computed 정의 존재
