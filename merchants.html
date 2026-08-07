@@ -135,6 +135,10 @@
   <div class="aux-row">
     <div class="aux-group" id="brandChips" aria-label="브랜드 선택"></div>
     <div class="aux-group">
+      <span class="chip-label">브랜드 검색</span>
+      <select class="sel" id="selBrand" aria-label="브랜드 검색·선택"></select>
+    </div>
+    <div class="aux-group">
       <span class="chip-label">시장 유형</span>
       <select class="sel" id="selMtype" aria-label="시장 유형 선택"></select>
     </div>
@@ -184,10 +188,9 @@
     ["농축수산·식품", "농축수산·식품"], ["의류·신발", "의류·신발"], ["생활·잡화", "생활·잡화"],
     ["생활서비스", "생활서비스"], ["약국", "약국"], ["학원", "학원·교습소"], ["기타", "기타"]
   ];
-  // 브랜드(brand) 표시명 (M10-3 ②)
-  var BRAND_ORDER = [
-    ["convenience", "편의점"], ["mart", "마트·슈퍼"], ["ssm", "기업형 슈퍼(SSM)"], ["daiso", "다이소"]
-  ];
+  // 브랜드(brand) = 개별 브랜드명 문자열|null (M10-3 ②, data 최종). 목록·순위는 전부 데이터에서 계산.
+  var BRAND_TOPN = 10;            // 칩으로 노출할 상위 브랜드 수(건수순). 나머지 롱테일은 드롭다운(타입어헤드 검색).
+  var SSM_BRAND = "GS더프레시";   // 수도권 SSM 가맹 전건 — SSM 각주 연결 대상
   var PAGE_SIZE = 50;
   var APP_MAP_URL = "https://www.onnuri.gift/place";
   var APP_STORE_URL = "https://apps.apple.com/kr/app/id6738372450";
@@ -217,7 +220,13 @@
     return out;
   };
   var catLabel = function (k) { for (var i = 0; i < CAT_ORDER.length; i++) if (CAT_ORDER[i][0] === k) return CAT_ORDER[i][1]; return k; };
-  var brandLabel = function (k) { for (var i = 0; i < BRAND_ORDER.length; i++) if (BRAND_ORDER[i][0] === k) return BRAND_ORDER[i][1]; return k; };
+  // 브랜드 집계: base(지역+디지털) 내 brand(비-null) 건수순 정렬 [[brand,count],...]
+  function brandRanked() {
+    var b = base(), c = {};
+    for (var i = 0; i < b.length; i++) { var v = b[i].brand; if (v) c[v] = (c[v] || 0) + 1; }
+    return Object.keys(c).map(function (k) { return [k, c[k]]; })
+      .sort(function (a, b2) { return b2[1] - a[1] || a[0].localeCompare(b2[0], "ko"); });
+  }
 
   // ---- 지연 로드 ----
   function loadSido(sido) {
@@ -292,7 +301,6 @@
     return it;
   }
   function catCount(k) { var b = base(), n = 0; for (var i = 0; i < b.length; i++) if (k === "전체" || b[i].cat === k) n++; return n; }
-  function brandCount(k) { var b = base(), n = 0; for (var i = 0; i < b.length; i++) if (k === "전체" ? b[i].brand : b[i].brand === k) n++; return n; }
   function filtered() {
     var q = state.q.trim().toLowerCase();
     var b = base(), out = [];
@@ -373,16 +381,23 @@
       b.onclick = function () { state.cat = key; state.page = 1; renderChips(); render(); };
       cc.appendChild(b);
     });
-    // 브랜드(보조)
+    // 브랜드(보조) — 개별 브랜드명. 상위 N개만 칩, 나머지는 드롭다운(타입어헤드 검색). 전부 계산.
+    var ranked = brandRanked();
     var bc = el("brandChips"); bc.innerHTML = '<span class="chip-label">브랜드</span>';
-    [["전체", "전체"]].concat(BRAND_ORDER).forEach(function (pair) {
-      var key = pair[0], label = pair[1];
+    function addBrandChip(key, label, cnt) {
       var b = document.createElement("button");
       b.className = "chip" + (state.brand === key ? " active" : "");
-      b.innerHTML = esc(label) + ' <b>' + nf(brandCount(key)) + "</b>";
+      b.innerHTML = esc(label) + (cnt != null ? ' <b>' + nf(cnt) + "</b>" : "");
       b.onclick = function () { state.brand = key; state.page = 1; renderChips(); render(); };
       bc.appendChild(b);
-    });
+    }
+    addBrandChip("전체", "전체", null);
+    ranked.slice(0, BRAND_TOPN).forEach(function (pair) { addBrandChip(pair[0], pair[0], pair[1]); });
+    // 롱테일 드롭다운(전 브랜드, 건수순) — native select 타입어헤드가 곧 브랜드 검색
+    var sb = el("selBrand");
+    var sbh = '<option value="전체"' + (state.brand === "전체" ? " selected" : "") + ">브랜드 전체</option>";
+    ranked.forEach(function (pair) { sbh += '<option value="' + esc(pair[0]) + '"' + (state.brand === pair[0] ? " selected" : "") + ">" + esc(pair[0]) + " (" + nf(pair[1]) + ")</option>"; });
+    sb.innerHTML = sbh;
     // 시장 유형(보조, 드롭다운) — D15
     var mt = el("selMtype");
     var types = uniqSorted(sidoItems().map(function (x) { return x.market_type; }));
@@ -412,7 +427,7 @@
     for (var i = 0; i < slice.length; i++) {
       var r = slice[i];
       var badgeCls = "cat-badge" + (r.cat === "기타" ? " etc" : "");
-      var brandTag = (r.brand === "ssm") ? '<span class="brand-tag">SSM</span>' : (r.brand === "daiso") ? '<span class="brand-tag">다이소</span>' : "";
+      var brandTag = (r.brand === SSM_BRAND) ? '<span class="brand-tag">SSM</span>' : "";
       var mt = r.market_type ? '<span class="mt-tag">' + esc(r.market_type) + "</span>" : "";
       var dong = r.dong ? esc(r.dong) : UNKNOWN_DONG;
       var pay = "";
@@ -519,6 +534,7 @@
     });
     el("qClear").addEventListener("click", function () { resetSearch(); });
     el("sort").addEventListener("change", function (e) { state.sort = e.target.value; state.page = 1; render(); });
+    el("selBrand").addEventListener("change", function (e) { state.brand = e.target.value; state.page = 1; renderChips(); render(); });
     el("selMtype").addEventListener("change", function (e) { state.mtype = e.target.value; state.page = 1; render(); });
     el("digitalOnly").addEventListener("change", function (e) { state.digitalOnly = e.target.checked; state.page = 1; renderChips(); render(); });
     document.addEventListener("keydown", function (e) {
