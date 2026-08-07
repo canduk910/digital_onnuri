@@ -196,15 +196,16 @@ tpl = replace_once(
     "S4.req4",
 )
 
-# M7 index→merchants 진입 링크 (S4 지도 검색 박스 바로 아래, 같은 박스 스타일)
+# S15(task #17): 요건2 '지도 검색' 안내 문장은 **유지**(요건 ② 본문 — 점포 단위 확인법 설명).
+# 구 M7 '수도권 가맹점 검색 ↗' 진입 박스는 .bak 원본에 없고 이전 M7 스텝이 추가하던 것 → 추가 스텝을
+# 두지 않으므로 별도 제거 불필요.
+# team-lead 정정2: 검색 '진입'은 S15 서브탭으로 일원화했으니 요건2 지도박스의 인라인 onnuri.gift/place
+# 링크만 텍스트로 전환한다(안내 문장 자체는 유지 — '가맹 시 가능' 매장 점포 단위 확인 안내가 핵심).
 tpl = replace_once(
     tpl,
-    "onnuri.gift/place 가맹점 지도 검색 ↗</a>에서 점포 단위로 확인할 수 있습니다.</span></div>",
-    "onnuri.gift/place 가맹점 지도 검색 ↗</a>에서 점포 단위로 확인할 수 있습니다.</span></div>"
-    "<a href=\"merchants.html\" style=\"display:flex;gap:10px;align-items:flex-start;background:#FFFFFF;border:1px dashed #EFC5A3;border-radius:10px;padding:9px 12px;text-decoration:none;color:inherit\" style-hover=\"border-color:#F26B1D\">"
-    "<span style=\"flex:none;font-size:11px;font-weight:800;color:#C4510F;margin-top:2px;letter-spacing:0.04em\">수도권</span>"
-    "<span style=\"font-size:13px;line-height:1.55\"><strong style=\"color:#C4510F\">수도권 가맹점 검색 ↗</strong> — 서울·인천·경기 가맹점을 상호·소속 시장 이름으로 찾아볼 수 있습니다 (공공데이터 스냅샷 기준, 최종 확인은 온누리 가맹점 지도/앱)</span></a>",
-    "M7.merchants-link",
+    "<a href=\"https://www.onnuri.gift/place\" target=\"_blank\" rel=\"noopener\" style=\"font-weight:700\">onnuri.gift/place 가맹점 지도 검색 ↗</a>",
+    "<strong style=\"color:#26231F\">온누리 가맹점 지도</strong>",
+    "S15.req2-delink",
 )
 
 # S9 4단계
@@ -253,6 +254,36 @@ tpl = replace_once(
     "\n  </sc-if>\n\n  <sc-if value=\"{{ isOn }}\" hint-placeholder-val=\"{{ false }}\">",
     S10 + "  </sc-if>\n\n  <sc-if value=\"{{ isOn }}\" hint-placeholder-val=\"{{ false }}\">",
     "S10.mobile-flow",
+)
+
+# S15(task #17, 최신 명세): '가맹점 찾기' 서브탭 — 오프라인 탭 **최상단**(메인 탭 바로 아래, 사용 요건 박스 앞).
+# 서브탭 1 '가맹점 찾기'(merchants.html 내부) / 서브탭 2 '공식 지도 검색 ↗'(onnuri.gift/place 외부, 새 탭).
+# 색만으로 구분 금지 → 성격 표지 배지(내부·수도권/외부·전국) + 외부 ↗ + aria-label "새 창에서 열림" + 포커스 링.
+# 라벨에 "앱" 금지(웹 지도), 공식 지도는 전국 서비스로 지역 한정 서술 없음. 동적 문구 없음.
+S15 = (
+    "\n    <div style=\"background:#FFFFFF;border:1.5px solid #E7E5E1;border-radius:14px;margin-bottom:16px;padding:16px 18px\">\n"
+    "      <div style=\"font-size:11px;font-weight:800;color:#C4510F;letter-spacing:0.06em;margin-bottom:5px\">가맹점 찾기</div>\n"
+    "      <h2 style=\"margin:0 0 5px;font-size:15px;font-weight:800;letter-spacing:-0.01em;color:#171512\">가맹점을 직접 찾아보기</h2>\n"
+    "      <p style=\"margin:0 0 12px;font-size:12.5px;color:#6E6A64;line-height:1.6\">상호·시장 이름으로 찾으려면 '가맹점 찾기', 지도에서 지역별로 훑으려면 '공식 지도 검색'</p>\n"
+    "      <div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px\">\n"
+    "        <a href=\"merchants.html\" style=\"display:flex;flex-direction:column;gap:6px;background:#FAFAF9;border:1.5px solid #E7E5E1;border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit\" style-hover=\"border-color:#F26B1D;background:#FFFFFF\" style-focus=\"border-color:#F26B1D;box-shadow:0 0 0 3px #FBD8BC\">\n"
+    "          <span style=\"display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#171512\">가맹점 찾기 <span style=\"font-size:11px;font-weight:700;color:#C4510F;background:#FDEEE3;border-radius:999px;padding:2px 8px\">내부 · 수도권</span></span>\n"
+    "          <span style=\"font-size:12.5px;color:#6E6A64;line-height:1.55\">서울·인천·경기 가맹점을 상호·소속 시장 이름으로 검색 — 시장·상점가 목록과 브랜드 매장(편의점·마트·SSM·다이소)을 함께 봅니다. 공공데이터 스냅샷 기준.</span>\n"
+    "        </a>\n"
+    "        <a href=\"https://www.onnuri.gift/place\" target=\"_blank\" rel=\"noopener\" aria-label=\"공식 지도 검색 — 새 창에서 열림\" style=\"display:flex;flex-direction:column;gap:6px;background:#FAFAF9;border:1.5px solid #E7E5E1;border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit\" style-hover=\"border-color:#F26B1D;background:#FFFFFF\" style-focus=\"border-color:#F26B1D;box-shadow:0 0 0 3px #FBD8BC\">\n"
+    "          <span style=\"display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#171512\">공식 지도 검색 ↗ <span style=\"font-size:11px;font-weight:700;color:#6E6A64;background:#F0EFED;border-radius:999px;padding:2px 8px\">외부 · 전국</span></span>\n"
+    "          <span style=\"font-size:12.5px;color:#6E6A64;line-height:1.55\">전국 가맹점을 지역별로 지도에서 검색 — 온누리 공식 서비스.</span>\n"
+    "        </a>\n"
+    "      </div>\n"
+    "    </div>"
+)
+tpl = replace_once(
+    tpl,
+    "  <sc-if value=\"{{ isOff }}\" hint-placeholder-val=\"{{ true }}\">\n    <sc-if value=\"{{ showConcept }}\" hint-placeholder-val=\"{{ true }}\">",
+    "  <sc-if value=\"{{ isOff }}\" hint-placeholder-val=\"{{ true }}\">"
+    + S15
+    + "\n    <sc-if value=\"{{ showConcept }}\" hint-placeholder-val=\"{{ true }}\">",
+    "S15.subtabs-top",
 )
 
 # S11 온라인 인트로 (D3)
