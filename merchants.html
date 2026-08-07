@@ -11,7 +11,7 @@
   a:hover { color:#F26B1D; text-decoration:underline; }
   ::selection { background:#FBD8BC; }
   input::placeholder { color:#A3A09B; }
-  main { max-width:1060px; margin:0 auto; padding:44px 28px 72px; }
+  main { max-width:1100px; margin:0 auto; padding:44px 28px 72px; }
 
   .brand { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
   .brand-badge { width:30px; height:30px; border-radius:9px; background:#F26B1D; display:flex; align-items:center; justify-content:center; color:#FFF; font-weight:800; font-size:14px; }
@@ -21,20 +21,9 @@
   .meta-line { font-size:13.5px; color:#6E6A64; line-height:1.6; }
   .meta-line .num { font-variant-numeric:tabular-nums; }
 
-  /* 뷰 전환 (시장·상점가 / 브랜드 매장) */
-  .view-tabs { display:flex; gap:8px; margin:22px 0 14px; }
-  .view-tab { flex:1; font-family:inherit; cursor:pointer; text-align:center; border-radius:13px; padding:12px 14px; background:#FFF; border:1.5px solid #E7E5E1; }
-  .view-tab:hover { border-color:#F26B1D; }
-  .view-tab .vt-title { font-size:14px; font-weight:800; color:#8A8580; }
-  .view-tab .vt-sub { display:block; font-size:11.5px; font-weight:600; color:#A3A09B; margin-top:3px; line-height:1.4; }
-  .view-tab.active { background:#171512; border-color:#171512; }
-  .view-tab.active .vt-title { color:#FFF; }
-  .view-tab.active .vt-sub { color:rgba(255,255,255,0.72); }
-
-  /* 고지 배너 (뷰별) */
-  .notice { background:#FDF3EA; border:1.5px solid #EFC5A3; border-left:4px solid #F26B1D; border-radius:14px; padding:16px 20px; margin-bottom:18px; }
+  /* 단일 기준일 배너 (M10-2) — 접지 않는 핵심 고지 */
+  .notice { background:#FDF3EA; border:1.5px solid #EFC5A3; border-left:4px solid #F26B1D; border-radius:14px; padding:16px 20px; margin:22px 0 18px; }
   .notice p { font-size:13px; color:#5F5B55; line-height:1.65; }
-  .notice p + p { margin-top:8px; }
   .notice strong { color:#C4510F; font-weight:700; }
 
   /* 시도 탭 */
@@ -44,17 +33,22 @@
   .sido-tab.active { color:#FFF; background:#171512; border-color:#171512; }
   .sido-tab .tab-sub { display:block; font-size:11.5px; font-weight:600; opacity:0.72; margin-top:2px; font-variant-numeric:tabular-nums; }
 
-  .region-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-  .region-row label { font-size:11px; font-weight:800; color:#8A8580; letter-spacing:0.05em; }
-  select.gusi { font-family:inherit; font-size:13px; color:#26231F; background:#FFF; border:1.5px solid #E7E5E1; border-radius:11px; padding:9px 12px; outline:none; cursor:pointer; min-width:150px; }
-  select.gusi:focus { border-color:#F26B1D; }
+  /* 지역 계층(구/동) 계단식 드롭다운 */
+  .region-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .region-row .rr-label { font-size:11px; font-weight:800; color:#8A8580; letter-spacing:0.05em; }
+  select.sel { font-family:inherit; font-size:13px; color:#26231F; background:#FFF; border:1.5px solid #E7E5E1; border-radius:11px; padding:9px 12px; outline:none; cursor:pointer; min-width:120px; }
+  select.sel:focus { border-color:#F26B1D; box-shadow:0 0 0 3px #FBD8BC; }
+  select.sel:disabled { color:#B7B4AF; background:#FAFAF9; cursor:not-allowed; }
 
   .chip-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; align-items:center; }
   .chip-label { font-size:11px; font-weight:800; color:#8A8580; letter-spacing:0.05em; margin-right:2px; }
   .chip { font-family:inherit; cursor:pointer; font-size:12.5px; font-weight:700; border-radius:999px; padding:6px 14px; color:#6E6A64; background:#FFF; border:1.5px solid #E7E5E1; }
   .chip:hover { border-color:#F26B1D; }
+  .chip:focus-visible { outline:none; box-shadow:0 0 0 3px #FBD8BC; border-color:#F26B1D; }
   .chip b { font-variant-numeric:tabular-nums; }
   .chip.active { color:#FFF; background:#C4510F; border-color:#C4510F; }
+  .aux-row { display:flex; flex-wrap:wrap; gap:14px 18px; align-items:center; margin-bottom:12px; padding:10px 14px; background:#FBFBFA; border:1px solid #F0EFED; border-radius:12px; }
+  .aux-group { display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
 
   .controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:12px; }
   .search-wrap { position:relative; flex:1; min-width:230px; }
@@ -63,34 +57,36 @@
   .search-wrap input:focus { border-color:#F26B1D; }
   .search-clear { position:absolute; right:6px; top:50%; transform:translateY(-50%); border:none; background:none; color:#8A8580; cursor:pointer; font-size:14px; padding:4px 9px; border-radius:8px; font-family:inherit; }
   .search-clear:hover { background:#FDEEE3; color:#C4510F; }
-  select.sort { font-family:inherit; font-size:13px; color:#26231F; background:#FFF; border:1.5px solid #E7E5E1; border-radius:11px; padding:9px 11px; outline:none; cursor:pointer; }
   .digital-toggle { display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; color:#26231F; cursor:pointer; background:#FFF; border:1.5px solid #E7E5E1; border-radius:11px; padding:8px 12px; user-select:none; }
   .digital-toggle input { accent-color:#C4510F; width:15px; height:15px; cursor:pointer; }
   .count-text { font-size:12.5px; color:#8A8580; margin-left:auto; font-variant-numeric:tabular-nums; }
 
   .card { background:#FFF; border:1.5px solid #E7E5E1; border-radius:14px; overflow:hidden; }
   .table-scroll { overflow-x:auto; }
-  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:760px; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:880px; }
   th { padding:11px 16px; text-align:left; font-size:12px; font-weight:700; color:#8A8580; background:#FAFAF9; border-bottom:1.5px solid #E7E5E1; white-space:nowrap; }
   td { padding:12px 16px; border-top:1px solid #F0EFED; vertical-align:middle; line-height:1.5; }
   tr:hover td { background:#FAFAF9; }
   td.name { font-weight:700; color:#171512; }
   td.market { color:#26231F; }
   td.addr { color:#26231F; }
-  td.region { white-space:nowrap; }
-  td.items { color:#8A8580; font-size:12.5px; }
+  td.addr .dong { color:#8A8580; font-size:12px; }
   .cat-badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700; background:#FDEEE3; color:#C4510F; white-space:nowrap; }
   .cat-badge.etc { background:#EFEEEC; color:#8A8580; }
-  .paper-badge { display:inline-flex; align-items:center; gap:4px; margin-left:7px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; background:#EFEEEC; color:#8A8580; white-space:nowrap; vertical-align:middle; }
-  .region-badge { display:inline-flex; align-items:center; padding:3px 9px; border-radius:999px; font-size:12px; font-weight:700; background:#FFF; color:#6E6A64; border:1px solid #E7E5E1; }
+  .brand-tag { display:inline-flex; align-items:center; margin-left:6px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; background:#171512; color:#FFF; white-space:nowrap; vertical-align:middle; }
+  .mt-tag { display:block; font-size:11.5px; color:#8A8580; margin-top:2px; }
+  .pay { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; margin-right:4px; white-space:nowrap; }
+  .pay.card { background:#171512; color:#FFF; }
+  .pay.qr { background:#FDEEE3; color:#C4510F; }
+  .pay.none { background:#EFEEEC; color:#8A8580; }
 
   .state { padding:44px 20px; text-align:center; color:#8A8580; font-size:13.5px; line-height:1.7; }
   .state .lead { color:#26231F; font-weight:700; }
   .state-actions { margin-top:14px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
-  .app-install { margin-top:12px; font-size:12px; color:#8A8580; }
-  .app-install a { font-weight:700; }
   .btn-outline { font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; color:#C4510F; background:none; border:1.5px solid #C4510F; border-radius:10px; padding:8px 14px; text-decoration:none; display:inline-flex; align-items:center; }
   .btn-outline:hover { background:#FDEEE3; text-decoration:none; }
+  .app-install { margin-top:12px; font-size:12px; color:#8A8580; }
+  .app-install a { font-weight:700; }
 
   .pager { display:flex; align-items:center; justify-content:center; gap:12px; padding:14px; border-top:1px solid #F0EFED; flex-wrap:wrap; }
   .pager button { font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; color:#26231F; background:#FFF; border:1.5px solid #E7E5E1; border-radius:10px; padding:7px 14px; }
@@ -106,7 +102,6 @@
     main { padding:32px 16px 56px; }
     h1 { font-size:26px; }
     .count-text { margin-left:0; width:100%; }
-    .view-tab .vt-sub { display:none; }
   }
 </style>
 </head>
@@ -119,43 +114,40 @@
     </div>
     <h1>디지털온누리상품권 가맹점 검색</h1>
     <p class="subtitle">수도권 가맹점 찾기 — 서울·인천·경기</p>
-    <p class="meta-line"><span id="mDateLabel">공공데이터포털 가맹점 현황</span> <span id="mDate">…</span> 기준 · <span id="mScope">지역을 선택하세요</span> · <a href="index.html">← 사용처 가이드</a></p>
+    <p class="meta-line">온누리 가맹점찾기 <span id="mDate">…</span> 수집 · <span id="mScope">지역을 선택하세요</span> · <a href="index.html">← 사용처 가이드</a></p>
   </header>
 
-  <!-- 뷰 전환 -->
-  <div class="view-tabs" id="viewTabs" role="tablist" aria-label="목록 유형 선택"></div>
-
-  <!-- 고지 배너 (뷰별, 하나만 표시) -->
-  <section class="notice" id="marketNotice" aria-label="자료 한계 고지">
-    <p id="noticeSnapshot">이 목록은 공공데이터 스냅샷입니다.</p>
-    <p><strong>개별 점포의 주소는 제공되지 않습니다.</strong> 위치는 소속 시장·상점가 이름까지만 확인됩니다 — 여기서 가게를 찾았어도, 방문 전에 온누리 앱 '가맹점 찾기' 지도에서 점포 위치와 현재 가맹 여부를 확인하세요.</p>
-    <p id="noticeBidir">여기 '가맹'으로 나와도 스냅샷 기준일 이후 해지됐을 수 있고, 여기 없어도 새로 가맹했을 수 있습니다.</p>
-  </section>
-  <section class="notice" id="brandNotice" aria-label="브랜드 매장 고지" style="display:none">
-    <p id="brandNoticeTop">이 목록은 온누리 가맹점찾기 조회 결과의 수집본입니다.</p>
-    <p>여기 실린 점포는 모두 가맹 등록된 곳이고 도로명 주소까지 확인됩니다 — 다만 수집일 이후 해지됐을 수 있으니, 결제 전 온누리 앱 '가맹점 찾기' 확인은 똑같이 필요합니다.</p>
+  <!-- M10-2 통합 배너 (단일 API 수집일) -->
+  <section class="notice" aria-label="자료 안내">
+    <p id="noticeMain">이 목록은 온누리 가맹점찾기에서 수집한 자료입니다.</p>
   </section>
 
   <!-- 시도 탭 -->
   <div class="sido-tabs" id="sidoTabs" role="tablist" aria-label="지역 선택"></div>
 
-  <!-- 구/시 필터 (브랜드 뷰 전용) -->
-  <div class="region-row" id="guSiRow" style="display:none">
-    <label id="guSiLabel" for="guSi">구</label>
-    <select class="gusi" id="guSi" aria-label="구·시 선택"></select>
-  </div>
+  <!-- 지역 계층(구/동) 드롭다운 -->
+  <div class="region-row" id="regionRow"><span class="rr-label">지역</span><span id="regionSelects"></span></div>
 
-  <!-- 카테고리 칩 -->
-  <div class="chip-row" id="catChips" aria-label="분류 선택"></div>
+  <!-- 업종 칩 (주 필터) -->
+  <div class="chip-row" id="catChips" aria-label="업종 선택"></div>
+
+  <!-- 보조 필터: 브랜드 + 시장 유형 -->
+  <div class="aux-row">
+    <div class="aux-group" id="brandChips" aria-label="브랜드 선택"></div>
+    <div class="aux-group">
+      <span class="chip-label">시장 유형</span>
+      <select class="sel" id="selMtype" aria-label="시장 유형 선택"></select>
+    </div>
+  </div>
 
   <div class="controls">
     <div class="search-wrap">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
-      <input id="q" type="text" autocomplete="off" placeholder="가게 이름·시장 이름·취급품목 검색 (예: 떡집, ○○시장)">
+      <input id="q" type="text" autocomplete="off" placeholder="가게 이름·주소·시장 이름 검색 (예: 떡집, 강남대로, ○○시장)">
       <button class="search-clear" id="qClear" aria-label="검색어 지우기" style="display:none">✕</button>
     </div>
-    <label class="digital-toggle" id="digitalToggleWrap"><input type="checkbox" id="digitalOnly" checked>디지털만 보기</label>
-    <select class="sort" id="sort" aria-label="정렬 방식">
+    <label class="digital-toggle"><input type="checkbox" id="digitalOnly">디지털(카드·QR) 결제 가능만</label>
+    <select class="sel" id="sort" aria-label="정렬 방식">
       <option value="default">기본 순서</option>
       <option value="name">이름순 (가나다)</option>
     </select>
@@ -168,16 +160,11 @@
     </div>
   </div>
 
-  <!-- 각주 (뷰별) -->
-  <div class="footnotes" id="marketFoot">
-    <p id="foot1"></p>
-    <p>※ 이 자료에는 점포 주소가 없습니다 — 위치는 소속 시장·상점가 단위이며, 같은 시장 안에서도 점포 위치·영업 여부는 다를 수 있습니다.</p>
-    <p>※ 가맹 여부는 수시로 바뀌므로 <strong>결제 전 온누리 앱 '가맹점 찾기'에서 최종 확인</strong>이 필요합니다.</p>
-  </div>
-  <div class="footnotes" id="brandFoot" style="display:none">
-    <p id="brandFoot1"></p>
-    <p>※ 이 목록의 GS더프레시 등 기업형 슈퍼(SSM) 브랜드 점포는 모두 가맹 등록된 개인 가맹점주 점포입니다 — 직영점은 가맹 대상이 아니라 이 목록에 없고, 결제도 되지 않습니다.</p>
-    <p>※ 가맹 여부는 수시로 바뀌므로 <strong>결제 전 온누리 앱 '가맹점 찾기'에서 최종 확인</strong>이 필요합니다.</p>
+  <!-- 각주 -->
+  <div class="footnotes">
+    <p id="footLimit"></p>
+    <p>※ 이 목록의 GS더프레시 등 <strong>기업형 슈퍼(SSM)</strong> 브랜드 점포는 모두 가맹 등록된 개인 가맹점주 점포입니다 — 직영점은 가맹 대상이 아니라 이 목록에 없고, 결제도 되지 않습니다.</p>
+    <p>※ 가맹 여부는 수시로 바뀌므로 <strong>결제 전 온누리 가맹점 지도나 디지털온누리 앱에서 최종 확인</strong>이 필요합니다.</p>
   </div>
 </main>
 
@@ -191,23 +178,30 @@
     { key: "인천", url: "data/merchants/incheon.json" },
     { key: "경기", url: "data/merchants/gyeonggi.json" }
   ];
-  var BRAND_URL = "data/merchants/brand_stores.json";
-  // 시장 뷰 카테고리(data 키 -> 표시명)
-  var MARKET_CAT = [["음식점","음식점·카페"],["마트·슈퍼","마트·슈퍼"],["편의점","편의점"],["약국","약국"],["학원","학원·교습소"],["기타","기타"]];
-  // 브랜드 뷰 카테고리(brand_cat 키 -> 표시명, M8-4 순서)
-  var BRAND_CAT = [["convenience","편의점"],["mart","마트·슈퍼"],["ssm","기업형 슈퍼(SSM)"],["daiso","다이소"]];
+  // 업종(cat) 표시명·순서 (M10-3 ①). data cat 키 → 화면명.
+  var CAT_ORDER = [
+    ["음식점", "음식점·카페"], ["편의점", "편의점"], ["마트·슈퍼", "마트·슈퍼"],
+    ["농축수산·식품", "농축수산·식품"], ["의류·신발", "의류·신발"], ["생활·잡화", "생활·잡화"],
+    ["생활서비스", "생활서비스"], ["약국", "약국"], ["학원", "학원·교습소"], ["기타", "기타"]
+  ];
+  // 브랜드(brand) 표시명 (M10-3 ②)
+  var BRAND_ORDER = [
+    ["convenience", "편의점"], ["mart", "마트·슈퍼"], ["ssm", "기업형 슈퍼(SSM)"], ["daiso", "다이소"]
+  ];
   var PAGE_SIZE = 50;
-  // 확인 경로 링크 규격(M6) — 1차: 웹 지도(라벨에 "앱" 금지, 목적지 일치) · 2차: 앱 설치(검증 2026-08-07)
   var APP_MAP_URL = "https://www.onnuri.gift/place";
   var APP_STORE_URL = "https://apps.apple.com/kr/app/id6738372450";
   var PLAY_URL = "https://play.google.com/store/apps/details?id=com.komsco.kpay";
+  var UNKNOWN_DONG = "동 미상";
 
   // ---- 상태 ----
-  var CACHE = {};            // 시장 뷰: 시도별 CSV 지연 캐시
-  var BRAND = null;          // 브랜드 뷰: brand_stores.json 지연 로드(1회)
-  var MARKET_META = { snapshot: "", next: "" };
-  var BRAND_META = { collected: "" };
-  var state = { view: "market", sido: "서울", cat: "전체", guSi: "전체", q: "", sort: "default", digitalOnly: true, page: 1 };
+  var CACHE = {};                 // 시도별 지연 캐시
+  var META = { collected: "" };
+  var state = {
+    sido: "서울", si: "전체", gu: "전체", dong: "전체",
+    cat: "전체", brand: "전체", mtype: "전체",
+    digitalOnly: false, q: "", sort: "default", page: 1
+  };
   var loadingSido = null;
 
   var el = function (id) { return document.getElementById(id); };
@@ -215,88 +209,99 @@
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
   }); };
   var nf = function (n) { return n.toLocaleString("ko-KR"); };
-  var isBrand = function () { return state.view === "brand"; };
-  var catLabel = function (key) {
-    var arr = isBrand() ? BRAND_CAT : MARKET_CAT;
-    for (var i = 0; i < arr.length; i++) if (arr[i][0] === key) return arr[i][1];
-    return key;
+  var isGG = function () { return state.sido === "경기"; };
+  var uniqSorted = function (arr) {
+    var seen = {}, out = [];
+    for (var i = 0; i < arr.length; i++) { var v = arr[i]; if (v && !seen[v]) { seen[v] = 1; out.push(v); } }
+    out.sort(function (a, b) { return a.localeCompare(b, "ko"); });
+    return out;
   };
+  var catLabel = function (k) { for (var i = 0; i < CAT_ORDER.length; i++) if (CAT_ORDER[i][0] === k) return CAT_ORDER[i][1]; return k; };
+  var brandLabel = function (k) { for (var i = 0; i < BRAND_ORDER.length; i++) if (BRAND_ORDER[i][0] === k) return BRAND_ORDER[i][1]; return k; };
 
   // ---- 지연 로드 ----
-  function loadMarketSido(sido) {
+  function loadSido(sido) {
     if (CACHE[sido]) return Promise.resolve(CACHE[sido]);
     var conf = SIDO.filter(function (s) { return s.key === sido; })[0];
     return fetch(conf.url).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
     }).then(function (data) {
-      if (!MARKET_META.snapshot && data.meta) {
-        MARKET_META.snapshot = data.meta.dataset_version || data.meta.snapshot_date || "";
-        MARKET_META.next = data.meta.next_update || "";
-      }
+      if (!META.collected && data.meta) META.collected = data.meta.collected_on || "";
       CACHE[sido] = data.items || [];
       return CACHE[sido];
     });
   }
-  function loadBrand() {
-    if (BRAND) return Promise.resolve(BRAND);
-    return fetch(BRAND_URL).then(function (r) {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
-    }).then(function (data) {
-      BRAND_META.collected = (data.meta && data.meta.collected_on) || "";
-      BRAND = data.items || [];
-      return BRAND;
-    });
+
+  // ---- 지역 계층 헬퍼 ----
+  function sidoItems() { return CACHE[state.sido] || []; }
+  function ggSiHasGu(si) {
+    var it = sidoItems();
+    for (var i = 0; i < it.length; i++) if (it[i].si === si && it[i].gu) return true;
+    return false;
+  }
+  function siOptions() { return uniqSorted(sidoItems().map(function (x) { return x.si; })); }
+  function guOptions() {
+    var src = isGG()
+      ? sidoItems().filter(function (x) { return x.si === state.si; })
+      : sidoItems();
+    return uniqSorted(src.map(function (x) { return x.gu; }));
+  }
+  function dongScope() {
+    // 동 옵션·필터의 상위 범위(구까지 좁힌 집합)
+    var it = sidoItems();
+    if (isGG()) {
+      it = it.filter(function (x) { return x.si === state.si; });
+      if (ggSiHasGu(state.si) && state.gu !== "전체") it = it.filter(function (x) { return x.gu === state.gu; });
+    } else if (state.gu !== "전체") {
+      it = it.filter(function (x) { return x.gu === state.gu; });
+    }
+    return it;
+  }
+  function dongOptions() {
+    var it = dongScope();
+    var opts = uniqSorted(it.map(function (x) { return x.dong; }));
+    if (it.some(function (x) { return !x.dong; })) opts.push(UNKNOWN_DONG); // D16
+    return opts;
+  }
+  function dongEnabled() {
+    if (isGG()) {
+      if (state.si === "전체") return false;
+      if (ggSiHasGu(state.si)) return state.gu !== "전체";
+      return true; // 구 없는 시 → 시 선택만으로 동 활성
+    }
+    return state.gu !== "전체";
   }
 
   // ---- 파생 계산 ----
-  // regionItems: 현재 시도의 전체(뷰별) — M1 건수·구/시 옵션·시도탭 건수 기준
-  function regionItems() {
-    if (isBrand()) {
-      if (!BRAND) return [];
-      return BRAND.filter(function (x) { return x.region === state.sido; });
+  function regionFiltered() {
+    var it = sidoItems();
+    if (isGG() && state.si !== "전체") it = it.filter(function (x) { return x.si === state.si; });
+    if (state.gu !== "전체") it = it.filter(function (x) { return x.gu === state.gu; });
+    if (state.dong !== "전체") {
+      it = (state.dong === UNKNOWN_DONG)
+        ? it.filter(function (x) { return !x.dong; })
+        : it.filter(function (x) { return x.dong === state.dong; });
     }
-    var items = CACHE[state.sido] || [];
-    if (!state.digitalOnly) return items;
-    return items.filter(function (x) { return x.digital === "Y"; });
+    return it;
   }
-  // base: regionItems + (브랜드 뷰) 구/시 필터 — 카테고리 집계·행 필터 기준
   function base() {
-    var items = regionItems();
-    if (isBrand() && state.guSi !== "전체") {
-      items = items.filter(function (x) { return x.district === state.guSi; });
-    }
-    return items;
+    // 지역 + 디지털결제 필터 (칩 카운트 기준 — D7/D17)
+    var it = regionFiltered();
+    if (state.digitalOnly) it = it.filter(function (x) { return x.card === "Y" || x.qr === "Y"; });
+    return it;
   }
-  function catKeyOf(r) { return isBrand() ? r.brand_cat : r.category; }
-  function catCount(key) {
-    var b = base(), n = 0;
-    for (var i = 0; i < b.length; i++) if (key === "전체" || catKeyOf(b[i]) === key) n++;
-    return n;
-  }
-  function guSiOptions() {
-    var seen = {}, out = [];
-    var items = regionItems();
-    for (var i = 0; i < items.length; i++) {
-      var d = items[i].district;
-      if (d && !seen[d]) { seen[d] = 1; out.push(d); }
-    }
-    out.sort(function (a, b) { return a.localeCompare(b, "ko"); });
-    return out;
-  }
+  function catCount(k) { var b = base(), n = 0; for (var i = 0; i < b.length; i++) if (k === "전체" || b[i].cat === k) n++; return n; }
+  function brandCount(k) { var b = base(), n = 0; for (var i = 0; i < b.length; i++) if (k === "전체" ? b[i].brand : b[i].brand === k) n++; return n; }
   function filtered() {
     var q = state.q.trim().toLowerCase();
     var b = base(), out = [];
     for (var i = 0; i < b.length; i++) {
       var r = b[i];
-      if (state.cat !== "전체" && catKeyOf(r) !== state.cat) continue;
-      if (q) {
-        var hay = isBrand()
-          ? ((r.name || "") + " " + (r.addr || "") + " " + (r.brand || "") + " " + (r.market || ""))
-          : ((r.name || "") + " " + (r.market || "") + " " + (r.items || ""));
-        if (hay.toLowerCase().indexOf(q) === -1) continue;
-      }
+      if (state.cat !== "전체" && r.cat !== state.cat) continue;
+      if (state.brand !== "전체" && r.brand !== state.brand) continue;
+      if (state.mtype !== "전체" && r.market_type !== state.mtype) continue;
+      if (q && ((r.name || "") + " " + (r.addr || "") + " " + (r.market || "")).toLowerCase().indexOf(q) === -1) continue;
       out.push(r);
     }
     if (state.sort === "name") out.sort(function (a, b2) { return (a.name || "").localeCompare(b2.name || "", "ko"); });
@@ -305,35 +310,10 @@
 
   // ---- 렌더 ----
   function renderMeta() {
-    // 시장 뷰
-    var snap = MARKET_META.snapshot || "(기준일 미상)";
-    var nextClause = MARKET_META.next ? "연 1회 갱신되는 자료라(다음 갱신 " + esc(MARKET_META.next) + " 예정) 그 이후의" : "연 1회 갱신되는 자료라 그 이후의";
-    el("noticeSnapshot").innerHTML = "<strong>이 목록은 " + esc(snap) + " 기준 공공데이터 스냅샷입니다.</strong> " + nextClause + " 신규 가맹·해지는 반영돼 있지 않습니다.";
-    el("noticeBidir").innerHTML = "여기 '가맹'으로 나와도 " + esc(snap) + " 이후 해지됐을 수 있고, 여기 없어도 새로 가맹했을 수 있습니다.";
-    var nextFoot = MARKET_META.next ? " 연 1회 갱신 자료로 다음 갱신은 " + esc(MARKET_META.next) + " 예정입니다." : " 연 1회 갱신되는 자료입니다.";
-    el("foot1").innerHTML = "※ 출처 — 공공데이터포털 '온누리상품권 가맹점 현황' " + esc(snap) + " 기준 스냅샷, 수도권(서울·인천·경기)의 디지털형·지류형 가맹점 수록(기본은 '디지털만 보기')." + nextFoot;
-    // 브랜드 뷰
-    var col = BRAND_META.collected || "(수집일 미상)";
-    var mkt = MARKET_META.snapshot || "";
-    el("brandNoticeTop").innerHTML = "<strong>이 목록은 온누리 가맹점찾기 조회 결과의 " + esc(col) + " 수집본입니다.</strong> '시장·상점가' 목록(" + esc(mkt || "공공데이터") + " 기준 공공데이터)과는 기준일이 다르니 두 목록의 건수·수록 여부를 직접 비교하지 마세요.";
-    el("brandFoot1").innerHTML = "※ 출처 — 온누리 가맹점찾기(onnuri.gift/place) 조회 결과 " + esc(col) + " 수집. '시장·상점가' 목록과 출처·기준일이 다릅니다.";
-  }
-
-  function renderViewTabs() {
-    var views = [
-      { key: "market", title: "시장·상점가", sub: "전통시장·상점가 소속 가맹점 — 위치는 시장 이름 단위" },
-      { key: "brand", title: "브랜드 매장", sub: "편의점·마트·기업형 슈퍼·다이소 가맹 점포 — 도로명 주소 제공" }
-    ];
-    var wrap = el("viewTabs"); wrap.innerHTML = "";
-    views.forEach(function (v) {
-      var b = document.createElement("button");
-      b.className = "view-tab" + (state.view === v.key ? " active" : "");
-      b.setAttribute("role", "tab");
-      b.setAttribute("aria-selected", state.view === v.key ? "true" : "false");
-      b.innerHTML = '<span class="vt-title">' + esc(v.title) + '</span><span class="vt-sub">' + esc(v.sub) + '</span>';
-      b.onclick = function () { selectView(v.key); };
-      wrap.appendChild(b);
-    });
+    var d = META.collected || "(수집일 미상)";
+    el("mDate").textContent = d;
+    el("noticeMain").innerHTML = "<strong>이 목록은 온누리 가맹점찾기에서 " + esc(d) + "에 수집한 자료입니다.</strong> 도로명 주소와 구·동까지 확인되지만, 수집일 이후 새로 가맹하거나 해지한 곳은 반영되지 않습니다 — 결제 전 온누리 가맹점 지도나 디지털온누리 앱에서 확인하세요.";
+    el("footLimit").innerHTML = "※ 이 자료는 온누리 가맹점찾기(비공식 조회)에서 수집했습니다. 구·시까지는 확정값이지만 동(洞)은 도로명 주소에서 뽑은 값이라 약 7%는 '" + UNKNOWN_DONG + "'이며 일부 부정확할 수 있습니다. 정확한 위치·현재 가맹 여부는 결제 전 온누리 가맹점 지도나 디지털온누리 앱에서 확인하세요.";
   }
 
   function renderSidoTabs() {
@@ -343,37 +323,49 @@
       b.className = "sido-tab" + (state.sido === s.key ? " active" : "");
       b.setAttribute("role", "tab");
       b.setAttribute("aria-selected", state.sido === s.key ? "true" : "false");
-      var sub;
-      if (isBrand()) {
-        sub = BRAND ? nf(BRAND.filter(function (x) { return x.region === s.key; }).length) + "곳" : "불러오는 중…";
-      } else {
-        sub = CACHE[s.key] ? nf((state.digitalOnly ? CACHE[s.key].filter(function (x) { return x.digital === "Y"; }) : CACHE[s.key]).length) + "곳"
-          : (s.key === loadingSido ? "불러오는 중…" : "선택 시 불러오기");
-      }
+      var sub = CACHE[s.key] ? nf(CACHE[s.key].length) + "곳" : (s.key === loadingSido ? "불러오는 중…" : "선택 시 불러오기");
       b.innerHTML = esc(s.key) + '<span class="tab-sub">' + sub + "</span>";
       b.onclick = function () { selectSido(s.key); };
       wrap.appendChild(b);
     });
   }
 
-  function renderGuSi() {
-    var row = el("guSiRow");
-    if (!isBrand()) { row.style.display = "none"; return; }
-    row.style.display = "";
-    el("guSiLabel").textContent = (state.sido === "경기") ? "시" : "구";
-    var allLabel = (state.sido === "경기") ? "시 전체" : "구 전체";
-    var opts = guSiOptions();
-    var sel = el("guSi");
-    var html = '<option value="전체">' + allLabel + "</option>";
-    for (var i = 0; i < opts.length; i++) html += '<option value="' + esc(opts[i]) + '"' + (state.guSi === opts[i] ? " selected" : "") + ">" + esc(opts[i]) + "</option>";
-    sel.innerHTML = html;
+  function mkSelect(id, label, options, value, enabled, onChange) {
+    var s = '<label class="rr-label" for="' + id + '" style="margin-left:6px">' + esc(label) + "</label>";
+    s += '<select class="sel" id="' + id + '"' + (enabled ? "" : " disabled") + ' aria-label="' + esc(label) + ' 선택">';
+    options.forEach(function (o) {
+      s += '<option value="' + esc(o.v) + '"' + (o.v === value ? " selected" : "") + ">" + esc(o.t) + "</option>";
+    });
+    s += "</select>";
+    return s;
   }
+  function renderRegionSelects() {
+    var wrap = el("regionSelects"); wrap.innerHTML = "";
+    var html = "";
+    if (isGG()) {
+      var siOpts = [{ v: "전체", t: "시 전체" }].concat(siOptions().map(function (v) { return { v: v, t: v }; }));
+      html += mkSelect("selSi", "시", siOpts, state.si, true);
+      if (state.si !== "전체" && ggSiHasGu(state.si)) {
+        var guOpts = [{ v: "전체", t: "구 전체" }].concat(guOptions().map(function (v) { return { v: v, t: v }; }));
+        html += mkSelect("selGu", "구", guOpts, state.gu, true);
+      }
+    } else {
+      var guOpts2 = [{ v: "전체", t: "구 전체" }].concat(guOptions().map(function (v) { return { v: v, t: v }; }));
+      html += mkSelect("selGu", "구", guOpts2, state.gu, true);
+    }
+    var dOpts = [{ v: "전체", t: "동 전체" }].concat(dongOptions().map(function (v) { return { v: v, t: v }; }));
+    html += mkSelect("selDong", "동", dOpts, state.dong, dongEnabled());
+    wrap.innerHTML = html;
+    var selSi = el("selSi"); if (selSi) selSi.onchange = function (e) { state.si = e.target.value; state.gu = "전체"; state.dong = "전체"; state.page = 1; afterRegionChange(); };
+    var selGu = el("selGu"); if (selGu) selGu.onchange = function (e) { state.gu = e.target.value; state.dong = "전체"; state.page = 1; afterRegionChange(); };
+    var selDong = el("selDong"); if (selDong) selDong.onchange = function (e) { state.dong = e.target.value; state.page = 1; afterRegionChange(); };
+  }
+  function afterRegionChange() { renderRegionSelects(); renderChips(); render(); }
 
   function renderChips() {
-    var cc = el("catChips");
-    cc.innerHTML = '<span class="chip-label">분류</span>';
-    var cats = [["전체", "전체"]].concat(isBrand() ? BRAND_CAT : MARKET_CAT);
-    cats.forEach(function (pair) {
+    // 업종(주)
+    var cc = el("catChips"); cc.innerHTML = '<span class="chip-label">업종</span>';
+    [["전체", "전체"]].concat(CAT_ORDER).forEach(function (pair) {
       var key = pair[0], label = pair[1];
       var b = document.createElement("button");
       b.className = "chip" + (state.cat === key ? " active" : "");
@@ -381,23 +373,30 @@
       b.onclick = function () { state.cat = key; state.page = 1; renderChips(); render(); };
       cc.appendChild(b);
     });
+    // 브랜드(보조)
+    var bc = el("brandChips"); bc.innerHTML = '<span class="chip-label">브랜드</span>';
+    [["전체", "전체"]].concat(BRAND_ORDER).forEach(function (pair) {
+      var key = pair[0], label = pair[1];
+      var b = document.createElement("button");
+      b.className = "chip" + (state.brand === key ? " active" : "");
+      b.innerHTML = esc(label) + ' <b>' + nf(brandCount(key)) + "</b>";
+      b.onclick = function () { state.brand = key; state.page = 1; renderChips(); render(); };
+      bc.appendChild(b);
+    });
+    // 시장 유형(보조, 드롭다운) — D15
+    var mt = el("selMtype");
+    var types = uniqSorted(sidoItems().map(function (x) { return x.market_type; }));
+    var cur = state.mtype;
+    var h = '<option value="전체"' + (cur === "전체" ? " selected" : "") + ">전체</option>";
+    types.forEach(function (t) { h += '<option value="' + esc(t) + '"' + (cur === t ? " selected" : "") + ">" + esc(t) + "</option>"; });
+    mt.innerHTML = h;
   }
 
   function render() {
-    // M1 보조행: 기준일(D10) + 현재 시도 건수(D5)
-    var total = regionItems().length;
-    if (isBrand()) {
-      el("mDateLabel").textContent = "온누리 가맹점찾기 조회";
-      el("mDate").textContent = BRAND_META.collected || "…";
-      el("mScope").textContent = state.sido + " " + nf(total) + "곳";
-    } else {
-      el("mDateLabel").textContent = "공공데이터포털 가맹점 현황";
-      el("mDate").textContent = MARKET_META.snapshot || "…";
-      el("mScope").textContent = state.sido + " " + nf(total) + "곳" + (state.digitalOnly ? " (디지털형)" : " (디지털형·지류형)");
-    }
-
+    var regionTotal = regionFiltered().length;
+    el("mScope").textContent = state.sido + " " + nf(sidoItems().length) + "곳";
     var rows = filtered();
-    el("countText").textContent = nf(total) + "곳 중 " + nf(rows.length) + "곳 표시";
+    el("countText").textContent = nf(regionTotal) + "곳 중 " + nf(rows.length) + "곳 표시";
 
     var area = el("resultArea");
     if (rows.length === 0) { area.innerHTML = emptyHTML(); wireEmpty(); return; }
@@ -407,37 +406,26 @@
     var start = (state.page - 1) * PAGE_SIZE;
     var slice = rows.slice(start, start + PAGE_SIZE);
 
-    var h = '<div class="table-scroll"><table><thead><tr>';
-    if (isBrand()) {
-      h += '<th>가맹점명</th><th>분류</th><th>도로명 주소</th><th>소속 시장·상점가</th><th>지역</th>';
-    } else {
-      h += '<th>가맹점명</th><th>분류</th><th>소속 시장·상점가</th><th>지역</th><th>취급품목</th>';
-    }
-    h += '</tr></thead><tbody>';
-
-    var showPaper = !isBrand() && !state.digitalOnly;
+    var h = '<div class="table-scroll"><table><thead><tr>'
+      + '<th>가맹점명</th><th>업종</th><th>소속 시장·상점가</th><th>도로명 주소</th><th>결제</th>'
+      + '</tr></thead><tbody>';
     for (var i = 0; i < slice.length; i++) {
       var r = slice[i];
-      var key = catKeyOf(r);
-      var badgeCls = "cat-badge" + (key === "기타" ? " etc" : "");
-      if (isBrand()) {
-        h += '<tr>'
-          + '<td class="name">' + esc(r.name) + '</td>'
-          + '<td><span class="' + badgeCls + '">' + esc(catLabel(key)) + '</span></td>'
-          + '<td class="addr">' + esc(r.addr || "—") + '</td>'
-          + '<td class="market">' + esc(r.market || "—") + '</td>'
-          + '<td class="region"><span class="region-badge">' + esc(r.district || r.region || "—") + '</span></td>'
-          + '</tr>';
-      } else {
-        var paper = (showPaper && r.digital !== "Y") ? '<span class="paper-badge">지류만</span>' : "";
-        h += '<tr>'
-          + '<td class="name">' + esc(r.name) + paper + '</td>'
-          + '<td><span class="' + badgeCls + '">' + esc(catLabel(key)) + '</span></td>'
-          + '<td class="market">' + esc(r.market || "—") + '</td>'
-          + '<td class="region"><span class="region-badge">' + esc(state.sido) + '</span></td>'
-          + '<td class="items">' + esc(r.items || "—") + '</td>'
-          + '</tr>';
-      }
+      var badgeCls = "cat-badge" + (r.cat === "기타" ? " etc" : "");
+      var brandTag = (r.brand === "ssm") ? '<span class="brand-tag">SSM</span>' : (r.brand === "daiso") ? '<span class="brand-tag">다이소</span>' : "";
+      var mt = r.market_type ? '<span class="mt-tag">' + esc(r.market_type) + "</span>" : "";
+      var dong = r.dong ? esc(r.dong) : UNKNOWN_DONG;
+      var pay = "";
+      if (r.card === "Y") pay += '<span class="pay card">카드</span>';
+      if (r.qr === "Y") pay += '<span class="pay qr">QR</span>';
+      if (!pay) pay = '<span class="pay none">앱 결제 미확인</span>';
+      h += '<tr>'
+        + '<td class="name">' + esc(r.name) + brandTag + '</td>'
+        + '<td><span class="' + badgeCls + '">' + esc(catLabel(r.cat)) + '</span></td>'
+        + '<td class="market">' + esc(r.market || "—") + mt + '</td>'
+        + '<td class="addr">' + esc(r.addr || "—") + ' <span class="dong">· ' + dong + '</span></td>'
+        + '<td>' + pay + '</td>'
+        + '</tr>';
     }
     h += '</tbody></table></div>' + pagerHTML(state.page, pages, rows.length);
     area.innerHTML = h;
@@ -455,8 +443,7 @@
       + '</div>';
   }
   function wirePager(pages) {
-    var btns = el("resultArea").querySelectorAll(".pager button[data-pg]");
-    Array.prototype.forEach.call(btns, function (b) {
+    Array.prototype.forEach.call(el("resultArea").querySelectorAll(".pager button[data-pg]"), function (b) {
       b.onclick = function () {
         var pg = b.getAttribute("data-pg");
         if (pg === "first") state.page = 1;
@@ -469,91 +456,53 @@
     });
   }
 
-  function emptyHTML() {
-    var q = state.q.trim();
-    var lead, second;
-    if (isBrand()) {
-      lead = q ? '"' + esc(q) + '"에 해당하는 매장이 없습니다.' : "선택한 조건에 해당하는 매장이 없습니다.";
-      second = "이 목록은 " + esc(BRAND_META.collected || "") + " 수집본입니다 — 여기 없어도 이후 새로 가맹했을 수 있으니, 온누리 가맹점 지도나 디지털온누리 앱에서 확인하세요.";
-    } else {
-      lead = q ? '"' + esc(q) + '"에 해당하는 가맹점이 없습니다.' : "선택한 조건에 해당하는 가맹점이 없습니다.";
-      second = "이 목록은 시장·상점가 소속 가맹점(" + esc(MARKET_META.snapshot || "") + " 기준)만 담고 있어, 여기 없어도 실제로는 가맹점일 수 있습니다 — 온누리 가맹점 지도나 디지털온누리 앱에서 점포 단위로 확인하세요.";
-    }
-    return '<div class="state"><span class="lead">' + lead + '</span><br>' + second
-      + '<div class="state-actions">'
-      + '<button class="btn-outline" id="resetBtn">검색 초기화</button>'
-      + '<a class="btn-outline" href="' + APP_MAP_URL + '" target="_blank" rel="noopener">온누리 공식 가맹점 지도로 확인 ↗</a>'
-      + '</div>'
-      + appInstallHTML()
-      + '</div>';
-  }
-  // 2차(보조) 링크 — 디지털온누리 앱 설치(App Store · Google Play). 두 스토어 모두 접근 가능.
   function appInstallHTML() {
     return '<div class="app-install">디지털온누리 앱 설치 — '
       + '<a href="' + APP_STORE_URL + '" target="_blank" rel="noopener">App Store ↗</a> · '
       + '<a href="' + PLAY_URL + '" target="_blank" rel="noopener">Google Play ↗</a></div>';
+  }
+  function anyRegionFilter() { return state.si !== "전체" || state.gu !== "전체" || state.dong !== "전체"; }
+  function emptyHTML() {
+    var q = state.q.trim();
+    var lead = q ? '"' + esc(q) + '"에 해당하는 가맹점이 없습니다.' : "선택한 조건에 해당하는 가맹점이 없습니다.";
+    var hint = anyRegionFilter()
+      ? "지역 필터를 상위로 넓혀 보세요(동 → 구 → 시도). "
+      : "";
+    var second = hint + "이 목록은 " + esc(META.collected || "") + " 수집본이라 이후 새로 가맹한 곳은 빠질 수 있으니 온누리 가맹점 지도나 디지털온누리 앱에서 확인하세요.";
+    return '<div class="state"><span class="lead">' + lead + '</span><br>' + second
+      + '<div class="state-actions">'
+      + '<button class="btn-outline" id="resetBtn">검색 초기화</button>'
+      + '<a class="btn-outline" href="' + APP_MAP_URL + '" target="_blank" rel="noopener">온누리 공식 가맹점 지도로 확인 ↗</a>'
+      + '</div>' + appInstallHTML() + '</div>';
   }
   function wireEmpty() { var rb = el("resetBtn"); if (rb) rb.onclick = function () { resetAll(); }; }
 
   function showLoading(msg) {
     el("resultArea").innerHTML = '<div class="state"><span class="lead">' + esc(msg) + '</span></div>';
     el("countText").textContent = "";
-    el("catChips").innerHTML = '<span class="chip-label">분류</span>';
+    el("catChips").innerHTML = '<span class="chip-label">업종</span>';
+    el("brandChips").innerHTML = '<span class="chip-label">브랜드</span>';
   }
-  function renderLoadError(what, retryFn) {
-    el("resultArea").innerHTML = '<div class="state"><span class="lead">' + esc(what) + ' 데이터를 불러오지 못했습니다.</span><br>'
+  function renderLoadError(sido) {
+    el("resultArea").innerHTML = '<div class="state"><span class="lead">' + esc(sido) + ' 가맹점 데이터를 불러오지 못했습니다.</span><br>'
       + '네트워크 상태를 확인하고 다시 시도해 주세요. 이 페이지는 <strong>웹 서버에서 열어야</strong> 데이터가 로드됩니다 — 파일(file://)로 직접 열면 브라우저가 차단합니다.'
       + '<div class="state-actions"><button class="btn-outline" id="retryBtn">다시 시도</button>'
       + '<a class="btn-outline" href="' + APP_MAP_URL + '" target="_blank" rel="noopener">온누리 공식 가맹점 지도로 확인 ↗</a></div>'
       + appInstallHTML() + '</div>';
     el("countText").textContent = "로드 실패";
-    var rb = el("retryBtn"); if (rb) rb.onclick = retryFn;
+    var rb = el("retryBtn"); if (rb) rb.onclick = function () { selectSido(sido); };
   }
 
-  // ---- 뷰/필터 상호작용 ----
-  function applyViewChrome() {
-    // 배너·각주·토글·검색 placeholder 를 활성 뷰에 맞춰 표시
-    el("marketNotice").style.display = isBrand() ? "none" : "";
-    el("brandNotice").style.display = isBrand() ? "" : "none";
-    el("marketFoot").style.display = isBrand() ? "none" : "";
-    el("brandFoot").style.display = isBrand() ? "" : "none";
-    el("digitalToggleWrap").style.display = isBrand() ? "none" : "";
-    el("q").placeholder = isBrand()
-      ? "가게 이름·주소·브랜드 검색 (예: CU, 다이소, ○○구)"
-      : "가게 이름·시장 이름·취급품목 검색 (예: 떡집, ○○시장)";
-  }
-
-  function selectView(view) {
-    if (state.view === view) return;
-    state.view = view; state.cat = "전체"; state.guSi = "전체"; state.page = 1; state.q = "";
-    el("q").value = ""; el("qClear").style.display = "none";
-    renderViewTabs(); applyViewChrome(); renderSidoTabs(); renderGuSi();
-    if (isBrand()) {
-      if (BRAND) { renderChips(); render(); return; }
-      showLoading("브랜드 매장 목록을 불러오는 중입니다…");
-      renderSidoTabs();
-      loadBrand().then(function () {
-        renderMeta(); renderViewTabs(); renderSidoTabs(); renderGuSi(); renderChips(); render();
-      }).catch(function () { renderLoadError("브랜드 매장", function () { selectView("brand"); }); });
-    } else {
-      ensureMarketSido(state.sido);
-    }
-  }
-
+  // ---- 상호작용 ----
   function selectSido(sido) {
-    state.sido = sido; state.cat = "전체"; state.guSi = "전체"; state.page = 1;
+    state.sido = sido; state.si = "전체"; state.gu = "전체"; state.dong = "전체";
+    state.cat = "전체"; state.brand = "전체"; state.mtype = "전체"; state.page = 1;
     renderSidoTabs();
-    if (isBrand()) { renderGuSi(); renderChips(); render(); return; }
-    ensureMarketSido(sido);
-  }
-
-  function ensureMarketSido(sido) {
-    renderGuSi();
-    if (CACHE[sido]) { renderChips(); render(); return; }
+    if (CACHE[sido]) { renderRegionSelects(); renderChips(); render(); return; }
     loadingSido = sido; renderSidoTabs(); showLoading(sido + " 가맹점 목록을 불러오는 중입니다…");
-    loadMarketSido(sido).then(function () {
-      loadingSido = null; renderMeta(); renderSidoTabs(); renderChips(); render();
-    }).catch(function () { loadingSido = null; renderSidoTabs(); renderLoadError(sido, function () { ensureMarketSido(sido); }); });
+    loadSido(sido).then(function () {
+      loadingSido = null; renderMeta(); renderSidoTabs(); renderRegionSelects(); renderChips(); render();
+    }).catch(function () { loadingSido = null; renderSidoTabs(); renderLoadError(sido); });
   }
 
   var qTimer = null;
@@ -562,15 +511,12 @@
       var v = e.target.value;
       el("qClear").style.display = v ? "" : "none";
       clearTimeout(qTimer);
-      qTimer = setTimeout(function () { state.q = v; state.page = 1; renderChips(); render(); }, 150);
+      qTimer = setTimeout(function () { state.q = v; state.page = 1; render(); }, 150);
     });
     el("qClear").addEventListener("click", function () { resetSearch(); });
     el("sort").addEventListener("change", function (e) { state.sort = e.target.value; state.page = 1; render(); });
-    el("digitalOnly").addEventListener("change", function (e) {
-      state.digitalOnly = e.target.checked; state.page = 1;
-      renderSidoTabs(); renderChips(); render();
-    });
-    el("guSi").addEventListener("change", function (e) { state.guSi = e.target.value; state.cat = "전체"; state.page = 1; renderChips(); render(); });
+    el("selMtype").addEventListener("change", function (e) { state.mtype = e.target.value; state.page = 1; render(); });
+    el("digitalOnly").addEventListener("change", function (e) { state.digitalOnly = e.target.checked; state.page = 1; renderChips(); render(); });
     document.addEventListener("keydown", function (e) {
       var t = document.activeElement;
       var typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
@@ -578,20 +524,18 @@
       if (e.key === "Escape" && t === el("q")) resetSearch();
     });
   }
-  function resetSearch() {
-    state.q = ""; state.page = 1;
-    el("q").value = ""; el("qClear").style.display = "none";
-    el("q").focus(); renderChips(); render();
-  }
+  function resetSearch() { state.q = ""; state.page = 1; el("q").value = ""; el("qClear").style.display = "none"; el("q").focus(); render(); }
   function resetAll() {
-    state.q = ""; state.cat = "전체"; state.guSi = "전체"; state.page = 1;
-    el("q").value = ""; el("qClear").style.display = "none";
-    renderGuSi(); renderChips(); render();
+    state.si = "전체"; state.gu = "전체"; state.dong = "전체";
+    state.cat = "전체"; state.brand = "전체"; state.mtype = "전체";
+    state.digitalOnly = false; state.q = ""; state.page = 1;
+    el("q").value = ""; el("qClear").style.display = "none"; el("digitalOnly").checked = false;
+    renderRegionSelects(); renderChips(); render();
   }
 
   function boot() {
-    renderViewTabs(); applyViewChrome(); renderSidoTabs(); renderGuSi(); bindControls();
-    ensureMarketSido(state.sido); // 기본: 시장 뷰 서울만 지연 로드
+    renderSidoTabs(); bindControls();
+    selectSido(state.sido);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
