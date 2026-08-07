@@ -462,12 +462,16 @@
       + '<a href="' + PLAY_URL + '" target="_blank" rel="noopener">Google Play ↗</a></div>';
   }
   function anyRegionFilter() { return state.si !== "전체" || state.gu !== "전체" || state.dong !== "전체"; }
+  function anyOtherFilter() { return state.cat !== "전체" || state.brand !== "전체" || state.mtype !== "전체" || state.digitalOnly; }
   function emptyHTML() {
     var q = state.q.trim();
     var lead = q ? '"' + esc(q) + '"에 해당하는 가맹점이 없습니다.' : "선택한 조건에 해당하는 가맹점이 없습니다.";
-    var hint = anyRegionFilter()
-      ? "지역 필터를 상위로 넓혀 보세요(동 → 구 → 시도). "
-      : "";
+    // M10-4: 계층/필터가 좁아 0건이면 넓히기·줄이기를 우선 안내(동→구→시도)
+    var hint;
+    if (anyRegionFilter() && anyOtherFilter()) hint = "지역 범위를 넓히거나(동 → 구 → 시도) 업종·브랜드·시장 유형 필터를 줄여 보세요. ";
+    else if (anyRegionFilter()) hint = "지역 범위를 상위로 넓혀 보세요(동 → 구 → 시도). ";
+    else if (anyOtherFilter()) hint = "업종·브랜드·시장 유형 필터를 줄여 보세요. ";
+    else hint = "";
     var second = hint + "이 목록은 " + esc(META.collected || "") + " 수집본이라 이후 새로 가맹한 곳은 빠질 수 있으니 온누리 가맹점 지도나 디지털온누리 앱에서 확인하세요.";
     return '<div class="state"><span class="lead">' + lead + '</span><br>' + second
       + '<div class="state-actions">'
