@@ -27,3 +27,4 @@
 | 2026-08-06 | SSM 단정 정정 (직영/가맹 축 분리) | 03 spec, offline JSON, index.html | 사용자 결함 제보: GS더프레시 가맹점 실존. 직영=불가 유지, 지정구역 내 개인 가맹점=가능 |
 | 2026-08-06 | 배포: GitHub Pages Actions workflow 전환 | .github/workflows/pages.yml | legacy 빌더 즉사(duration 0), stuck deployment 취소 필요했음 |
 | 2026-08-07 | 브랜드 매장 뷰 추가 (편의점/마트·슈퍼/SSM/다이소, 구·시별) | merchants.html, data/merchants/brand_stores.json | 사용자 요청. 출처: 온누리 가맹점찾기 비공식 API(2026-08-07 수집, 1,515건) — 공공데이터에 없는 도로명 주소·구/시 분류 확보. 갱신: build_brand_stores.py 재실행 |
+| 2026-08-07 | 지도 링크 문구 목적지 일치 + 앱스토어 보조링크 | merchants.html, index.html | 조사 결과 앱 딥링크 부재 확정 → 웹 지도 링크 유지, 라벨에서 "앱" 제거해 목적지와 일치. 디지털온누리 앱스토어 설치 링크(검증됨) 보조 추가. 공식 지도 지역 제한 오해 서술 금지 |

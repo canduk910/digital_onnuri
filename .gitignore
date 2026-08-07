@@ -2,3 +2,4 @@
 .DS_Store
 *.bak-*
 _workspace/raw/
+.playwright-mcp/

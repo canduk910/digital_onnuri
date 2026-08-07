@@ -203,7 +203,7 @@ tpl = replace_once(
     "onnuri.gift/place 가맹점 지도 검색 ↗</a>에서 점포 단위로 확인할 수 있습니다.</span></div>"
     "<a href=\"merchants.html\" style=\"display:flex;gap:10px;align-items:flex-start;background:#FFFFFF;border:1px dashed #EFC5A3;border-radius:10px;padding:9px 12px;text-decoration:none;color:inherit\" style-hover=\"border-color:#F26B1D\">"
     "<span style=\"flex:none;font-size:11px;font-weight:800;color:#C4510F;margin-top:2px;letter-spacing:0.04em\">수도권</span>"
-    "<span style=\"font-size:13px;line-height:1.55\"><strong style=\"color:#C4510F\">수도권 가맹점 검색 ↗</strong> — 서울·인천·경기 가맹점을 상호·소속 시장 이름으로 찾아볼 수 있습니다 (공공데이터 스냅샷 기준, 최종 확인은 앱 지도)</span></a>",
+    "<span style=\"font-size:13px;line-height:1.55\"><strong style=\"color:#C4510F\">수도권 가맹점 검색 ↗</strong> — 서울·인천·경기 가맹점을 상호·소속 시장 이름으로 찾아볼 수 있습니다 (공공데이터 스냅샷 기준, 최종 확인은 온누리 가맹점 지도/앱)</span></a>",
     "M7.merchants-link",
 )
 

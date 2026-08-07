@@ -87,6 +87,8 @@
   .state { padding:44px 20px; text-align:center; color:#8A8580; font-size:13.5px; line-height:1.7; }
   .state .lead { color:#26231F; font-weight:700; }
   .state-actions { margin-top:14px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .app-install { margin-top:12px; font-size:12px; color:#8A8580; }
+  .app-install a { font-weight:700; }
   .btn-outline { font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; color:#C4510F; background:none; border:1.5px solid #C4510F; border-radius:10px; padding:8px 14px; text-decoration:none; display:inline-flex; align-items:center; }
   .btn-outline:hover { background:#FDEEE3; text-decoration:none; }
 
@@ -195,7 +197,10 @@
   // 브랜드 뷰 카테고리(brand_cat 키 -> 표시명, M8-4 순서)
   var BRAND_CAT = [["convenience","편의점"],["mart","마트·슈퍼"],["ssm","기업형 슈퍼(SSM)"],["daiso","다이소"]];
   var PAGE_SIZE = 50;
+  // 확인 경로 링크 규격(M6) — 1차: 웹 지도(라벨에 "앱" 금지, 목적지 일치) · 2차: 앱 설치(검증 2026-08-07)
   var APP_MAP_URL = "https://www.onnuri.gift/place";
+  var APP_STORE_URL = "https://apps.apple.com/kr/app/id6738372450";
+  var PLAY_URL = "https://play.google.com/store/apps/details?id=com.komsco.kpay";
 
   // ---- 상태 ----
   var CACHE = {};            // 시장 뷰: 시도별 CSV 지연 캐시
@@ -469,16 +474,24 @@
     var lead, second;
     if (isBrand()) {
       lead = q ? '"' + esc(q) + '"에 해당하는 매장이 없습니다.' : "선택한 조건에 해당하는 매장이 없습니다.";
-      second = "이 목록은 " + esc(BRAND_META.collected || "") + " 수집본입니다 — 여기 없어도 이후 새로 가맹했을 수 있으니, 온누리 앱 '가맹점 찾기' 지도에서 확인하세요.";
+      second = "이 목록은 " + esc(BRAND_META.collected || "") + " 수집본입니다 — 여기 없어도 이후 새로 가맹했을 수 있으니, 온누리 가맹점 지도나 디지털온누리 앱에서 확인하세요.";
     } else {
       lead = q ? '"' + esc(q) + '"에 해당하는 가맹점이 없습니다.' : "선택한 조건에 해당하는 가맹점이 없습니다.";
-      second = "이 목록은 시장·상점가 소속 가맹점(" + esc(MARKET_META.snapshot || "") + " 기준)만 담고 있어, 여기 없어도 실제로는 가맹점일 수 있습니다 — 온누리 앱 '가맹점 찾기' 지도에서 점포 단위로 확인하세요.";
+      second = "이 목록은 시장·상점가 소속 가맹점(" + esc(MARKET_META.snapshot || "") + " 기준)만 담고 있어, 여기 없어도 실제로는 가맹점일 수 있습니다 — 온누리 가맹점 지도나 디지털온누리 앱에서 점포 단위로 확인하세요.";
     }
     return '<div class="state"><span class="lead">' + lead + '</span><br>' + second
       + '<div class="state-actions">'
       + '<button class="btn-outline" id="resetBtn">검색 초기화</button>'
-      + '<a class="btn-outline" href="' + APP_MAP_URL + '" target="_blank" rel="noopener">앱 가맹점 지도로 확인 ↗</a>'
-      + '</div></div>';
+      + '<a class="btn-outline" href="' + APP_MAP_URL + '" target="_blank" rel="noopener">온누리 공식 가맹점 지도로 확인 ↗</a>'
+      + '</div>'
+      + appInstallHTML()
+      + '</div>';
+  }
+  // 2차(보조) 링크 — 디지털온누리 앱 설치(App Store · Google Play). 두 스토어 모두 접근 가능.
+  function appInstallHTML() {
+    return '<div class="app-install">디지털온누리 앱 설치 — '
+      + '<a href="' + APP_STORE_URL + '" target="_blank" rel="noopener">App Store ↗</a> · '
+      + '<a href="' + PLAY_URL + '" target="_blank" rel="noopener">Google Play ↗</a></div>';
   }
   function wireEmpty() { var rb = el("resetBtn"); if (rb) rb.onclick = function () { resetAll(); }; }
 
@@ -491,7 +504,8 @@
     el("resultArea").innerHTML = '<div class="state"><span class="lead">' + esc(what) + ' 데이터를 불러오지 못했습니다.</span><br>'
       + '네트워크 상태를 확인하고 다시 시도해 주세요. 이 페이지는 <strong>웹 서버에서 열어야</strong> 데이터가 로드됩니다 — 파일(file://)로 직접 열면 브라우저가 차단합니다.'
       + '<div class="state-actions"><button class="btn-outline" id="retryBtn">다시 시도</button>'
-      + '<a class="btn-outline" href="' + APP_MAP_URL + '" target="_blank" rel="noopener">앱 가맹점 지도로 확인 ↗</a></div></div>';
+      + '<a class="btn-outline" href="' + APP_MAP_URL + '" target="_blank" rel="noopener">온누리 공식 가맹점 지도로 확인 ↗</a></div>'
+      + appInstallHTML() + '</div>';
     el("countText").textContent = "로드 실패";
     var rb = el("retryBtn"); if (rb) rb.onclick = retryFn;
   }
