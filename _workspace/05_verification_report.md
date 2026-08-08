@@ -743,3 +743,114 @@ brand 필드를 카테고리 태그(convenience/mart/ssm/daiso)에서 **개별 �
 ### 종합
 
 brand 개별 체인명 전환·상위N 칩+검색 드롭다운(전 브랜드·건수·타입어헤드)·칩↔드롭다운 동기화·cat⊥brand 직교 AND·SSM(GS더프레시 배지+각주)·brand=null 전체·회귀(지역/업종/market_type/디지털/검색) 전부 명세대로 작동하고, 카운트는 disk 독립 재집계와 정확 일치. 하드코딩 0, 콘솔 0. **판정: 통과, 결함 0건.** 배포는 데이터 3파일+html 동시(brand 갱신 데이터 미커밋).
+
+### 브랜드 필터 정식 배정(task #22) 확인 — 서빙본 동일성·전체 수치 (2026-08-08)
+
+- 서빙본(8655) == 디스크 merchants.html 동일 → 위 UI 검증이 곧 워킹트리(정본) 검증.
+- team-lead 전체 수치 disk 대조 일치: brand 부여 **3,662**(서울1,216·인천303·경기2,143) / null **62,549** / 총 66,211 / 브랜드 종류(전 시도 합집합) **169**. 옛 enum(convenience/mart/ssm/daiso) 소멸(잔존 0).
+- **판정: 통과, 결함 0.** 상위N 칩·롱테일 드롭다운·타입어헤드·직교(cat⊥brand)·SSM(GS더프레시 배지+각주)·brand=null 전체·회귀(지역/업종/시장유형/디지털/빈결과 4분기) 전부 확인.
+
+---
+
+## UX 대개편 1단계 (merchants.html) 검증 (task #23) — 2026-08-08
+
+### 판정: 통과 (결함 0건, 낮음 관찰 1건 = 라이브 리사이즈 엣지)
+
+명세 14(디자인 토큰·사이드바 셸·모바일 드로어) 적용분을 검증. **Playwright MCP로 실제 뷰포트를 제어**해, 전 세션 내내 `resize_window` 1280 하한으로 미검증이던 **390px 반응형·모바일 드로어를 실측 완료**. 기능 무손상. 콘솔 페이지 에러 0(Playwright 클린 브라우저 — 부수 확인: 기존 "message channel closed"는 확장 노이즈였음이 확정).
+
+### 디자인 토큰 (computed style 실측)
+
+- `--accent` = **#F26B1D** ✓. 칩 `border-radius` = **6px**(샤프, pill/999px 잔재 0) ✓. 옛 따뜻한 배경(#FBD8BC·#F4F4F3) 소스 0 ✓ → 중립 모노톤 그레이스케일+오렌지.
+
+### 사이드바 셸 — 데스크톱(1280) / 모바일(390) 실측
+
+| 항목 | 데스크톱 1280 | 모바일 390 |
+|------|--------------|-----------|
+| 사이드바 | 248px, position fixed, 좌측 0 visible | 드로어(fresh load translateX(-248px), off-screen) |
+| main margin-left | **248px** | **0px** |
+| 햄버거 | 숨김(offsetParent null) | 노출, aria-label "메뉴 열기" |
+| body 가로 오버플로 | 0 | **0** (반응형 리플로우 정상) |
+
+- **모바일 드로어 전체 사이클(실측)**: fresh load 닫힘(translateX(-248), aria-expanded="false", overlay 없음) → 햄버거 클릭 열림(사이드바 left 0 on-screen, aria-expanded="true", overlay `<div class="overlay">` fixed·rgba(20,22,26,0.38) scrim·z-45) → **ESC 닫힘**(translateX(-248), aria-expanded="false", overlay 사라짐).
+- `aria-current="page"` on 지역별 찾기 ✓. `focus-visible`·`prefers-reduced-motion` 소스 존재 ✓.
+
+### signature (활성 좌측 레일)
+
+- 활성 항목 `::before` = background **rgb(242,107,29)=#F26B1D**, width **3px** ✓ (오렌지 3px 좌측 레일).
+
+### 기능 무손상 (앱 JS 불변)
+
+- 업종 칩 약국 **493** ✓, countText "29,450곳 중 29,450곳" ✓, 완전 마운트(머스태시 0) ✓.
+- 시도 지연로드·구/동 계층·업종/브랜드/시장유형/디지털 필터·검색·페이지네이션·빈결과 4분기·표(주소·동·결제·SSM 배지)는 M10/브랜드 검증분과 동일 코드(디자인 레이어만 변경, additive) — 렌더·동작 유지.
+
+### 관찰 (낮음 — 판정 차단 아님)
+
+- **데스크톱→모바일 라이브 리사이즈 시 드로어 미리셋**: 1280에서 렌더 후 390으로 live-resize하면 사이드바가 열린 채(transform translateX(0)) 남고 aria-expanded="true". **fresh load(390 직접 진입)에서는 정상 닫힘**(translateX(-248)) 확인 — 실사용 경로(기기 폭으로 신규 로드)는 정상이며, 라이브 리사이즈는 이용자 경로가 아니라 엣지. dev 재량(원하면 resize 핸들러에 상태 리셋). 차단 아님.
+
+### 미검증 (도구/측정 제약)
+
+- WCAG 대비 수치(색각 대비)·키보드 Tab 순회 실동작: `focus-visible` 오렌지 outline·모노톤+오렌지+텍스트 배지 구조는 소스/computed로 확인(색만 의존 아님). 정밀 대비비 측정은 별도 QA 도구 몫 — 구조상 고대비 모노톤이라 결함 징후 없음.
+
+### 종합
+
+디자인 토큰(모노톤+오렌지·샤프 6px·pill 폐기·따뜻한 팔레트 제거)·사이드바 셸(PC 248 fixed+margin / 모바일 드로어 전 사이클 open·ESC·overlay)·활성 오렌지 3px 레일·aria-current·기능 무손상·콘솔 0·**390px 가로 오버플로 0** 전부 실측 통과. **Playwright로 전 세션 미검증이던 반응형/드로어를 실뷰포트 검증**한 것이 이번 검증의 핵심. **판정: 통과, 결함 0건.** 낮음 관찰 1건(라이브 리사이즈 엣지)은 실사용 경로 아님. 배포: merchants.html 단독(데이터 무관), team-lead 확정 후.
+
+### task #23 잔여 항목 해소 — 키보드 포커스·색각 대비 (Playwright 실측, 2026-08-08)
+
+앞 절 "미검증(측정 제약)"의 두 항목을 Playwright로 마저 검증 — 이제 캐비엇 없음:
+- **키보드 focus-visible**: Tab → 첫 포커스 링크에 `outline: 2px solid rgb(242,107,29)`(=#F26B1D) — 오렌지 2px focus-visible 요건 충족.
+- **WCAG 대비**: 본문/활성 nav 텍스트(다크 #17181A) vs 배경 = **17.77**(AAA 7.0 대비 여유, 모노톤 고대비). 활성 nav는 다크 텍스트+오렌지 3px 레일로 액티브를 색만이 아닌 형태로 표시. (표 셀 자동계산 1.18은 투명 배경을 검정으로 오파싱한 **측정 아티팩트** — 셀 실제는 다크 온 라이트로 가독, 스크린샷·17.77 본문 대비로 확인.)
+
+**task #23 최종: 통과, 결함 0건, 잔여 미검증 없음.** (라이브 리사이즈 엣지 낮음 관찰 1건은 실사용 경로 아님·dev 재량.)
+
+---
+
+## UX 대개편 2단계 (index.html 번들) 검증 (task #24) — 2026-08-08
+
+### 판정: 통과 (결함 0건, 낮음 관찰 1건 = 앵커 id 부재·JS로 동작)
+
+dev 세션 한도로 team-lead가 build_index.py 실행해 index.html(자기해제 DC 번들) 재생성. 사이드바+모노톤 확산을 검증 — **번들 D-F1 최우선**으로 확인, Playwright로 데스크톱/모바일 실뷰포트 실측. 결과 통과.
+
+### 번들 D-F1·무결 (최우선)
+
+- **L388 template 리터럴 `</script>` = 0**(캡처 103,803자, 조기종료 없음) — D-F1 안전. ✓
+- 완전 마운트: 미해석 머스태시 **0**(전 바인딩 해석). 콘솔 페이지 에러 **0**(Playwright 클린 브라우저).
+- 회귀 콘텐츠 무손상: 오프라인/온라인 탭·판정표(가능 여부)·S15 서브탭(가맹점을 직접 찾아보기)·GS더프레시(SSM 정정)·경과조치·S10 모바일(앱)형·온라인 전용관 전부 present.
+
+### 모노톤 디자인 토큰
+
+- `--accent` **#F26B1D**, 999px(pill) 잔재 **0**(샤프 6px), 옛 웜톤 #FBD8BC·#FBEADB **0**. body bg **rgb(255,255,255)**(모노톤 화이트; #F4F4F3 3건은 로더 스플래시 bg=불변 영역·중립 그레이).
+- 활성 항목 **오프라인 사용처** `::before` = rgb(242,107,29)=#F26B1D, width **3px**(오렌지 좌측 레일), `aria-current="page"`.
+
+### 사이드바 셸 — 데스크톱/모바일 실측 (Playwright)
+
+| 항목 | 데스크톱 1280 | 모바일 390 |
+|------|--------------|-----------|
+| 사이드바 | 248px fixed, 좌측 0 visible | 드로어 fresh-load translateX(-248) off-screen |
+| main margin-left | 248px | 0px |
+| 햄버거 | 숨김 | 노출(aria-label "메뉴 열기") |
+| 가로 오버플로 | 0 | 0 |
+
+- **모바일 드로어 전 사이클**: fresh 닫힘(translateX -248·aria-expanded false·overlay 없음) → 햄버거 열림(사이드바 left 0·aria-expanded true·overlay `rgba(20,22,26,0.38)`) → **ESC 닫힘**(off-screen·false·overlay 없음).
+- **resize 리셋(양방향, team-lead 확인 요청)**: 드로어 연 채 1280 복귀 → 사이드바 정상·main margin 248·**overlay 잔류 없음**·햄버거 숨김. 1280→390 → 드로어 **닫힘**(off-screen·aria-expanded false·overlay 없음). **양방향 리셋 반영됨** — merchants의 라이브 리사이즈 낮음 관찰이 index엔 없음.
+
+### 가이드 앵커 이동
+
+- 사이드바 링크: 오프라인 사용처(#offline)·온라인 가맹 플랫폼(#online)·결제 방법(#payment)·용어·유의사항(#terms)·지역별 찾기(merchants.html#sidoTabs)·업종·브랜드별(merchants.html#catChips)·공식 가맹점 지도(onnuri.gift/place).
+- "온라인 가맹 플랫폼" 클릭 실측 → **JS 탭 전환 동작**(activeNav "온라인 가맹 플랫폼"으로 이동·온라인 플랫폼 표 노출·scrollY 381). 크로스페이지 링크(merchants.html#…)·외부 지도 링크 정상.
+
+### 두 페이지 일관성
+
+- index·merchants 공통: 사이드바 248px fixed, overlay 스크림 rgba(20,22,26,0.38), --accent #F26B1D, 활성 오렌지 3px 레일, 샤프 6px. 셸 일관성 확인.
+
+### 관찰 (낮음 — 판정 차단 아님)
+
+- **#offline·#online 앵커 타깃 id 부재**: 두 사이드바 항목의 href(#offline/#online)에 매칭 id가 없다(#payment·#terms는 존재). JS 클릭 핸들러가 탭 전환+스크롤+aria-current로 처리해 **기능은 정상**이나, 네이티브 앵커 폴백·해시로 리로드 시 스크롤은 없음. JS 앱(번들)이라 실사용 무해. dev/team-lead 재량(원하면 두 섹션에 id 부여). 차단 아님.
+
+### 미검증 (측정 제약)
+
+- WCAG 대비 수치: 모노톤 화이트 bg + 다크 텍스트 + 오렌지 액센트 구조는 merchants(본문 17.77 AAA)와 동일 토큰 계열 — 고대비. 정밀 대비비는 별도 QA.
+
+### 종합
+
+index.html 번들에 사이드바 셸·모노톤 토큰이 D-F1 안전(리터럴</0·완전마운트)하게 확산됐고, 데스크톱 248 fixed·모바일 드로어 전 사이클·양방향 resize 리셋·활성 오프라인 사용처 오렌지 레일·가이드 앵커(JS 탭 전환)·회귀 콘텐츠(탭/판정표/S15/SSM/경과조치/S10) 무손상·콘솔0·두 페이지 셸 일관성 전부 실측 통과. **판정: 통과, 결함 0건.** 낮음 관찰 1건(#offline/#online 앵커 id 부재, JS로 동작)은 차단 아님. index+merchants 두 페이지 함께 배포 가능.

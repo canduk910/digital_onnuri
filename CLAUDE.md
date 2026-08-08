@@ -30,3 +30,5 @@
 | 2026-08-07 | 지도 링크 문구 목적지 일치 + 앱스토어 보조링크 | merchants.html, index.html | 조사 결과 앱 딥링크 부재 확정 → 웹 지도 링크 유지, 라벨에서 "앱" 제거해 목적지와 일치. 디지털온누리 앱스토어 설치 링크(검증됨) 보조 추가. 공식 지도 지역 제한 오해 서술 금지 |
 | 2026-08-07 | 오프라인 탭 최상단에 검색 서브탭 2개 신설 | index.html | 진입 링크가 요건 박스에 묻혀 발견 어려움 → '가맹점 찾기'(merchants.html 내부·수도권)·'공식 지도 검색'(onnuri.gift/place 외부·전국) 서브탭으로 승격. 성격 배지·aria-label |
 | 2026-08-08 | 시장·브랜드 뷰 통합 + 구/동 계층 필터 | merchants.html, data/merchants/*.json | 사용자 요청. 공공데이터(주소 없음)를 온누리 API 전수 수집본(66,211건, 도로명 주소·구/동)으로 교체. 2뷰→1뷰 통합, 지역 계층(서울·인천 구→동/경기 시→구→동), 업종·brand·시장유형 3축 필터. brand_stores.json 흡수. 갱신: build_region_full.py 재실행 |
+| 2026-08-08 | 빈도+지점명 브랜드 자동탐지 + 브랜드 필터 | data/merchants/*.json, merchants.html | 사용자 요청. 상호 7회+ 중복 AND 지점명비율 40%+ → 브랜드(169종), 표기변형 병합. 충남상회류 오탐 제외. brand enum 4종→개별명. 상위칩+롱테일 검색. 후보 CSV(13_brand_candidates.csv) |
+| 2026-08-08 | UX 대개편: 좌측 사이드바 + 화이트 모노톤 + 오렌지 | index.html, merchants.html | 사용자 요청. 크림/따뜻한 톤 제거→중립 모노톤, 오렌지 포인트 절제. 계층 사이드바(PC 상시/모바일 드로어), 모던 버튼(pill→6px). 디자인 시스템: 14_design_system.md. index는 build_index.py 재실행 |

@@ -139,3 +139,26 @@ data가 brand 필드를 enum(convenience/mart/ssm/daiso) → **개별 브랜드�
 
 ### 제약
 - brand 목록·종수는 사용자 CSV 검토 → team-lead --write 시점 최종. UI 데이터 주도라 자동 적응(재구현 불요). 데이터 3파일(brand 갱신분)은 미커밋 — merchants.html과 한 커밋 동시 배포(따로 나가면 옛 브랜드 칩이 신 데이터에서 0건).
+
+## 델타 (task #23) — UX 대개편 1단계: 사이드바 + 화이트 모노톤 (2026-08-08)
+
+명세 14(디자인 시스템) merchants.html 전면 적용. M10 통합 뷰·필터·브랜드·표 **기능 전부 보존**(앱 JS 불변), CSS·body 셸·드로어만 교체.
+
+- **토큰**: 따뜻한 팔레트(#171512/크림) → 완전 중립 그레이스케일(:root CSS 변수) + 오렌지 포인트. 그림자보다 1px 보더 구획.
+- **사이드바 셸**: `.sidebar` fixed 248px(PC 상시) / 모바일 `translateX(-100%)` 드로어 + `.topbar`(햄버거) + `.overlay`. 콘텐츠 `margin-left:248px`(PC)/0(모바일). 드로어 JS `initNav()`: 햄버거 토글·오버레이 클릭·ESC 닫기·항목 클릭 시 닫기. aria-expanded/aria-controls/aria-current/nav aria-label.
+- **사이드바 구성**: 로고(오렌지 라운드 심볼) + 그룹 "사용 가이드"(오프라인/온라인/결제/용어 → index.html#앵커) + "가맹점 검색"(지역별 찾기[active]→#sidoTabs, 업종·브랜드별→#catChips) + 하단 "공식 가맹점 지도 ↗"(외부).
+- **signature**: 활성 항목 좌측 3px 오렌지 레일(::before) + accent-soft 배경 + 볼드. 오렌지는 활성 칩·primary 버튼·배지에만 절제.
+- **샤프 라운드**: pill(999px) **전면 폐기** → --r-sm(6px)/--r-md(10px). 칩·배지·버튼·인풋 전부.
+- **버튼**: primary(accent), outline(secondary). 빈결과 지도 링크=primary, 검색초기화/다시시도=outline.
+- **타이포**: h1 26/700/-0.02em, eyebrow·라벨 11.5/700/대문자/faint, 본문 14. tabular-nums.
+- **접근성**: :focus-visible 오렌지 2px, prefers-reduced-motion 트랜지션 제거, 색+텍스트 배지.
+
+### 검증 (dev 스모크, HTTP 서버)
+- 데스크톱: 사이드바 상시·액티브 레일·중립 콘텐츠·샤프 칩/탭·배지 스크린샷 확인. 토큰 --accent #F26B1D, chip radius 6px.
+- 드로어 로직: 햄버거 클릭→열림(open·오버레이·aria-expanded), ESC→닫힘 — JS 실측.
+- 앱 기능 무손상(약국 필터 493곳 등), 페이지 콘솔 에러 0(확장 노이즈 제외).
+- **미검증(도구 제약)**: 390px 실뷰포트(resize_window가 innerWidth를 1280 아래로 못 낮춤) — 모바일 CSS·드로어는 구조/로직으로 검증, 390px 실렌더는 capable env(verifier) 몫.
+
+### 다음
+- 2단계: 사용자/team-lead 확정 후 index.html(번들)에 동일 사이드바·토큰 확산(build_index.py 패턴, `</` 불변식). 사이드바 마크업·CSS 복붙 일관.
+- 배포: merchants.html 단독 변경(데이터 무관). team-lead 확정 후 커밋·배포.

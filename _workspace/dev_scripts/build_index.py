@@ -327,6 +327,216 @@ tpl = replace_once(
     "S14.ssm",
 )
 
+# ========== task #24: UX 대개편 2단계 — 사이드바 + 화이트 모노톤 확산 ==========
+# merchants.html(1단계 확정)의 디자인 시스템(14_design_system.md)을 번들 index 에 확산.
+# 스킨(색 토큰) + 좌측 사이드바 셸만 추가하고 기존 콘텐츠·DC 로직·탭 구조는 보존한다.
+# 사이드바/오버레이/스크립트는 <x-dc> **밖**에 둔다 — DC(React) 재렌더가 정적 사이드바의
+# active/open 클래스를 되돌리지 못하게(마운트는 document 전체 스왑이라 밖의 형제도 그대로 렌더).
+
+# ---------- 7a. 베이스 <style> 교체 (따뜻한 톤 → 중립 모노톤 토큰 + 사이드바 셸 CSS) ----------
+OLD_STYLE = (
+    "body { margin:0; background:#F4F4F3; color:#26231F; font-family:\"Pretendard Variable\",Pretendard,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }\n"
+    "a { color:#C4510F; text-decoration:none; }\n"
+    "a:hover { color:#F26B1D; text-decoration:underline; }\n"
+    "::selection { background:#FBD8BC; }\n"
+    "input::placeholder { color:#A3A09B; }"
+)
+# 사이드바/셸 CSS 는 merchants.html 과 바이트 동일(명세 §3 복붙 일관성).
+NEW_STYLE = (
+    "  /* ===== 디자인 시스템 (14): 화이트 중립 모노톤 + 오렌지 ===== */\n"
+    "  :root{\n"
+    "    --bg:#FFFFFF; --surface:#F7F7F7; --surface-2:#F0F0F0; --border:#E6E6E6; --border-2:#D6D6D6;\n"
+    "    --text:#17181A; --text-sub:#6B6E73; --text-faint:#9CA0A6;\n"
+    "    --accent:#F26B1D; --accent-hover:#DD5E12; --accent-press:#C4510F; --accent-soft:#FEF3EC; --accent-line:#F6C9A8;\n"
+    "    --ok:#1F9D57; --ok-soft:#EAF7EF; --warn:#C77A16; --warn-soft:#FBF3E6; --no:#9CA0A6; --no-soft:#F2F2F2;\n"
+    "    --r-sm:6px; --r-md:10px; --r-lg:14px; --sb-w:248px;\n"
+    "    --shadow-sm:0 1px 2px rgba(20,22,26,.05); --shadow-md:0 6px 24px rgba(20,22,26,.09);\n"
+    "  }\n"
+    "  * { margin:0; padding:0; box-sizing:border-box; }\n"
+    "  body { background:var(--bg); color:var(--text); font-family:\"Pretendard Variable\",Pretendard,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; font-size:14px; line-height:1.6; letter-spacing:-0.005em; }\n"
+    "  a { color:var(--accent-press); text-decoration:none; }\n"
+    "  a:hover { color:var(--accent); text-decoration:underline; }\n"
+    "  ::selection { background:var(--accent-soft); }\n"
+    "  input::placeholder { color:var(--text-faint); }\n"
+    "  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:2px; }\n"
+    "  .logo-sym { flex:none; width:28px; height:28px; border-radius:var(--r-sm); background:var(--accent); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:14px; }\n"
+    "  .sidebar { position:fixed; top:0; left:0; bottom:0; width:var(--sb-w); background:var(--bg); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:18px 14px 14px; z-index:50; transition:transform .2s ease; }\n"
+    "  .sb-logo { display:flex; align-items:center; gap:9px; padding:4px 6px 16px; color:var(--text); }\n"
+    "  .sb-logo:hover { text-decoration:none; color:var(--text); }\n"
+    "  .sb-logo-txt { font-size:13.5px; font-weight:700; letter-spacing:-0.01em; }\n"
+    "  .sb-nav { display:flex; flex-direction:column; gap:1px; overflow-y:auto; flex:1; }\n"
+    "  .sb-group { font-size:11.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint); padding:14px 10px 6px; }\n"
+    "  .sb-item { position:relative; display:block; padding:8px 12px; border-radius:var(--r-sm); font-size:13.5px; color:var(--text-sub); transition:background .15s ease,color .15s ease; }\n"
+    "  .sb-item:hover { background:var(--surface); color:var(--text); text-decoration:none; }\n"
+    "  .sb-item.active { background:var(--accent-soft); color:var(--text); font-weight:700; }\n"
+    "  .sb-item.active::before { content:\"\"; position:absolute; left:0; top:6px; bottom:6px; width:3px; border-radius:0 3px 3px 0; background:var(--accent); }\n"
+    "  .sb-ext { display:flex; align-items:center; gap:6px; margin-top:10px; padding:10px 12px; border-top:1px solid var(--border); color:var(--text-sub); font-size:13px; font-weight:600; }\n"
+    "  .sb-ext:hover { color:var(--accent-press); text-decoration:none; }\n"
+    "  .topbar { display:none; position:fixed; top:0; left:0; right:0; height:52px; align-items:center; gap:10px; padding:0 14px; background:var(--bg); border-bottom:1px solid var(--border); z-index:40; }\n"
+    "  .topbar-brand { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; }\n"
+    "  .hamburger { flex:none; width:38px; height:38px; border:1px solid var(--border); background:var(--bg); border-radius:var(--r-sm); font-size:16px; color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; }\n"
+    "  .hamburger:hover { background:var(--surface); }\n"
+    "  .overlay { position:fixed; inset:0; background:rgba(20,22,26,.38); z-index:45; }\n"
+    "  .content { margin-left:var(--sb-w); }\n"
+    "  .content-inner { max-width:1080px; margin:0 auto; padding:40px 32px 72px; }\n"
+    "  @media (max-width:959px){\n"
+    "    .sidebar { transform:translateX(-100%); box-shadow:var(--shadow-md); }\n"
+    "    .sidebar.open { transform:translateX(0); }\n"
+    "    .topbar { display:flex; }\n"
+    "    .content { margin-left:0; padding-top:52px; }\n"
+    "    .content-inner { padding:24px 20px 56px; }\n"
+    "  }\n"
+    "  @media (min-width:960px){ .overlay { display:none !important; } }\n"
+    "  @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }"
+)
+tpl = replace_once(tpl, OLD_STYLE, NEW_STYLE, "24.style-tokens")
+
+# ---------- 7b. 사이드바 셸 마크업 (<x-dc> 밖 — 정적, DC 비관여) ----------
+# 가이드 항목=현재 페이지 인페이지 앵커(#offline/#online/#payment/#terms, 해시 라우터가 탭 전환).
+# 검색 항목=merchants.html#앵커(크로스 페이지). 기본 활성=오프라인 사용처.
+SHELL = (
+    "<header class=\"topbar\">\n"
+    "  <button class=\"hamburger\" id=\"navToggle\" aria-label=\"메뉴 열기\" aria-expanded=\"false\" aria-controls=\"sidebar\">☰</button>\n"
+    "  <span class=\"topbar-brand\"><span class=\"logo-sym\">온</span> 디지털온누리 가이드</span>\n"
+    "</header>\n"
+    "<aside class=\"sidebar\" id=\"sidebar\" aria-label=\"주요 메뉴\">\n"
+    "  <a class=\"sb-logo\" href=\"index.html\"><span class=\"logo-sym\">온</span><span class=\"sb-logo-txt\">디지털온누리 가이드</span></a>\n"
+    "  <nav class=\"sb-nav\" aria-label=\"사이트 메뉴\">\n"
+    "    <div class=\"sb-group\">사용 가이드</div>\n"
+    "    <a class=\"sb-item active\" href=\"#offline\" aria-current=\"page\">오프라인 사용처</a>\n"
+    "    <a class=\"sb-item\" href=\"#online\">온라인 가맹 플랫폼</a>\n"
+    "    <a class=\"sb-item\" href=\"#payment\">결제 방법</a>\n"
+    "    <a class=\"sb-item\" href=\"#terms\">용어·유의사항</a>\n"
+    "    <div class=\"sb-group\">가맹점 검색</div>\n"
+    "    <a class=\"sb-item\" href=\"merchants.html#sidoTabs\">지역별 찾기</a>\n"
+    "    <a class=\"sb-item\" href=\"merchants.html#catChips\">업종·브랜드별</a>\n"
+    "  </nav>\n"
+    "  <a class=\"sb-ext\" href=\"https://www.onnuri.gift/place\" target=\"_blank\" rel=\"noopener\">공식 가맹점 지도 <span aria-hidden=\"true\">↗</span></a>\n"
+    "</aside>\n"
+    "<div class=\"overlay\" id=\"navOverlay\" hidden></div>"
+)
+tpl = replace_once(tpl, "<body>\n<x-dc>", "<body>\n" + SHELL + "\n<x-dc>", "24.shell-markup")
+
+# ---------- 7c. main → content 셸 (max-width 인라인 제거, 클래스 전환) ----------
+tpl = replace_once(
+    tpl,
+    "</helmet>\n<main style=\"max-width:1060px;margin:0 auto;padding:44px 28px 72px\">",
+    "</helmet>\n<main class=\"content\">\n <div class=\"content-inner\">",
+    "24.content-open",
+)
+
+# ---------- 7d. 섹션 앵커 id (탭 버튼 / 결제 / 온라인 / 용어) ----------
+tpl = replace_once(
+    tpl,
+    "<button sc-camel-on-click=\"{{ goOff }}\" style=\"{{ tabOffStyle }}\">오프라인 사용처",
+    "<button id=\"tabOff\" sc-camel-on-click=\"{{ goOff }}\" style=\"{{ tabOffStyle }}\">오프라인 사용처",
+    "24.id.tabOff",
+)
+tpl = replace_once(
+    tpl,
+    "<button sc-camel-on-click=\"{{ goOn }}\" style=\"{{ tabOnStyle }}\">온라인 가맹 플랫폼",
+    "<button id=\"tabOn\" sc-camel-on-click=\"{{ goOn }}\" style=\"{{ tabOnStyle }}\">온라인 가맹 플랫폼",
+    "24.id.tabOn",
+)
+# 결제 흐름 카드(원본) — S10 이 같은 div 스타일을 쓰므로 toggleFlow 로 유일하게 앵커링.
+tpl = replace_once(
+    tpl,
+    "<div style=\"background:#FFFFFF;border:1.5px solid #E7E5E1;border-radius:14px;margin-top:12px;overflow:hidden\">\n      <button sc-camel-on-click=\"{{ toggleFlow }}\"",
+    "<div id=\"payment\" style=\"background:#FFFFFF;border:1.5px solid #E7E5E1;border-radius:14px;margin-top:12px;overflow:hidden\">\n      <button sc-camel-on-click=\"{{ toggleFlow }}\"",
+    "24.id.payment",
+)
+tpl = replace_once(
+    tpl,
+    "<div style=\"background:#FDF3EA;border:1px dashed #EFC5A3;border-radius:12px;padding:12px 16px;font-size:12.5px;color:#6E6A64;line-height:1.6;margin-bottom:14px\">",
+    "<div id=\"online\" style=\"background:#FDF3EA;border:1px dashed #EFC5A3;border-radius:12px;padding:12px 16px;font-size:12.5px;color:#6E6A64;line-height:1.6;margin-bottom:14px\">",
+    "24.id.online",
+)
+tpl = replace_once(
+    tpl,
+    "<div style=\"margin-top:26px;padding-top:16px;border-top:1px solid #E7E5E1;display:flex;flex-direction:column;gap:6px\">",
+    "<div id=\"terms\" style=\"margin-top:26px;padding-top:16px;border-top:1px solid #E7E5E1;display:flex;flex-direction:column;gap:6px\">",
+    "24.id.terms",
+)
+
+# ---------- 7e. content 닫기 + 드로어/해시 라우터 스크립트 (<x-dc> 밖) ----------
+# 이벤트 위임(타이밍 무관) + resize 닫힘 리셋(task #23 낮음 관찰) + 해시→탭 라우터.
+NAV_SCRIPT = (
+    "<script>\n"
+    "(function(){\n"
+    "  \"use strict\";\n"
+    "  var mq = function(){ return window.matchMedia(\"(max-width:959px)\").matches; };\n"
+    "  var sb = function(){ return document.getElementById(\"sidebar\"); };\n"
+    "  var ov = function(){ return document.getElementById(\"navOverlay\"); };\n"
+    "  var tg = function(){ return document.getElementById(\"navToggle\"); };\n"
+    "  function openNav(){ var s=sb(),o=ov(),t=tg(); if(s)s.classList.add(\"open\"); if(o)o.hidden=false; if(t)t.setAttribute(\"aria-expanded\",\"true\"); }\n"
+    "  function closeNav(){ var s=sb(),o=ov(),t=tg(); if(s)s.classList.remove(\"open\"); if(o)o.hidden=true; if(t)t.setAttribute(\"aria-expanded\",\"false\"); }\n"
+    "  document.addEventListener(\"click\", function(e){\n"
+    "    var t=e.target; if(!t||!t.closest) return;\n"
+    "    if(t.closest(\"#navToggle\")){ e.preventDefault(); (sb()&&sb().classList.contains(\"open\"))?closeNav():openNav(); return; }\n"
+    "    if(t.closest(\"#navOverlay\")){ closeNav(); return; }\n"
+    "    if(t.closest(\".sidebar a\") && mq()) closeNav();\n"
+    "  });\n"
+    "  document.addEventListener(\"keydown\", function(e){ if(e.key===\"Escape\") closeNav(); });\n"
+    "  window.addEventListener(\"resize\", function(){ if(!mq()) closeNav(); });\n"
+    "  // ---- 해시 → 탭 라우터 (가이드 항목 앵커 동작: 오프라인/온라인 탭 전환 + 스크롤) ----\n"
+    "  function scrollToId(id){ var el=document.getElementById(id); if(el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 64, behavior:\"smooth\" }); }\n"
+    "  function setActive(hash){ var items=document.querySelectorAll(\".sidebar .sb-nav a.sb-item\"); Array.prototype.forEach.call(items, function(a){ var on=a.getAttribute(\"href\")===hash; a.classList.toggle(\"active\", on); if(on) a.setAttribute(\"aria-current\",\"page\"); else a.removeAttribute(\"aria-current\"); }); }\n"
+    "  function applyHash(){\n"
+    "    var h=(location.hash||\"\").replace(/^#/, \"\");\n"
+    "    if(h===\"online\"){ var a=document.getElementById(\"tabOn\"); if(a)a.click(); setActive(\"#online\"); setTimeout(function(){ scrollToId(\"online\"); }, 70); }\n"
+    "    else if(h===\"payment\"){ var b=document.getElementById(\"tabOff\"); if(b)b.click(); setActive(\"#payment\"); setTimeout(function(){ scrollToId(\"payment\"); }, 70); }\n"
+    "    else if(h===\"terms\"){ setActive(\"#terms\"); setTimeout(function(){ scrollToId(\"terms\"); }, 20); }\n"
+    "    else if(h===\"offline\"){ var c=document.getElementById(\"tabOff\"); if(c)c.click(); setActive(\"#offline\"); window.scrollTo({ top:0, behavior:\"smooth\" }); }\n"
+    "  }\n"
+    "  window.addEventListener(\"hashchange\", applyHash);\n"
+    "  setTimeout(applyHash, 0);\n"
+    "})();\n"
+    "</script>"
+)
+tpl = replace_once(
+    tpl,
+    "</main>\n</x-dc>",
+    "  </div>\n</main>\n</x-dc>\n" + NAV_SCRIPT,
+    "24.content-close+script",
+)
+
+# ---------- 7f. 전역 색상 매핑: 따뜻한 톤 → 중립 모노톤 (오렌지 #F26B1D·#C4510F 유지) ----------
+# 인라인 스타일에 흩어진 웜톤 hex 를 중립 토큰 값으로 일괄 치환.
+# 원본 + 이번에 추가된 S10/S15 등 블록 모두에 적용되도록 마지막에 한 번 수행.
+COLOR_MAP = [
+    ("#E7E5E1", "#E6E6E6"),  # border
+    ("#EFEEEC", "#E6E6E6"),  # border(옅음)
+    ("#8A8580", "#6B6E73"),  # text-sub
+    ("#6E6A64", "#6B6E73"),  # text-sub
+    ("#171512", "#17181A"),  # text
+    ("#26231F", "#17181A"),  # text(strong)
+    ("#FAFAF9", "#F7F7F7"),  # surface
+    ("#F0EFED", "#F0F0F0"),  # surface-2
+    ("#FDEEE3", "#FEF3EC"),  # accent-soft
+    ("#FDF3EA", "#FEF3EC"),  # accent-soft
+    ("#FBD8BC", "#FEF3EC"),  # accent-soft(포커스 링)
+    ("#F5D2B8", "#F6C9A8"),  # accent-line
+    ("#EFC5A3", "#F6C9A8"),  # accent-line
+]
+_before_map = tpl
+for _old_c, _new_c in COLOR_MAP:
+    tpl = tpl.replace(_old_c, _new_c)
+# 매핑 후 잔존 웜톤 검사(오렌지 계열 제외 — 남으면 누락)
+import re as _re
+_leftover = sorted(set(_re.findall(r"#(?:E7E5E1|EFEEEC|8A8580|6E6A64|171512|26231F|FAFAF9|F0EFED|FDEEE3|FDF3EA|FBD8BC|F5D2B8|EFC5A3|F4F4F3|A3A09B)", tpl)))
+if _leftover:
+    raise SystemExit(f"[FAIL] 24.color-map: 웜톤 잔존 {_leftover}")
+print(f"[OK] 24.color-map: 웜톤 치환 (변경 {sum(1 for a,b in COLOR_MAP)} 규칙, 길이 {len(_before_map)}->{len(tpl)})")
+
+# ---------- 7g. pill(999px) → 샤프 라운드(6px) ----------
+# 디자인 시스템: pill 금지, 6~14px 샤프 라운드. 알약 배지(판정/구분 태그)만 대상.
+# 단계 번호 원형(border-radius:50%)은 아이콘이라 유지.
+_pill_n = tpl.count("border-radius:999px")
+tpl = tpl.replace("border-radius:999px", "border-radius:6px")
+if "border-radius:999px" in tpl:
+    raise SystemExit("[FAIL] 24.radius: pill 잔존")
+print(f"[OK] 24.radius: pill 999px -> 6px ({_pill_n}개)")
+
 # ---------- 6. 재삽입 & 저장 ----------
 # 중요: 이 JSON 문자열은 <script type="__bundler/template"> 요소의 textContent 로 들어간다.
 # HTML 파서는 script 요소 안에서 첫 리터럴 </script(더 넓게는 </) 를 만나면 요소를 조기 종료하고

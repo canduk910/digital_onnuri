@@ -84,17 +84,45 @@ if tpl:
                 "가맹점을 직접 찾아보기", "공식 지도 검색 ↗", "전국 가맹점을 지역별로",
                 "href=\"https://www.onnuri.gift/place\"",
                 "새 창에서 열림", "내부 · 수도권", "외부 · 전국",
-                # 요건2 지도 검색 안내 문장 유지(인라인 링크만 제거) 확인
-                "가맹 여부는 <strong style=\"color:#26231F\">온누리 가맹점 지도</strong>에서 점포 단위로 확인할 수 있습니다",
+                # 요건2 지도 검색 안내 문장 유지(인라인 링크만 제거) 확인 — hex 는 task #24 모노톤(#17181A)
+                "가맹 여부는 <strong style=\"color:#17181A\">온누리 가맹점 지도</strong>에서 점포 단위로 확인할 수 있습니다",
                 "기업형슈퍼마켓(SSM) 직영점", "가맹 제외 대상은 직영점 기준",
                 "GS더프레시 직영", "직영점은 가맹 제외 — 단, 같은 브랜드라도"]:
         check(tok in tpl, f"토큰 '{tok}' 존재")
 
-    # (f) computed 정의 존재
+    # (f) renderVals computed 정의 존재
     print("(f) renderVals computed 정의")
     for tok in ["const onTabText =", "const baseMonth =", "const regionApps =",
                 "const onIntroTail =", "no: i + 1", "ONLINE_META =", "OFFLINE_META ="]:
         check(tok in tpl, f"'{tok}' 정의됨")
+
+    # (g) task #24: 사이드바 셸 + 화이트 모노톤 확산
+    print("(g) task #24 사이드바 + 모노톤")
+    # 디자인 토큰
+    for tok in ["--accent:#F26B1D", "--text:#17181A", "--surface:#F7F7F7",
+                "--border:#E6E6E6", "--sb-w:248px",
+                ".sb-item.active::before"]:
+        check(tok in tpl, f"토큰/CSS '{tok}' 존재")
+    # 사이드바 마크업(<x-dc> 밖)
+    for tok in ["class=\"sidebar\" id=\"sidebar\"", "id=\"navToggle\"", "id=\"navOverlay\"",
+                "class=\"sb-item active\" href=\"#offline\" aria-current=\"page\"",
+                "href=\"merchants.html#sidoTabs\"", "href=\"merchants.html#catChips\"",
+                "공식 가맹점 지도"]:
+        check(tok in tpl, f"사이드바 '{tok}' 존재")
+    # 셸 구조 + 섹션 앵커 id
+    for tok in ["<main class=\"content\">", "class=\"content-inner\"",
+                "id=\"tabOff\"", "id=\"tabOn\"", "id=\"payment\"", "id=\"online\"", "id=\"terms\""]:
+        check(tok in tpl, f"셸/앵커 '{tok}' 존재")
+    # 드로어 + 해시 라우터 스크립트(resize 리셋 = task #23 낮음 관찰 처리)
+    for tok in ["function applyHash", "window.addEventListener(\"hashchange\"",
+                "window.addEventListener(\"resize\"", "matchMedia(\"(max-width:959px)\")"]:
+        check(tok in tpl, f"스크립트 '{tok}' 존재")
+    # 모노톤 불변식: 웜톤 hex·pill 잔존 0 (오렌지 #F26B1D·#C4510F 는 유지)
+    warm = sorted(set(re.findall(
+        r"#(?:E7E5E1|EFEEEC|8A8580|6E6A64|171512|26231F|FAFAF9|F0EFED|FDEEE3|FDF3EA|FBD8BC|F5D2B8|EFC5A3|F4F4F3|A3A09B)", tpl)))
+    check(not warm, f"웜톤 hex 잔존 0 (실제 {warm})")
+    check("border-radius:999px" not in tpl, "pill(999px) 잔존 0")
+    check("#F26B1D" in tpl and "#C4510F" in tpl, "오렌지 포인트 유지(#F26B1D·#C4510F)")
 
 print()
 if fails:

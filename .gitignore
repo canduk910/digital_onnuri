@@ -3,3 +3,4 @@
 *.bak-*
 _workspace/raw/
 .playwright-mcp/
+*.png
