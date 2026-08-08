@@ -854,3 +854,65 @@ dev 세션 한도로 team-lead가 build_index.py 실행해 index.html(자기해�
 ### 종합
 
 index.html 번들에 사이드바 셸·모노톤 토큰이 D-F1 안전(리터럴</0·완전마운트)하게 확산됐고, 데스크톱 248 fixed·모바일 드로어 전 사이클·양방향 resize 리셋·활성 오프라인 사용처 오렌지 레일·가이드 앵커(JS 탭 전환)·회귀 콘텐츠(탭/판정표/S15/SSM/경과조치/S10) 무손상·콘솔0·두 페이지 셸 일관성 전부 실측 통과. **판정: 통과, 결함 0건.** 낮음 관찰 1건(#offline/#online 앵커 id 부재, JS로 동작)은 차단 아님. index+merchants 두 페이지 함께 배포 가능.
+
+---
+
+## 네이버 지도 통합 (merchants.html) 검증 (task #25) — 2026-08-08
+
+### 판정: 조건부 통과 (지도 기능 전부 통과 · 모바일 반응형 결함 1건 = 가로 오버플로, 수정 필요)
+
+team-lead 직접 구현(dev 부재). 지도 렌더·마커·클러스터·상한·연동·시크릿 안전은 Playwright 실렌더로 전부 통과. 단 **모바일 390에서 결과 표가 컨테이너에 갇히지 않아 가로 오버플로 512px** — team-lead 자체 기준 "가로 오버플로 0"에 위배되어 수정 후 배포 권고.
+
+### 통과 항목 (Playwright 실렌더)
+
+- **지도 렌더·auth**: `window.naver.maps` 로드, 지도 타일 16개 렌더, `__naverAuthFail=false`, 콘솔 페이지 에러 0. Client ID x79smqla3u 유효.
+- **로컬 lib·시크릿**: lib/MarkerClustering.js 로컬 로드(HTTP200, 외부 CDN 0), `MarkerClustering` 전역 로드됨. 소스 시크릿 패턴 0(공개 Client ID만, 도메인 제한).
+- **상한 3000**: 서울 전체(29,450>3000) → mapNote "지도에는 3,000곳까지 표시됩니다. 현재 29,450곳 — …필터를 좁히면", 마커 생략(pins 0). ✓
+- **마커**: 개포동(145<3000) → pin 145개(필터 수 일치), 핀 색 rgb(242,107,29)=#F26B1D(오렌지). mapNote "지도에 145곳 표시 · 마커를 누르면 상세…".
+- **클러스터**: 강남구(761) → 클러스터 6개(개별 핀 0=클러스터화), 클러스터 색 rgb(196,81,15)=#C4510F(오렌지 톤), 카운트 표기(예 293). 줌 인(개포동)=개별 핀 / 줌 아웃(강남구)=클러스터 — 정상.
+- **리스트→지도 연동**: 리스트 행 "강남축산" 클릭 → 인포윈도우 열림(iw-name "강남축산"). 마커 클릭 인포윈도우는 동일 openInfo 경로(상호·업종·SSM·주소·시장·결제).
+- **필터 반영**: 시도/구·동 변경 시 리스트 countText·mapNote·마커 동기 재계산.
+- **데스크톱 1280**: 좌 리스트/우 지도 레이아웃, 가로 오버플로 **0**.
+- **회귀**: 사이드바 드로어·구/동 계층·업종/브랜드/디지털 필터·페이지네이션·모노톤 무손상(리스트 필터가 지도와 함께 갱신됨 확인).
+
+### 결함
+
+#### D-MAP-1. 모바일 390 가로 오버플로 512px (결과 표 미클램프)
+- 심각도: **보통** (모바일 레이아웃 깨짐 — 데이터는 맞으나 페이지가 가로로 밀림)
+- 경계면: 렌더(반응형)
+- 관측(fresh load 390, Playwright): `document.documentElement.scrollWidth - clientWidth = 512`. 넓은 요소: `.result-list`(882px)·`.card`(882)·`#resultArea`(880)·`.table-scroll`(880)·`table`(880) — 뷰포트 390 초과.
+- 근본: 좌 리스트/우 지도 **2컬럼 flex 레이아웃**에서 모바일 세로 스택 시, `.table-scroll`(overflow-x:auto)이 뷰포트 폭으로 clamp되지 않고 880px 표 폭으로 확장. `#resultArea` overflow-x:visible로 880px가 상위(.result-list flex 1 1 auto)로 전파돼 body를 밀어냄. (min-width:0은 있으나 유효 clamp 안 됨.)
+- 대조: **task #23 merchants 390은 가로 오버플로 0**이었음 — 이번 지도 2컬럼 레이아웃 추가로 생긴 **회귀**. 데스크톱 1280은 0(모바일 한정).
+- 이용자 영향: 모바일(주 타깃)에서 페이지가 가로로 512px 밀려 표·레이아웃이 어긋남. team-lead 자체 기준 "가로 오버플로 0" 실패.
+- 담당: **team-lead**(구현자, dev 부재).
+- 수정 방향: 모바일 세로 스택 시 리스트 패널을 뷰포트 폭에 clamp해 880px 표가 `.table-scroll` **안에서** 가로 스크롤되게. 예: 컬럼 flex 아이템(`.result-list`/`#resultArea`)에 `min-width:0` 유효화 + `.table-scroll { width:100%; overflow-x:auto }`가 실제 스크롤 경계가 되도록(`#resultArea`의 overflow-x:visible가 880을 상위로 넘기지 않게). 또는 모바일에서 리스트 컨테이너 `max-width:100vw`+`overflow-x:hidden`.
+
+### 미검증 (측정 제약)
+
+- WCAG 대비 수치(모노톤 토큰은 이전 검증 계열 고대비). 지도 타일 자체는 외부 렌더.
+- 마커 클릭(직접 클릭) 인포윈도우: 리스트 클릭 경로로 인포윈도우 렌더 확인, 마커 클릭은 동일 openInfo 코드경로라 커버로 간주(직접 마커 클릭 좌표 클릭은 미실행).
+
+### 종합
+
+네이버 지도 통합의 렌더·auth·로컬 lib·시크릿 안전·마커(오렌지)·클러스터(오렌지·카운트)·상한 3000 안내·리스트↔지도 연동·필터 동기·데스크톱 레이아웃은 전부 실렌더 통과. 그러나 **모바일 390 가로 오버플로 512px(결과 표 미클램프, 2컬럼 레이아웃 회귀)** 1건이 team-lead 자체 기준을 위배한다. **판정: 조건부 통과** — 이 모바일 오버플로만 수정하면 배포 가능. team-lead가 리스트 패널 폭 clamp(위 수정 방향)로 고친 뒤 해당 케이스(390 가로 오버플로 0)만 재검 요청하면 즉시 확인하겠다. 데스크톱·지도 기능은 무손상이라 회귀 재검은 그 지점만으로 충분.
+
+#### D-MAP-1 수정 재검 — **통과** (2026-08-08, Playwright 390px 실측)
+
+team-lead가 merchants.html에 아래 CSS를 추가(@media max-width:900px 내부):
+```css
+.result-list, .result-list .card, #resultArea{ min-width:0; max-width:100%; }
+#resultArea{ overflow-x:hidden; }
+.table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+```
+→ 내가 제안한 "리스트 패널을 뷰포트에 clamp, 표는 .table-scroll 안에서 스크롤" 방향과 일치.
+
+실측(390×844 리사이즈 후 신규 로드, 서울 전체 50행 표시):
+- `document.documentElement.scrollWidth - clientWidth = 0` (scrollWidth 390 == clientWidth 390) → **가로 오버플로 0** ✓
+- `.table-scroll`: width 348(뷰포트 clamp) / scrollW 880 / **canScrollX=true** → 880px 표가 컨테이너 안에서 정상 가로 스크롤 ✓
+- `.result-list`(350) `.card`(350) `#resultArea`(348) 모두 뷰포트 내 clamp, 자체 오버플로 없음 ✓
+- 회귀: 지도 렌더(naver.maps 로드, 350×420), 상한 안내 "지도에는 3,000곳까지 표시됩니다. 현재 29,450곳 — …"(29,450 > MAP_MAX 3000이라 마커 미표시=설계대로), 필터 select 5개, 콘솔 error 0 — **무손상** ✓
+- 스크린샷: `.playwright-mcp/merchants-390-hoverflow-fixed.png`
+
+**경미 관찰(비차단, 오버플로 수정과 무관·기존 잠재)**: `#map` base 규칙 `min-height:420px`(168행)이 `@media(max-width:900px){#map{height:300px}}`(194행)를 이겨 모바일 지도 높이가 300px 의도와 달리 420px로 렌더된다. 기능·오버플로에 무해한 순수 시각 사항이라 이번 배포 차단 사유 아님. 추후 모바일 지도를 300px로 줄이려면 media 규칙에 `min-height:300px`(또는 해당 min-height 재정의)을 함께 명시할 것.
+
+### 최종 판정 (task #25): **통과** — D-MAP-1 해소 확인, merchants.html + lib/MarkerClustering.js 배포 가능.

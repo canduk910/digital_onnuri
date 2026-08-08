@@ -160,6 +160,44 @@
   }
   @media (min-width:960px){ .overlay { display:none !important; } }
   @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
+
+  /* ── 지도+리스트 병행 ── */
+  .result-split{ display:flex; gap:16px; align-items:flex-start; }
+  .result-list{ flex:1 1 auto; min-width:0; }
+  .result-map{ flex:0 0 clamp(360px,34vw,460px); position:sticky; top:16px; }
+  #map{ width:100%; height:calc(100vh - 120px); min-height:420px; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; background:var(--surface); }
+  .map-note{ font-size:12.5px; color:var(--text-sub); padding:8px 2px 0; line-height:1.5; }
+  .map-note b{ color:var(--text); font-weight:650; }
+  /* 네이버 인포윈도우 커스텀 */
+  .iw{ font-family:inherit; padding:10px 12px; min-width:180px; max-width:240px; }
+  .iw .iw-name{ font-weight:700; font-size:13.5px; color:var(--text); margin-bottom:2px; }
+  .iw .iw-cat{ font-size:11.5px; color:var(--accent-press); font-weight:600; }
+  .iw .iw-addr{ font-size:12px; color:var(--text-sub); margin-top:4px; line-height:1.45; }
+  .iw .iw-pay{ margin-top:6px; }
+  .iw .iw-pay span{ display:inline-block; font-size:11px; padding:1px 6px; border-radius:4px; margin-right:3px; }
+  .iw .iw-pay .card{ background:var(--accent-soft); color:var(--accent-press); }
+  .iw .iw-pay .qr{ background:#EEF6EF; color:#1F7A47; }
+  /* 클러스터 마커 (모노톤+오렌지) */
+  .cluster{ display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:12px; border-radius:999px; box-shadow:0 2px 6px rgba(20,22,26,.28); border:2px solid #fff; }
+  .cluster.s1{ width:34px; height:34px; background:#F6A66B; }
+  .cluster.s2{ width:40px; height:40px; background:#F2842F; }
+  .cluster.s3{ width:48px; height:48px; background:#E8620F; }
+  .cluster.s4{ width:56px; height:56px; background:#C4510F; }
+  .pin{ width:14px; height:14px; border-radius:999px; background:var(--accent); border:2px solid #fff; box-shadow:0 1px 3px rgba(20,22,26,.4); cursor:pointer; }
+  .pin.active{ width:18px; height:18px; background:var(--accent-press); z-index:10; }
+  tr.row-link{ cursor:pointer; }
+  tr.row-link:hover{ background:var(--accent-soft); }
+  tr.row-link:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+  @media (max-width:900px){
+    .result-split{ flex-direction:column; }
+    .result-map{ position:static; width:100%; flex-basis:auto; order:-1; }
+    #map{ height:300px; min-height:0; }
+    /* 세로 스택 시 표(넓은 폭)가 뷰포트를 밀지 않도록 리스트 패널을 뷰포트에 clamp
+       — 표는 .table-scroll 안에서 가로 스크롤 */
+    .result-list, .result-list .card, #resultArea{ min-width:0; max-width:100%; }
+    #resultArea{ overflow-x:hidden; }
+    .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
 </style>
 </head>
 <body>
@@ -238,9 +276,17 @@
       <span class="count-text" id="countText"></span>
     </div>
 
-    <div class="card">
-      <div id="resultArea">
-        <div class="state"><span class="lead">가맹점 목록을 불러오는 중입니다…</span></div>
+    <div class="result-split">
+      <div class="result-list">
+        <div class="card">
+          <div id="resultArea">
+            <div class="state"><span class="lead">가맹점 목록을 불러오는 중입니다…</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="result-map">
+        <div id="map"></div>
+        <div class="map-note" id="mapNote"></div>
       </div>
     </div>
 
@@ -253,6 +299,17 @@
    </div>
   </main>
 
+<script>
+  window.navermap_authFailure = function () {
+    window.__naverAuthFail = true;
+    var n = document.getElementById("mapNote");
+    if (n) n.innerHTML = '지도를 불러오지 못했습니다(인증). 목록 검색은 정상 이용하실 수 있습니다.';
+    var m = document.getElementById("map");
+    if (m) m.style.display = "none";
+  };
+</script>
+<script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=x79smqla3u"></script>
+<script src="lib/MarkerClustering.js"></script>
 <script>
 (function () {
   "use strict";
@@ -527,7 +584,7 @@
       if (r.card === "Y") pay += '<span class="pay card">카드</span>';
       if (r.qr === "Y") pay += '<span class="pay qr">QR</span>';
       if (!pay) pay = '<span class="pay none">앱 결제 미확인</span>';
-      h += '<tr>'
+      h += '<tr class="row-link" data-lat="' + (r.lat || "") + '" data-lng="' + (r.lng || "") + '" tabindex="0">'
         + '<td class="name">' + esc(r.name) + brandTag + '</td>'
         + '<td><span class="' + badgeCls + '">' + esc(catLabel(r.cat)) + '</span></td>'
         + '<td class="market">' + esc(r.market || "—") + mt + '</td>'
@@ -538,6 +595,101 @@
     h += '</tbody></table></div>' + pagerHTML(state.page, pages, rows.length);
     area.innerHTML = h;
     wirePager(pages);
+    wireRowMap();
+    renderMap(rows);
+  }
+
+  /* ── 네이버 지도 ── */
+  var mapObj = null, clusterObj = null, mapMarkers = [], infoWin = null, mapReady = false;
+  var MAP_MAX = 3000;   // 개별 마커 상한(성능). 초과 시 안내 후 생략.
+
+  function mapAvailable() { return !window.__naverAuthFail && window.naver && window.naver.maps; }
+
+  function initMap() {
+    if (mapReady) return true;
+    if (!mapAvailable()) return false;
+    mapObj = new naver.maps.Map("map", {
+      center: new naver.maps.LatLng(37.5665, 126.9780), zoom: 11,
+      scaleControl: false, mapDataControl: false, logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT }
+    });
+    infoWin = new naver.maps.InfoWindow({ borderWidth: 1, borderColor: "#E6E6E6", backgroundColor: "#fff", anchorSize: new naver.maps.Size(0, 0), pixelOffset: new naver.maps.Point(0, -6) });
+    mapReady = true;
+    return true;
+  }
+
+  function clearMarkers() {
+    if (clusterObj) { clusterObj.setMap(null); clusterObj = null; }
+    for (var i = 0; i < mapMarkers.length; i++) mapMarkers[i].setMap(null);
+    mapMarkers = [];
+    if (infoWin) infoWin.close();
+  }
+
+  function cIcon(cls) {
+    return { content: '<div class="cluster ' + cls + '"><div></div></div>',
+      size: new naver.maps.Size(40, 40), anchor: new naver.maps.Point(20, 20) };
+  }
+
+  function openInfo(anchor, r) {
+    var pay = "";
+    if (r.card === "Y") pay += '<span class="card">카드</span>';
+    if (r.qr === "Y") pay += '<span class="qr">QR</span>';
+    var html = '<div class="iw"><div class="iw-name">' + esc(r.name) + '</div>'
+      + '<div class="iw-cat">' + esc(catLabel(r.cat)) + (r.brand === SSM_BRAND ? " · SSM" : "") + '</div>'
+      + '<div class="iw-addr">' + esc(r.addr || "") + (r.market ? " · " + esc(r.market) : "") + '</div>'
+      + (pay ? '<div class="iw-pay">' + pay + '</div>' : "") + '</div>';
+    infoWin.setContent(html);
+    if (anchor instanceof naver.maps.Marker) infoWin.open(mapObj, anchor);
+    else infoWin.open(mapObj, new naver.maps.LatLng(r.lat, r.lng));
+  }
+
+  function renderMap(rows) {
+    var note = el("mapNote");
+    if (!initMap()) { return; }   // 인증 실패 등 — authFailure가 note 처리
+    clearMarkers();
+    if (!rows.length) { note.textContent = "표시할 가맹점이 없습니다."; return; }
+    if (rows.length > MAP_MAX) {
+      note.innerHTML = "지도에는 <b>" + nf(MAP_MAX) + "곳</b>까지 표시됩니다. 현재 <b>" + nf(rows.length)
+        + "곳</b> — 지역·업종·브랜드 필터를 좁히면 지도에 나타납니다.";
+      return;
+    }
+    note.innerHTML = "지도에 <b>" + nf(rows.length) + "곳</b> 표시 · 마커를 누르면 상세, 목록 항목을 누르면 지도에서 위치를 보여줍니다.";
+    var bounds = new naver.maps.LatLngBounds(), n = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (!r.lat || !r.lng) continue;
+      var pos = new naver.maps.LatLng(r.lat, r.lng);
+      var mk = new naver.maps.Marker({ position: pos, icon: { content: '<div class="pin"></div>', anchor: new naver.maps.Point(9, 9) } });
+      (function (marker, row) {
+        naver.maps.Event.addListener(marker, "click", function () { openInfo(marker, row); });
+      })(mk, r);
+      mapMarkers.push(mk); bounds.extend(pos); n++;
+    }
+    clusterObj = new MarkerClustering({
+      map: mapObj, markers: mapMarkers, minClusterSize: 2, maxZoom: 15, gridSize: 120, disableClickZoom: false,
+      indexGenerator: [10, 50, 200, 1000],
+      icons: [cIcon("s1"), cIcon("s2"), cIcon("s3"), cIcon("s4")],
+      stylingFunction: function (clusterMarker, count) {
+        var box = clusterMarker.getElement().querySelector("div div");
+        if (box) box.textContent = count;
+      }
+    });
+    if (n) mapObj.fitBounds(bounds);
+  }
+
+  function wireRowMap() {
+    var rows = el("resultArea").querySelectorAll("tr.row-link");
+    Array.prototype.forEach.call(rows, function (tr) {
+      var lat = parseFloat(tr.getAttribute("data-lat")), lng = parseFloat(tr.getAttribute("data-lng"));
+      if (!lat || !lng) return;
+      function focus() {
+        if (!mapReady && !initMap()) return;
+        mapObj.morph(new naver.maps.LatLng(lat, lng), 16);
+        var name = tr.querySelector(".name") ? tr.querySelector(".name").textContent : "";
+        openInfo(null, { lat: lat, lng: lng, name: name, cat: "", addr: tr.querySelector(".addr") ? tr.querySelector(".addr").textContent.replace(/·.*$/, "").trim() : "", market: "" });
+      }
+      tr.addEventListener("click", focus);
+      tr.addEventListener("keydown", function (e) { if (e.key === "Enter") focus(); });
+    });
   }
 
   function pagerHTML(page, pages, total) {

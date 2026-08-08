@@ -32,3 +32,4 @@
 | 2026-08-08 | 시장·브랜드 뷰 통합 + 구/동 계층 필터 | merchants.html, data/merchants/*.json | 사용자 요청. 공공데이터(주소 없음)를 온누리 API 전수 수집본(66,211건, 도로명 주소·구/동)으로 교체. 2뷰→1뷰 통합, 지역 계층(서울·인천 구→동/경기 시→구→동), 업종·brand·시장유형 3축 필터. brand_stores.json 흡수. 갱신: build_region_full.py 재실행 |
 | 2026-08-08 | 빈도+지점명 브랜드 자동탐지 + 브랜드 필터 | data/merchants/*.json, merchants.html | 사용자 요청. 상호 7회+ 중복 AND 지점명비율 40%+ → 브랜드(169종), 표기변형 병합. 충남상회류 오탐 제외. brand enum 4종→개별명. 상위칩+롱테일 검색. 후보 CSV(13_brand_candidates.csv) |
 | 2026-08-08 | UX 대개편: 좌측 사이드바 + 화이트 모노톤 + 오렌지 | index.html, merchants.html | 사용자 요청. 크림/따뜻한 톤 제거→중립 모노톤, 오렌지 포인트 절제. 계층 사이드바(PC 상시/모바일 드로어), 모던 버튼(pill→6px). 디자인 시스템: 14_design_system.md. index는 build_index.py 재실행 |
+| 2026-08-08 | 네이버 지도 통합 (가맹점 찾기, 지도+리스트 병행) | merchants.html, lib/MarkerClustering.js | 사용자 요청. 네이버 Maps JS SDK(Client ID는 도메인 제한 보호, Secret 미사용·코드에 없음). 마커 클러스터, 필터(지역계층·업종·브랜드) 연동, 성능 상한 3,000곳. 리스트↔지도 연동. 좌표는 데이터 lat/lng |
