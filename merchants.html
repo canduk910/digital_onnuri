@@ -165,7 +165,50 @@
   .result-split{ display:flex; gap:16px; align-items:flex-start; }
   .result-list{ flex:1 1 auto; min-width:0; }
   .result-map{ flex:0 0 clamp(360px,34vw,460px); position:sticky; top:16px; }
+  .map-wrap{ position:relative; }
   #map{ width:100%; height:calc(100vh - 120px); min-height:420px; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; background:var(--surface); }
+  .loc-btn{ position:absolute; top:12px; right:12px; z-index:5; display:inline-flex; align-items:center; gap:6px;
+    padding:8px 12px; font-size:13px; font-weight:600; color:var(--text); background:#fff;
+    border:1px solid var(--border); border-radius:var(--r-md); box-shadow:0 1px 4px rgba(0,0,0,.12); cursor:pointer; }
+  .loc-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .loc-btn:disabled{ opacity:.6; cursor:default; }
+  .loc-btn svg{ display:block; }
+  .my-loc-dot{ width:18px; height:18px; border-radius:50%; background:#1a73e8; border:3px solid #fff; box-shadow:0 0 0 2px rgba(26,115,232,.4), 0 1px 3px rgba(0,0,0,.3); }
+
+  /* 브랜드 검색 트리거 버튼 */
+  .brand-open{ display:inline-flex; align-items:center; gap:6px; cursor:pointer; text-align:left; color:var(--text); background:#fff; }
+  .brand-open:hover{ border-color:var(--accent); color:var(--accent); }
+  .brand-open.on{ border-color:var(--accent); color:var(--accent); font-weight:700; }
+  /* 브랜드 검색 팝업 */
+  .modal[hidden]{ display:none; }
+  .modal{ position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; }
+  .modal-backdrop{ position:absolute; inset:0; background:rgba(20,20,20,.45); }
+  .modal-box{ position:relative; width:min(560px,92vw); max-height:82vh; display:flex; flex-direction:column;
+    background:#fff; border:1px solid var(--border); border-radius:var(--r-md); box-shadow:0 12px 40px rgba(0,0,0,.25); overflow:hidden; }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); }
+  .modal-head strong{ font-size:15px; }
+  .modal-close{ border:0; background:transparent; font-size:16px; cursor:pointer; color:var(--text-faint); padding:4px 8px; border-radius:6px; }
+  .modal-close:hover{ background:var(--surface); color:var(--text); }
+  .modal-tools{ display:flex; gap:10px; padding:12px 16px; border-bottom:1px solid var(--border); align-items:center; flex-wrap:wrap; }
+  .bm-catwrap{ font-size:12px; font-weight:600; color:var(--text-faint); display:flex; align-items:center; gap:6px; }
+  .bm-catwrap select{ font-size:13px; }
+  .bm-searchwrap{ position:relative; flex:1; min-width:180px; display:flex; align-items:center; }
+  .bm-searchwrap svg{ position:absolute; left:10px; color:var(--text-faint); }
+  .bm-searchwrap input{ width:100%; padding:9px 12px 9px 32px; border:1px solid var(--border); border-radius:var(--r-md); font-size:14px; }
+  .bm-searchwrap input:focus{ outline:none; border-color:var(--accent); }
+  .modal-body{ display:flex; min-height:0; flex:1; }
+  .bm-index{ list-style:none; margin:0; padding:6px 2px; width:26px; overflow-y:auto; border-right:1px solid var(--border); text-align:center; }
+  .bm-index li{ font-size:11px; line-height:1.5; color:var(--text-faint); cursor:pointer; border-radius:4px; padding:1px 0; }
+  .bm-index li:hover{ background:var(--surface); color:var(--accent); }
+  .bm-index li.disabled{ opacity:.3; cursor:default; }
+  .bm-list{ flex:1; overflow-y:auto; padding:6px 0; }
+  .bm-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; text-align:left;
+    padding:10px 16px; border:0; background:transparent; cursor:pointer; font-size:14px; color:var(--text); }
+  .bm-item:hover{ background:var(--surface); }
+  .bm-item.active{ color:var(--accent); font-weight:700; }
+  .bm-item .cnt{ font-size:12px; color:var(--text-faint); font-variant-numeric:tabular-nums; }
+  .bm-head{ position:sticky; top:0; padding:4px 16px; font-size:11px; font-weight:700; color:var(--text-faint); background:#fff; letter-spacing:.04em; }
+  .bm-empty{ padding:24px 16px; color:var(--text-faint); font-size:13px; text-align:center; }
   .map-note{ font-size:12.5px; color:var(--text-sub); padding:8px 2px 0; line-height:1.5; }
   .map-note b{ color:var(--text); font-weight:650; }
   /* 네이버 인포윈도우 커스텀 */
@@ -254,7 +297,10 @@
       <div class="aux-group" id="brandChips" aria-label="브랜드 선택"></div>
       <div class="aux-group">
         <span class="chip-label">브랜드 검색</span>
-        <select class="sel" id="selBrand" aria-label="브랜드 검색·선택"></select>
+        <button class="sel brand-open" id="brandOpen" type="button" aria-haspopup="dialog" aria-label="브랜드 검색 열기">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2"></line></svg>
+          <span id="brandOpenLabel">브랜드 전체</span>
+        </button>
       </div>
       <div class="aux-group">
         <span class="chip-label">시장 유형</span>
@@ -285,7 +331,13 @@
         </div>
       </div>
       <div class="result-map">
-        <div id="map"></div>
+        <div class="map-wrap">
+          <div id="map"></div>
+          <button id="locBtn" class="loc-btn" type="button" aria-label="현재 위치를 지도에 표시">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3a8.994 8.994 0 00-7.94-7.94V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19a7 7 0 110-14 7 7 0 010 14z"/></svg>
+            <span>내 위치</span>
+          </button>
+        </div>
         <div class="map-note" id="mapNote"></div>
       </div>
     </div>
@@ -299,6 +351,30 @@
    </div>
   </main>
 
+  <!-- 브랜드 검색 팝업 -->
+  <div id="brandModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="bmTitle">
+      <div class="modal-head">
+        <strong id="bmTitle">브랜드 검색</strong>
+        <button class="modal-close" id="bmClose" type="button" aria-label="닫기">✕</button>
+      </div>
+      <div class="modal-tools">
+        <label class="bm-catwrap">업종
+          <select class="sel" id="bmCat" aria-label="업종 선택"></select>
+        </label>
+        <div class="bm-searchwrap">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2"></line></svg>
+          <input id="bmQ" type="text" autocomplete="off" placeholder="브랜드 이름 입력 (부분 검색: 파리, gs, 커피)">
+        </div>
+      </div>
+      <div class="modal-body">
+        <ul id="bmIndex" class="bm-index" aria-label="초성·알파벳 색인"></ul>
+        <div id="bmList" class="bm-list" tabindex="0"></div>
+      </div>
+    </div>
+  </div>
+
 <script>
   window.navermap_authFailure = function () {
     window.__naverAuthFail = true;
@@ -310,6 +386,7 @@
 </script>
 <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=x79smqla3u"></script>
 <script src="lib/MarkerClustering.js"></script>
+<script src="config.js"></script>
 <script>
 (function () {
   "use strict";
@@ -330,11 +407,18 @@
   }
 
   // ---- 설정 ----
-  var SIDO = [
-    { key: "서울", url: "data/merchants/seoul.json" },
-    { key: "인천", url: "data/merchants/incheon.json" },
-    { key: "경기", url: "data/merchants/gyeonggi.json" }
-  ];
+  var CFG = window.ONNURI_CONFIG || {};
+  // 데이터 출처: 백엔드 검색 API(Spring). 설정(config.js)으로 소스를 분기한다.
+  var API_BASE = CFG.apiBase || (function () {
+    var h = location.hostname;
+    if (h === "localhost" || h === "127.0.0.1" || h === "") return "http://localhost:8080/api";
+    return "https://api.koscomlabor.cloud/api"; // 배포 도메인(NCP)
+  })();
+  // 데이터 소스 모드: config.js의 dataMode("auto"|"api"|"json"). 최종값은 resolveMode()에서 확정.
+  var MODE = "api";
+  var COLLECTED = "2026-08-08";   // 데이터 수집일(API 모드 기본값. JSON 모드는 meta.collected_on로 대체).
+  var SIDO = [{ key: "서울" }, { key: "인천" }, { key: "경기" }];
+  var SIDO_FILE = { "서울": "seoul.json", "인천": "incheon.json", "경기": "gyeonggi.json" }; // JSON 폴백 경로
   // 업종(cat) 표시명·순서 (M10-3 ①). data cat 키 → 화면명.
   var CAT_ORDER = [
     ["음식점", "음식점·카페"], ["편의점", "편의점"], ["마트·슈퍼", "마트·슈퍼"],
@@ -351,14 +435,22 @@
   var UNKNOWN_DONG = "동 미상";
 
   // ---- 상태 ----
-  var CACHE = {};                 // 시도별 지연 캐시
-  var META = { collected: "" };
+  var META = { collected: COLLECTED };
   var state = {
     sido: "서울", si: "전체", gu: "전체", dong: "전체",
     cat: "전체", brand: "전체", mtype: "전체",
     digitalOnly: false, q: "", sort: "default", page: 1
   };
   var loadingSido = null;
+  // 서버 응답 스냅샷(현재 필터 기준). 렌더 함수는 여기서 읽는다.
+  var SNAP = {
+    list: [], total: 0, pages: 1,                 // /api/merchants (현재 페이지)
+    facetCat: {}, catTotal: 0, facetBrand: [], facetMtype: [], // /api/merchants/facets (base 컨텍스트)
+    mapPins: [], mapTotal: 0, mapTruncated: false, // /api/merchants/map
+    regionTotal: 0, sidoTotal: 0
+  };
+  var REGIONS = { si: [], gu: [], dong: [] }; // /api/regions (현재 시도/시/구 기준 하위 옵션)
+  var SIDO_TOTAL = {};                          // 시도별 전체 건수(탭 배지·mScope)
 
   var el = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
@@ -373,99 +465,249 @@
     return out;
   };
   var catLabel = function (k) { for (var i = 0; i < CAT_ORDER.length; i++) if (CAT_ORDER[i][0] === k) return CAT_ORDER[i][1]; return k; };
-  // 브랜드 집계: base(지역+디지털) 내 brand(비-null) 건수순 정렬 [[brand,count],...]
-  function brandRanked() {
-    var b = base(), c = {};
-    for (var i = 0; i < b.length; i++) { var v = b[i].brand; if (v) c[v] = (c[v] || 0) + 1; }
-    return Object.keys(c).map(function (k) { return [k, c[k]]; })
-      .sort(function (a, b2) { return b2[1] - a[1] || a[0].localeCompare(b2[0], "ko"); });
-  }
+  // 브랜드 순위: 서버 facet(base 컨텍스트) 그대로 [[brand,count],...] (건수순, 서버 정렬).
+  function brandRanked() { return SNAP.facetBrand.map(function (c) { return [c.key, c.count]; }); }
 
-  // ---- 지연 로드 ----
-  function loadSido(sido) {
-    if (CACHE[sido]) return Promise.resolve(CACHE[sido]);
-    var conf = SIDO.filter(function (s) { return s.key === sido; })[0];
-    return fetch(conf.url).then(function (r) {
+  // ---- API ----
+  function apiGet(path, params) {
+    var u = new URL(API_BASE + path);
+    Object.keys(params || {}).forEach(function (k) {
+      var v = params[k];
+      if (v !== undefined && v !== null && v !== "") u.searchParams.set(k, v);
+    });
+    return fetch(u.toString()).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
-    }).then(function (data) {
-      if (!META.collected && data.meta) META.collected = data.meta.collected_on || "";
-      CACHE[sido] = data.items || [];
-      return CACHE[sido];
+    });
+  }
+  var assign = function () { // Object.assign 대체(구형 브라우저 안전)
+    var out = {}; for (var i = 0; i < arguments.length; i++) { var s = arguments[i]; for (var k in s) if (s.hasOwnProperty(k)) out[k] = s[k]; } return out;
+  };
+  // 지역 스코프(구/동, digital 제외) — regionFiltered와 동일 규칙. "동 미상"은 서버가 IS NULL로 해석.
+  function regionParams() {
+    var p = { region: state.sido };
+    if (isGG() && state.si !== "전체") p.si = state.si;
+    if (state.gu !== "전체") p.gu = state.gu;
+    if (state.dong !== "전체") p.dong = state.dong;
+    return p;
+  }
+  // 칩 집계 컨텍스트 = 클라이언트 base()(지역 + 디지털). cat/brand/mtype/q는 제외해 칩 카운트를 고정.
+  function baseParams() {
+    var p = regionParams();
+    if (state.digitalOnly) p.digital = true;
+    return p;
+  }
+  // 리스트·지도용 전체 필터.
+  function fullParams() {
+    var p = baseParams();
+    if (state.cat !== "전체") p.cat = state.cat;
+    if (state.brand !== "전체") p.brand = state.brand;
+    if (state.mtype !== "전체") p.mtype = state.mtype;
+    if (state.q.trim()) p.q = state.q.trim();
+    if (state.sort === "name") p.sort = "name";
+    return p;
+  }
+  // 서버 뷰 필드(marketType) → 렌더 코드가 쓰는 market_type로 정규화.
+  function normItem(m) { if (m && m.market_type === undefined && m.marketType !== undefined) m.market_type = m.marketType; return m; }
+
+  // ── 모드 확정: config.dataMode. "auto"면 API를 짧게 프로브해 실패 시 JSON 폴백. ──
+  function resolveMode() {
+    var want = CFG.dataMode || "auto";
+    if (want === "api" || want === "json") { MODE = want; return Promise.resolve(MODE); }
+    return probeApi().then(function (ok) { MODE = ok ? "api" : "json"; return MODE; });
+  }
+  function probeApi() {
+    return new Promise(function (resolve) {
+      var done = false, to = CFG.probeTimeoutMs || 2500;
+      var t = setTimeout(function () { if (!done) { done = true; resolve(false); } }, to);
+      fetch(API_BASE + "/merchants?size=1")
+        .then(function (r) { if (!done) { done = true; clearTimeout(t); resolve(r.ok); } })
+        .catch(function () { if (!done) { done = true; clearTimeout(t); resolve(false); } });
     });
   }
 
-  // ---- 지역 계층 헬퍼 ----
-  function sidoItems() { return CACHE[state.sido] || []; }
-  function ggSiHasGu(si) {
-    var it = sidoItems();
-    for (var i = 0; i < it.length; i++) if (it[i].si === si && it[i].gu) return true;
-    return false;
+  // ── JSON 폴백 데이터 소스(백엔드 미기동 시). 백엔드 규칙과 동일하게 계산해 동일 결과 보장. ──
+  var JCACHE = {};
+  function jsonLoadSido(sido) {
+    if (JCACHE[sido]) return Promise.resolve(JCACHE[sido]);
+    return fetch("data/merchants/" + SIDO_FILE[sido]).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }).then(function (d) {
+      if (d.meta && d.meta.collected_on) META.collected = d.meta.collected_on;
+      JCACHE[sido] = d.items || []; return JCACHE[sido];
+    });
   }
-  function siOptions() { return uniqSorted(sidoItems().map(function (x) { return x.si; })); }
-  function guOptions() {
-    var src = isGG()
-      ? sidoItems().filter(function (x) { return x.si === state.si; })
-      : sidoItems();
-    return uniqSorted(src.map(function (x) { return x.gu; }));
-  }
-  function dongScope() {
-    var it = sidoItems();
-    if (isGG()) {
-      it = it.filter(function (x) { return x.si === state.si; });
-      if (ggSiHasGu(state.si) && state.gu !== "전체") it = it.filter(function (x) { return x.gu === state.gu; });
-    } else if (state.gu !== "전체") {
-      it = it.filter(function (x) { return x.gu === state.gu; });
-    }
-    return it;
-  }
-  function dongOptions() {
-    var it = dongScope();
-    var opts = uniqSorted(it.map(function (x) { return x.dong; }));
-    if (it.some(function (x) { return !x.dong; })) opts.push(UNKNOWN_DONG); // D16
-    return opts;
-  }
-  function dongEnabled() {
-    if (isGG()) {
-      if (state.si === "전체") return false;
-      if (ggSiHasGu(state.si)) return state.gu !== "전체";
-      return true;
-    }
-    return state.gu !== "전체";
-  }
-
-  // ---- 파생 계산 ----
-  function regionFiltered() {
-    var it = sidoItems();
+  function jRegionFiltered(items) { // regionParams와 동일 규칙(digital 제외)
+    var it = items;
     if (isGG() && state.si !== "전체") it = it.filter(function (x) { return x.si === state.si; });
     if (state.gu !== "전체") it = it.filter(function (x) { return x.gu === state.gu; });
     if (state.dong !== "전체") {
-      it = (state.dong === UNKNOWN_DONG)
-        ? it.filter(function (x) { return !x.dong; })
-        : it.filter(function (x) { return x.dong === state.dong; });
+      it = (state.dong === UNKNOWN_DONG) ? it.filter(function (x) { return !x.dong; })
+                                         : it.filter(function (x) { return x.dong === state.dong; });
     }
     return it;
   }
-  function base() {
-    var it = regionFiltered();
+  function jBase(items) { // baseParams(지역 + 디지털)
+    var it = jRegionFiltered(items);
     if (state.digitalOnly) it = it.filter(function (x) { return x.card === "Y" || x.qr === "Y"; });
     return it;
   }
-  function catCount(k) { var b = base(), n = 0; for (var i = 0; i < b.length; i++) if (k === "전체" || b[i].cat === k) n++; return n; }
-  function filtered() {
-    var q = state.q.trim().toLowerCase();
-    var b = base(), out = [];
-    for (var i = 0; i < b.length; i++) {
-      var r = b[i];
+  function jFull(base) { // fullParams(+cat/brand/mtype/q, 정렬)
+    var q = state.q.trim().toLowerCase(), out = [];
+    for (var i = 0; i < base.length; i++) {
+      var r = base[i];
       if (state.cat !== "전체" && r.cat !== state.cat) continue;
       if (state.brand !== "전체" && r.brand !== state.brand) continue;
       if (state.mtype !== "전체" && r.market_type !== state.mtype) continue;
       if (q && ((r.name || "") + " " + (r.addr || "") + " " + (r.market || "")).toLowerCase().indexOf(q) === -1) continue;
       out.push(r);
     }
-    if (state.sort === "name") out.sort(function (a, b2) { return (a.name || "").localeCompare(b2.name || "", "ko"); });
+    if (state.sort === "name") out.sort(function (a, b) { return (a.name || "").localeCompare(b.name || "", "ko"); });
     return out;
   }
+  function jDistinctDong(rows) {
+    var d = uniqSorted(rows.map(function (x) { return x.dong; }));
+    if (rows.some(function (x) { return !x.dong; })) d.push(UNKNOWN_DONG);
+    return d;
+  }
+  function jsonRegionOptions() {
+    return jsonLoadSido(state.sido).then(function (items) {
+      var out = { si: [], gu: [], dong: [] };
+      if (isGG()) {
+        out.si = uniqSorted(items.map(function (x) { return x.si; }));
+        if (state.si !== "전체") {
+          var inSi = items.filter(function (x) { return x.si === state.si; });
+          out.gu = uniqSorted(inSi.map(function (x) { return x.gu; }));
+          var scope = (state.gu !== "전체") ? inSi.filter(function (x) { return x.gu === state.gu; }) : inSi;
+          out.dong = jDistinctDong(scope);
+        }
+      } else {
+        out.gu = uniqSorted(items.map(function (x) { return x.gu; }));
+        if (state.gu !== "전체") out.dong = jDistinctDong(items.filter(function (x) { return x.gu === state.gu; }));
+      }
+      return out;
+    });
+  }
+  function jsonQuery(scope) { // apiQuery와 동일한 정규화 결과 반환
+    return jsonLoadSido(state.sido).then(function (items) {
+      var base = jBase(items), full = jFull(base), R = { total: full.length };
+      var start = (state.page - 1) * PAGE_SIZE;
+      R.list = full.slice(start, start + PAGE_SIZE);
+      if (scope === "all") {
+        R.facetCat = {}; base.forEach(function (x) { R.facetCat[x.cat] = (R.facetCat[x.cat] || 0) + 1; });
+        R.catTotal = base.length;
+        var bc = {}; base.forEach(function (x) { if (x.brand) bc[x.brand] = (bc[x.brand] || 0) + 1; });
+        R.facetBrand = Object.keys(bc).map(function (k) { return { key: k, count: bc[k] }; })
+          .sort(function (a, b) { return b.count - a.count || a.key.localeCompare(b.key, "ko"); });
+        var mc = {}; base.forEach(function (x) { if (x.market_type) mc[x.market_type] = (mc[x.market_type] || 0) + 1; });
+        R.facetMtype = Object.keys(mc).map(function (k) { return { key: k, count: mc[k] }; });
+        R.regionTotal = jRegionFiltered(items).length;
+      }
+      if (scope !== "page") {
+        R.mapTotal = full.length;
+        R.mapTruncated = full.length > MAP_MAX;
+        R.mapPins = R.mapTruncated ? [] : full;
+      }
+      return R;
+    });
+  }
+  // API 4콜을 apiQuery/jsonQuery 공통 정규화 형태로 래핑.
+  function apiQuery(scope) {
+    var wantFacets = scope === "all", wantMap = scope !== "page";
+    var full = fullParams();
+    return Promise.all([
+      apiGet("/merchants", assign(full, { page: state.page - 1, size: PAGE_SIZE })),
+      wantFacets ? apiGet("/merchants/facets", baseParams()) : Promise.resolve(null),
+      wantMap ? apiGet("/merchants/map", full) : Promise.resolve(null),
+      wantFacets ? apiGet("/merchants", assign(regionParams(), { size: 1 })) : Promise.resolve(null)
+    ]).then(function (res) {
+      var list = res[0], fac = res[1], mp = res[2], rc = res[3], R = { list: list.items || [], total: list.total };
+      if (fac) {
+        R.facetCat = {}; (fac.cat || []).forEach(function (c) { R.facetCat[c.key] = c.count; });
+        R.catTotal = (fac.cat || []).reduce(function (a, c) { return a + c.count; }, 0);
+        R.facetBrand = fac.brand || []; R.facetMtype = fac.mtype || [];
+      }
+      if (mp) { R.mapPins = mp.pins || []; R.mapTotal = mp.total; R.mapTruncated = mp.truncated; }
+      if (rc) R.regionTotal = rc.total;
+      return R;
+    });
+  }
+
+  // 시도별 전체 건수(탭 배지·mScope). 최초 1회 조회 후 캐시.
+  function loadSidoTotal(sido) {
+    if (SIDO_TOTAL[sido] != null) return Promise.resolve(SIDO_TOTAL[sido]);
+    if (MODE === "json") return jsonLoadSido(sido).then(function (it) { SIDO_TOTAL[sido] = it.length; return it.length; });
+    return apiGet("/merchants", { region: sido, size: 1 }).then(function (r) {
+      SIDO_TOTAL[sido] = r.total; return r.total;
+    });
+  }
+  // 지역 계층 옵션(구/동 또는 시/구/동) 로드.
+  function loadRegionOptions() {
+    if (MODE === "json") {
+      return jsonRegionOptions().then(function (d) {
+        REGIONS.si = d.si || []; REGIONS.gu = d.gu || []; REGIONS.dong = d.dong || []; return REGIONS;
+      });
+    }
+    var q = { region: state.sido };
+    if (isGG() && state.si !== "전체") q.si = state.si;
+    if (state.gu !== "전체") q.gu = state.gu;
+    return apiGet("/regions", q).then(function (d) {
+      REGIONS.si = d.si || [];
+      REGIONS.gu = d.gu || [];
+      REGIONS.dong = d.dong || [];
+      return REGIONS;
+    });
+  }
+
+  // ---- 지역 계층 헬퍼(REGIONS 기반) ----
+  function ggSiHasGu() { return REGIONS.gu.length > 0; } // 현재 선택 시(state.si)의 구 존재 여부
+  function siOptions() { return REGIONS.si; }
+  function guOptions() { return REGIONS.gu; }
+  function dongOptions() { return REGIONS.dong; } // 서버가 "동 미상" 센티넬 말미 포함
+  function dongEnabled() {
+    if (isGG()) {
+      if (state.si === "전체") return false;
+      if (ggSiHasGu()) return state.gu !== "전체";
+      return true;
+    }
+    return state.gu !== "전체";
+  }
+
+  // ---- 데이터 갱신(서버 검색) ----
+  // scope로 필요한 호출만 수행(불필요한 재조회 방지):
+  //   "all"    지역·디지털·시도 변경 → 리스트+집계+지도+지역총계 (집계·지역총계는 이 축에서만 바뀜)
+  //   "filter" 업종·브랜드·유형·검색 → 리스트+지도 (집계는 base 컨텍스트라 불변)
+  //   "page"   페이지·정렬 → 리스트만 (지도 대상 집합·집계 불변)
+  var refreshSeq = 0;
+  function refresh(scope) {
+    scope = scope || "all";
+    var seq = ++refreshSeq;
+    var query = (MODE === "json") ? jsonQuery(scope) : apiQuery(scope);
+    return query.then(function (R) {
+      if (seq !== refreshSeq) return; // 최신 요청만 반영(입력 경합 방지)
+      SNAP.list = (R.list || []).map(normItem);
+      SNAP.total = R.total;
+      SNAP.pages = Math.max(1, Math.ceil(R.total / PAGE_SIZE));
+      var hasFacets = R.facetCat !== undefined;
+      if (hasFacets) {
+        SNAP.facetCat = R.facetCat;
+        SNAP.catTotal = R.catTotal;
+        SNAP.facetBrand = R.facetBrand || [];
+        SNAP.facetMtype = (R.facetMtype || []).slice().sort(function (a, b) { return a.key.localeCompare(b.key, "ko"); });
+      }
+      var hasMap = R.mapPins !== undefined;
+      if (hasMap) {
+        SNAP.mapPins = (R.mapPins || []).map(normItem);
+        SNAP.mapTotal = R.mapTotal; SNAP.mapTruncated = R.mapTruncated;
+      }
+      if (R.regionTotal !== undefined) SNAP.regionTotal = R.regionTotal;
+      SNAP.sidoTotal = SIDO_TOTAL[state.sido] != null ? SIDO_TOTAL[state.sido] : SNAP.sidoTotal;
+      renderChips(); render();
+      if (hasMap) renderMap();   // 지도는 대상 집합이 바뀐 경우에만 재그림
+    }).catch(function () { if (seq === refreshSeq) renderResultError(); });
+  }
+  function catCount(k) { return k === "전체" ? SNAP.catTotal : (SNAP.facetCat[k] || 0); }
 
   // ---- 렌더 ----
   function renderMeta() {
@@ -482,7 +724,7 @@
       b.className = "sido-tab" + (state.sido === s.key ? " active" : "");
       b.setAttribute("role", "tab");
       b.setAttribute("aria-selected", state.sido === s.key ? "true" : "false");
-      var sub = CACHE[s.key] ? nf(CACHE[s.key].length) + "곳" : (s.key === loadingSido ? "불러오는 중…" : "선택 시 불러오기");
+      var sub = SIDO_TOTAL[s.key] != null ? nf(SIDO_TOTAL[s.key]) + "곳" : (s.key === loadingSido ? "불러오는 중…" : "…");
       b.innerHTML = esc(s.key) + '<span class="tab-sub">' + sub + "</span>";
       b.onclick = function () { selectSido(s.key); };
       wrap.appendChild(b);
@@ -515,11 +757,15 @@
     var dOpts = [{ v: "전체", t: "동 전체" }].concat(dongOptions().map(function (v) { return { v: v, t: v }; }));
     html += mkSelect("selDong", "동", dOpts, state.dong, dongEnabled());
     wrap.innerHTML = html;
-    var selSi = el("selSi"); if (selSi) selSi.onchange = function (e) { state.si = e.target.value; state.gu = "전체"; state.dong = "전체"; state.page = 1; afterRegionChange(); };
-    var selGu = el("selGu"); if (selGu) selGu.onchange = function (e) { state.gu = e.target.value; state.dong = "전체"; state.page = 1; afterRegionChange(); };
-    var selDong = el("selDong"); if (selDong) selDong.onchange = function (e) { state.dong = e.target.value; state.page = 1; afterRegionChange(); };
+    var selSi = el("selSi"); if (selSi) selSi.onchange = function (e) { state.si = e.target.value; state.gu = "전체"; state.dong = "전체"; state.page = 1; afterRegionChange(true); };
+    var selGu = el("selGu"); if (selGu) selGu.onchange = function (e) { state.gu = e.target.value; state.dong = "전체"; state.page = 1; afterRegionChange(true); };
+    var selDong = el("selDong"); if (selDong) selDong.onchange = function (e) { state.dong = e.target.value; state.page = 1; afterRegionChange(false); };
   }
-  function afterRegionChange() { renderRegionSelects(); renderChips(); render(); }
+  // reloadOpts=true면 하위 옵션(구/동)을 서버에서 다시 받아 셀렉트를 갱신한 뒤 결과 조회.
+  function afterRegionChange(reloadOpts) {
+    if (reloadOpts) { loadRegionOptions().then(function () { renderRegionSelects(); refresh(); }); }
+    else { refresh(); }
+  }
 
   function renderChips() {
     // 업종(주)
@@ -529,7 +775,7 @@
       var b = document.createElement("button");
       b.className = "chip" + (state.cat === key ? " active" : "");
       b.innerHTML = esc(label) + ' <b>' + nf(catCount(key)) + "</b>";
-      b.onclick = function () { state.cat = key; state.page = 1; renderChips(); render(); };
+      b.onclick = function () { state.cat = key; state.page = 1; refresh("filter"); };
       cc.appendChild(b);
     });
     // 브랜드(보조) — 개별 브랜드명. 상위 N개만 칩, 나머지는 드롭다운(타입어헤드 검색). 전부 계산.
@@ -539,37 +785,139 @@
       var b = document.createElement("button");
       b.className = "chip" + (state.brand === key ? " active" : "");
       b.innerHTML = esc(label) + (cnt != null ? ' <b>' + nf(cnt) + "</b>" : "");
-      b.onclick = function () { state.brand = key; state.page = 1; renderChips(); render(); };
+      b.onclick = function () { state.brand = key; state.page = 1; refresh("filter"); };
       bc.appendChild(b);
     }
     addBrandChip("전체", "전체", null);
-    ranked.slice(0, BRAND_TOPN).forEach(function (pair) { addBrandChip(pair[0], pair[0], pair[1]); });
-    var sb = el("selBrand");
-    var sbh = '<option value="전체"' + (state.brand === "전체" ? " selected" : "") + ">브랜드 전체</option>";
-    ranked.forEach(function (pair) { sbh += '<option value="' + esc(pair[0]) + '"' + (state.brand === pair[0] ? " selected" : "") + ">" + esc(pair[0]) + " (" + nf(pair[1]) + ")</option>"; });
-    sb.innerHTML = sbh;
-    // 시장 유형(보조, 드롭다운) — D15
+    var shownBrands = ranked.slice(0, BRAND_TOPN);
+    shownBrands.forEach(function (pair) { addBrandChip(pair[0], pair[0], pair[1]); });
+    // 선택한 브랜드가 현재 지역 집계에 없어도(0건) 칩을 유지 — 컨트롤과 state 불일치로 인한 '숨은 필터' 방지.
+    if (state.brand !== "전체" && !shownBrands.some(function (p) { return p[0] === state.brand; })) {
+      addBrandChip(state.brand, state.brand, null);
+    }
+    // 브랜드 검색 트리거 버튼 라벨(선택 상태 반영). 목록은 팝업에서 검색.
+    var bo = el("brandOpenLabel"); if (bo) bo.textContent = state.brand === "전체" ? "브랜드 전체" : state.brand;
+    var boBtn = el("brandOpen"); if (boBtn) boBtn.className = "sel brand-open" + (state.brand !== "전체" ? " on" : "");
+    // 시장 유형(보조, 드롭다운) — D15. 서버 facet(base 컨텍스트)에서 유형 목록.
     var mt = el("selMtype");
-    var types = uniqSorted(sidoItems().map(function (x) { return x.market_type; }));
     var cur = state.mtype;
     var h = '<option value="전체"' + (cur === "전체" ? " selected" : "") + ">전체</option>";
-    types.forEach(function (t) { h += '<option value="' + esc(t) + '"' + (cur === t ? " selected" : "") + ">" + esc(t) + "</option>"; });
+    var mtypeInList = false;
+    SNAP.facetMtype.forEach(function (c) {
+      if (c.key === cur) mtypeInList = true;
+      h += '<option value="' + esc(c.key) + '"' + (cur === c.key ? " selected" : "") + ">" + esc(c.key) + "</option>";
+    });
+    if (cur !== "전체" && !mtypeInList) { // 목록에 없는 선택값도 유지
+      h += '<option value="' + esc(cur) + '" selected>' + esc(cur) + "</option>";
+    }
     mt.innerHTML = h;
   }
 
+  /* ── 브랜드 검색 팝업 ── */
+  var CHO = ["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+  var CHO_ALL = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+  var CHO_BASE = { "ㄲ":"ㄱ","ㄸ":"ㄷ","ㅃ":"ㅂ","ㅆ":"ㅅ","ㅉ":"ㅈ" };
+  var INDEX_KEYS = CHO.concat("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")).concat(["#"]);
+  function initialOf(name) {
+    var ch = (name || "").charAt(0), code = ch.charCodeAt(0);
+    if (code >= 0xAC00 && code <= 0xD7A3) { var c = CHO_ALL[Math.floor((code - 0xAC00) / 588)]; return CHO_BASE[c] || c; }
+    if (/[a-zA-Z]/.test(ch)) return ch.toUpperCase();
+    return "#";
+  }
+  // 현재 지역·디지털 컨텍스트에서 특정 업종(cat)에 속한 브랜드 목록+카운트.
+  function brandsForCat(cat) {
+    if (MODE === "json") {
+      return jsonLoadSido(state.sido).then(function (items) {
+        var base = jBase(items), bc = {};
+        base.forEach(function (x) { if (x.brand && (cat === "전체" || x.cat === cat)) bc[x.brand] = (bc[x.brand] || 0) + 1; });
+        return Object.keys(bc).map(function (k) { return { key: k, count: bc[k] }; });
+      });
+    }
+    var p = baseParams(); if (cat !== "전체") p.cat = cat;
+    return apiGet("/merchants/facets", p).then(function (d) { return d.brand || []; });
+  }
+
+  var bmState = { cat: "전체", list: [], q: "" };
+  function openBrandModal() {
+    bmState.cat = state.cat;
+    bmState.q = "";
+    var qEl = el("bmQ"); if (qEl) qEl.value = "";
+    // 업종 콤보: 현재 업종 반영. 이미 업종이 선택돼 있으면 비활성(변경 제한).
+    var sel = el("bmCat");
+    var oh = '<option value="전체">업종 전체</option>';
+    CAT_ORDER.forEach(function (pair) { oh += '<option value="' + esc(pair[0]) + '"' + (state.cat === pair[0] ? " selected" : "") + ">" + esc(pair[1]) + "</option>"; });
+    sel.innerHTML = oh;
+    sel.value = state.cat;
+    sel.disabled = (state.cat !== "전체");
+    el("brandModal").hidden = false;
+    document.body.style.overflow = "hidden";
+    loadBrandModalList();
+    if (qEl) qEl.focus();
+  }
+  function closeBrandModal() { el("brandModal").hidden = true; document.body.style.overflow = ""; }
+  function loadBrandModalList() {
+    el("bmList").innerHTML = '<div class="bm-empty">불러오는 중…</div>';
+    brandsForCat(bmState.cat).then(function (list) {
+      bmState.list = list.slice().sort(function (a, b) { return a.key.localeCompare(b.key, "ko"); });
+      renderBrandModal();
+    }).catch(function () { el("bmList").innerHTML = '<div class="bm-empty">브랜드 목록을 불러오지 못했습니다.</div>'; });
+  }
+  function renderBrandModal() {
+    var q = bmState.q.trim().toLowerCase();
+    var rows = q ? bmState.list.filter(function (b) { return b.key.toLowerCase().indexOf(q) !== -1; }) : bmState.list;
+    // 색인: 결과에 존재하는 초성만 활성
+    var present = {}; rows.forEach(function (b) { present[initialOf(b.key)] = true; });
+    var idx = el("bmIndex"); idx.innerHTML = "";
+    INDEX_KEYS.forEach(function (k) {
+      var li = document.createElement("li");
+      li.textContent = k;
+      if (present[k]) { li.onclick = function () { jumpToInitial(k); }; }
+      else li.className = "disabled";
+      idx.appendChild(li);
+    });
+    // 리스트
+    var listEl = el("bmList");
+    if (!rows.length) { listEl.innerHTML = '<div class="bm-empty">' + (q ? '"' + esc(bmState.q) + '"에 해당하는 브랜드가 없습니다.' : "브랜드가 없습니다.") + "</div>"; return; }
+    listEl.innerHTML = "";
+    // 전체(해제)
+    var all = document.createElement("button");
+    all.className = "bm-item" + (state.brand === "전체" ? " active" : "");
+    all.innerHTML = '<span>브랜드 전체(해제)</span>';
+    all.onclick = function () { pickBrand("전체"); };
+    listEl.appendChild(all);
+    var lastInit = null;
+    rows.forEach(function (b) {
+      var ini = initialOf(b.key);
+      if (ini !== lastInit) { var hd = document.createElement("div"); hd.className = "bm-head"; hd.textContent = ini; hd.setAttribute("data-init", ini); listEl.appendChild(hd); lastInit = ini; }
+      var it = document.createElement("button");
+      it.className = "bm-item" + (state.brand === b.key ? " active" : "");
+      it.innerHTML = '<span>' + esc(b.key) + '</span><span class="cnt">' + nf(b.count) + "</span>";
+      it.onclick = function () { pickBrand(b.key); };
+      listEl.appendChild(it);
+    });
+  }
+  function jumpToInitial(k) {
+    var hd = el("bmList").querySelector('.bm-head[data-init="' + k + '"]');
+    if (hd) hd.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+  function pickBrand(key) {
+    state.brand = key;
+    // 팝업에서 업종을 (활성 상태로) 골랐다면 그 업종도 함께 적용.
+    if (!el("bmCat").disabled && bmState.cat !== state.cat) state.cat = bmState.cat;
+    state.page = 1;
+    closeBrandModal();
+    refresh("filter");
+  }
+
   function render() {
-    var regionTotal = regionFiltered().length;
-    el("mScope").textContent = state.sido + " " + nf(sidoItems().length) + "곳";
-    var rows = filtered();
-    el("countText").textContent = nf(regionTotal) + "곳 중 " + nf(rows.length) + "곳 표시";
+    el("mScope").textContent = state.sido + " " + nf(SNAP.sidoTotal || 0) + "곳";
+    el("countText").textContent = nf(SNAP.regionTotal) + "곳 중 " + nf(SNAP.total) + "곳 표시";
 
     var area = el("resultArea");
-    if (rows.length === 0) { area.innerHTML = emptyHTML(); wireEmpty(); return; }
+    if (SNAP.total === 0) { area.innerHTML = emptyHTML(); wireEmpty(); return; }
 
-    var pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-    if (state.page > pages) state.page = pages;
-    var start = (state.page - 1) * PAGE_SIZE;
-    var slice = rows.slice(start, start + PAGE_SIZE);
+    var pages = SNAP.pages;
+    var slice = SNAP.list; // 서버가 현재 페이지만 반환
 
     var h = '<div class="table-scroll"><table><thead><tr>'
       + '<th>가맹점명</th><th>업종</th><th>소속 시장·상점가</th><th>도로명 주소</th><th>결제</th>'
@@ -592,15 +940,15 @@
         + '<td>' + pay + '</td>'
         + '</tr>';
     }
-    h += '</tbody></table></div>' + pagerHTML(state.page, pages, rows.length);
+    h += '</tbody></table></div>' + pagerHTML(state.page, pages, SNAP.total);
     area.innerHTML = h;
     wirePager(pages);
     wireRowMap();
-    renderMap(rows);
   }
 
   /* ── 네이버 지도 ── */
   var mapObj = null, clusterObj = null, mapMarkers = [], infoWin = null, mapReady = false;
+  var locMarker = null, locCircle = null; // 현재 위치(결과 마커와 분리 — clearMarkers 영향 없음)
   var MAP_MAX = 3000;   // 개별 마커 상한(성능). 초과 시 안내 후 생략.
 
   function mapAvailable() { return !window.__naverAuthFail && window.naver && window.naver.maps; }
@@ -642,16 +990,17 @@
     else infoWin.open(mapObj, new naver.maps.LatLng(r.lat, r.lng));
   }
 
-  function renderMap(rows) {
+  function renderMap() {
     var note = el("mapNote");
     if (!initMap()) { return; }   // 인증 실패 등 — authFailure가 note 처리
     clearMarkers();
-    if (!rows.length) { note.textContent = "표시할 가맹점이 없습니다."; return; }
-    if (rows.length > MAP_MAX) {
-      note.innerHTML = "지도에는 <b>" + nf(MAP_MAX) + "곳</b>까지 표시됩니다. 현재 <b>" + nf(rows.length)
+    if (SNAP.mapTruncated) {       // 서버 상한(3,000) 초과 — 마커 생략
+      note.innerHTML = "지도에는 <b>" + nf(MAP_MAX) + "곳</b>까지 표시됩니다. 현재 <b>" + nf(SNAP.mapTotal)
         + "곳</b> — 지역·업종·브랜드 필터를 좁히면 지도에 나타납니다.";
       return;
     }
+    var rows = SNAP.mapPins;
+    if (!rows.length) { note.textContent = "표시할 가맹점이 없습니다."; return; }
     note.innerHTML = "지도에 <b>" + nf(rows.length) + "곳</b> 표시 · 마커를 누르면 상세, 목록 항목을 누르면 지도에서 위치를 보여줍니다.";
     var bounds = new naver.maps.LatLngBounds(), n = 0;
     for (var i = 0; i < rows.length; i++) {
@@ -674,6 +1023,40 @@
       }
     });
     if (n) mapObj.fitBounds(bounds);
+  }
+
+  /* ── 현재 위치(GPS·Wi‑Fi·기지국 = 브라우저 Geolocation) ── */
+  function showMyLocation() {
+    var btn = el("locBtn"), note = el("mapNote");
+    if (!navigator.geolocation) { if (note) note.textContent = "이 브라우저는 위치 기능을 지원하지 않습니다."; return; }
+    if (!initMap()) { if (note) note.textContent = "지도를 사용할 수 없어 현재 위치를 표시할 수 없습니다."; return; }
+    if (btn) { btn.disabled = true; btn.classList.add("loading"); }
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+      var lat = pos.coords.latitude, lng = pos.coords.longitude, acc = pos.coords.accuracy || 0;
+      var here = new naver.maps.LatLng(lat, lng);
+      if (locMarker) locMarker.setMap(null);
+      if (locCircle) locCircle.setMap(null);
+      locMarker = new naver.maps.Marker({
+        position: here, map: mapObj, zIndex: 1000,
+        icon: { content: '<div class="my-loc-dot" title="현재 위치"></div>', anchor: new naver.maps.Point(9, 9) }
+      });
+      if (acc && naver.maps.Circle) {
+        locCircle = new naver.maps.Circle({
+          map: mapObj, center: here, radius: Math.min(acc, 2000),
+          strokeColor: "#1a73e8", strokeOpacity: 0.4, strokeWeight: 1,
+          fillColor: "#1a73e8", fillOpacity: 0.08
+        });
+      }
+      mapObj.morph(here, 16);
+      if (note) note.innerHTML = "현재 위치를 표시했습니다" + (acc ? " (오차 약 " + nf(Math.round(acc)) + "m)" : "") + ".";
+    }, function (err) {
+      if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+      var msg = "현재 위치를 가져오지 못했습니다.";
+      if (err && err.code === 1) msg = "위치 권한이 거부되었습니다. 브라우저 주소창의 위치 권한을 허용해 주세요.";
+      else if (err && err.code === 3) msg = "위치 확인 시간이 초과되었습니다. 다시 시도해 주세요.";
+      if (note) note.textContent = msg;
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
   }
 
   function wireRowMap() {
@@ -710,7 +1093,7 @@
         else if (pg === "prev") state.page = Math.max(1, state.page - 1);
         else if (pg === "next") state.page = Math.min(pages, state.page + 1);
         else if (pg === "last") state.page = pages;
-        render();
+        refresh("page");
         window.scrollTo({ top: el("resultArea").getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" });
       };
     });
@@ -746,25 +1129,34 @@
     el("catChips").innerHTML = '<span class="chip-label">업종</span>';
     el("brandChips").innerHTML = '<span class="chip-label">브랜드</span>';
   }
-  function renderLoadError(sido) {
-    el("resultArea").innerHTML = '<div class="state"><span class="lead">' + esc(sido) + ' 가맹점 데이터를 불러오지 못했습니다.</span><br>'
-      + '네트워크 상태를 확인하고 다시 시도해 주세요. 이 페이지는 <strong>웹 서버에서 열어야</strong> 데이터가 로드됩니다 — 파일(file://)로 직접 열면 브라우저가 차단합니다.'
+  function errorStateHTML(lead) {
+    return '<div class="state"><span class="lead">' + esc(lead) + '</span><br>'
+      + '검색 서버에 연결하지 못했습니다. 네트워크 상태를 확인하고 다시 시도해 주세요.'
       + '<div class="state-actions"><button class="btn-outline" id="retryBtn">다시 시도</button>'
       + '<a class="btn-primary" href="' + APP_MAP_URL + '" target="_blank" rel="noopener">온누리 공식 가맹점 지도로 확인 ↗</a></div>'
       + appInstallHTML() + '</div>';
+  }
+  function renderLoadError(sido) {
+    el("resultArea").innerHTML = errorStateHTML(esc(sido) + " 가맹점 데이터를 불러오지 못했습니다.");
     el("countText").textContent = "로드 실패";
     var rb = el("retryBtn"); if (rb) rb.onclick = function () { selectSido(sido); };
+  }
+  function renderResultError() {
+    el("resultArea").innerHTML = errorStateHTML("검색 결과를 불러오지 못했습니다.");
+    el("countText").textContent = "로드 실패";
+    var rb = el("retryBtn"); if (rb) rb.onclick = function () { refresh(); };
   }
 
   // ---- 상호작용 ----
   function selectSido(sido) {
     state.sido = sido; state.si = "전체"; state.gu = "전체"; state.dong = "전체";
     state.cat = "전체"; state.brand = "전체"; state.mtype = "전체"; state.page = 1;
-    renderSidoTabs();
-    if (CACHE[sido]) { renderRegionSelects(); renderChips(); render(); return; }
     loadingSido = sido; renderSidoTabs(); showLoading(sido + " 가맹점 목록을 불러오는 중입니다…");
-    loadSido(sido).then(function () {
-      loadingSido = null; renderMeta(); renderSidoTabs(); renderRegionSelects(); renderChips(); render();
+    Promise.all([loadRegionOptions(), loadSidoTotal(sido)]).then(function () {
+      loadingSido = null;
+      SNAP.sidoTotal = SIDO_TOTAL[sido];
+      renderMeta(); renderSidoTabs(); renderRegionSelects();
+      return refresh();
     }).catch(function () { loadingSido = null; renderSidoTabs(); renderLoadError(sido); });
   }
 
@@ -774,32 +1166,47 @@
       var v = e.target.value;
       el("qClear").style.display = v ? "" : "none";
       clearTimeout(qTimer);
-      qTimer = setTimeout(function () { state.q = v; state.page = 1; render(); }, 150);
+      qTimer = setTimeout(function () { state.q = v; state.page = 1; refresh("filter"); }, 200);
     });
     el("qClear").addEventListener("click", function () { resetSearch(); });
-    el("sort").addEventListener("change", function (e) { state.sort = e.target.value; state.page = 1; render(); });
-    el("selBrand").addEventListener("change", function (e) { state.brand = e.target.value; state.page = 1; renderChips(); render(); });
-    el("selMtype").addEventListener("change", function (e) { state.mtype = e.target.value; state.page = 1; render(); });
-    el("digitalOnly").addEventListener("change", function (e) { state.digitalOnly = e.target.checked; state.page = 1; renderChips(); render(); });
+    var locBtn = el("locBtn"); if (locBtn) locBtn.addEventListener("click", showMyLocation);
+    el("sort").addEventListener("change", function (e) { state.sort = e.target.value; state.page = 1; refresh("page"); });
+    el("selMtype").addEventListener("change", function (e) { state.mtype = e.target.value; state.page = 1; refresh("filter"); });
+    el("digitalOnly").addEventListener("change", function (e) { state.digitalOnly = e.target.checked; state.page = 1; refresh("all"); });
+    // 브랜드 검색 팝업
+    el("brandOpen").addEventListener("click", openBrandModal);
+    el("bmClose").addEventListener("click", closeBrandModal);
+    el("brandModal").addEventListener("click", function (e) { if (e.target.getAttribute("data-close")) closeBrandModal(); });
+    el("bmCat").addEventListener("change", function (e) { bmState.cat = e.target.value; loadBrandModalList(); });
+    var bmqTimer = null;
+    el("bmQ").addEventListener("input", function (e) {
+      bmState.q = e.target.value; clearTimeout(bmqTimer);
+      bmqTimer = setTimeout(renderBrandModal, 120);
+    });
     document.addEventListener("keydown", function (e) {
       var t = document.activeElement;
       var typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+      if (e.key === "Escape" && !el("brandModal").hidden) { closeBrandModal(); return; }
       if (e.key === "/" && !typing) { e.preventDefault(); el("q").focus(); }
       if (e.key === "Escape" && t === el("q")) resetSearch();
     });
   }
-  function resetSearch() { state.q = ""; state.page = 1; el("q").value = ""; el("qClear").style.display = "none"; el("q").focus(); render(); }
+  function resetSearch() { state.q = ""; state.page = 1; el("q").value = ""; el("qClear").style.display = "none"; el("q").focus(); refresh("filter"); }
   function resetAll() {
     state.si = "전체"; state.gu = "전체"; state.dong = "전체";
     state.cat = "전체"; state.brand = "전체"; state.mtype = "전체";
     state.digitalOnly = false; state.q = ""; state.page = 1;
     el("q").value = ""; el("qClear").style.display = "none"; el("digitalOnly").checked = false;
-    renderRegionSelects(); renderChips(); render();
+    loadRegionOptions().then(function () { renderRegionSelects(); refresh(); });
   }
 
   function boot() {
     initNav(); renderSidoTabs(); bindControls();
-    selectSido(state.sido);
+    resolveMode().then(function () {
+      // 탭 배지 프리페치는 API 모드에서만(각 시도 size=1 카운트). JSON 모드는 파일 전체를 받게 되므로 생략.
+      if (MODE === "api") SIDO.forEach(function (s) { loadSidoTotal(s.key).then(renderSidoTabs).catch(function () {}); });
+      selectSido(state.sido);
+    });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
