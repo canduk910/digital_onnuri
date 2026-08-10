@@ -185,9 +185,18 @@
   @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
 
   /* ── 지도+리스트 병행 ── */
-  .result-split{ display:flex; gap:16px; align-items:flex-start; }
+  .result-split{ display:flex; gap:8px; align-items:flex-start; }
   .result-list{ flex:1 1 auto; min-width:0; }
-  .result-map{ flex:0 0 clamp(360px,34vw,460px); position:sticky; top:16px; }
+  /* 지도 폭: 드래그 스플리터가 --map-w를 갱신(기본 clamp). */
+  .result-map{ flex:0 0 var(--map-w, clamp(360px,34vw,460px)); position:sticky; top:16px; min-width:0; }
+  /* 드래그 핸들 — PC 전용(모바일 세로 스택에선 숨김) */
+  .split-handle{ flex:0 0 12px; align-self:stretch; position:sticky; top:16px; height:calc(100vh - 120px); min-height:420px;
+    display:flex; align-items:center; justify-content:center; cursor:col-resize; border-radius:6px; touch-action:none; user-select:none; }
+  .split-handle span{ width:4px; height:44px; border-radius:999px; background:var(--border-2); transition:background .15s ease, height .15s ease; }
+  .split-handle:hover span, .split-handle.dragging span{ background:var(--accent); height:64px; }
+  .split-handle:focus-visible{ outline:2px solid var(--accent); outline-offset:0; }
+  body.split-dragging{ cursor:col-resize; user-select:none; }
+  body.split-dragging iframe, body.split-dragging #map{ pointer-events:none; } /* 드래그 중 지도가 이벤트 삼키지 않게 */
   .map-wrap{ position:relative; }
   #map{ width:100%; height:calc(100vh - 120px); min-height:420px; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; background:var(--surface); }
   .bounds-btn{ position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:5;
@@ -267,6 +276,7 @@
   @media (max-width:900px){
     .result-split{ flex-direction:column; }
     .result-map{ position:static; width:100%; flex-basis:auto; order:-1; }
+    .split-handle{ display:none; } /* 세로 스택에선 드래그 조절 미제공 */
     #map{ height:300px; min-height:0; }
     /* 세로 스택 시 표(넓은 폭)가 뷰포트를 밀지 않도록 리스트 패널을 뷰포트에 clamp
        — 표는 .table-scroll 안에서 가로 스크롤 */
@@ -366,6 +376,8 @@
           </div>
         </div>
       </div>
+      <div class="split-handle" id="splitHandle" role="separator" aria-orientation="vertical"
+           aria-label="리스트·지도 크기 조절 (드래그, 더블클릭 시 초기화)" tabindex="0" title="드래그로 크기 조절 · 더블클릭 초기화"><span></span></div>
       <div class="result-map">
         <div class="map-wrap">
           <div id="map"></div>
@@ -441,6 +453,54 @@
     window.addEventListener("resize", function () { if (!window.matchMedia("(max-width:959px)").matches) closeNav(); });
     Array.prototype.forEach.call(sb.querySelectorAll("a"), function (a) {
       a.addEventListener("click", function () { if (window.matchMedia("(max-width:959px)").matches) closeNav(); });
+    });
+  }
+
+  // ---- 리스트↔지도 드래그 스플리터 (PC 전용) ----
+  // --map-w(px)를 갱신해 지도 폭 조절. localStorage 저장, 더블클릭 초기화, ←/→ 키 지원.
+  var SPLIT_KEY = "onnuri_map_w", SPLIT_MIN = 300;
+  function applyMapW(px) { document.documentElement.style.setProperty("--map-w", px + "px"); }
+  function clearMapW() { document.documentElement.style.removeProperty("--map-w"); }
+  function notifyMapResize() { // 컨테이너 크기 변경을 네이버 지도에 반영
+    if (mapReady && window.naver && naver.maps) naver.maps.Event.trigger(mapObj, "resize");
+  }
+  function splitMaxW(split) { return Math.max(SPLIT_MIN, Math.round(split.getBoundingClientRect().width * 0.65)); }
+  function initSplit() {
+    var handle = el("splitHandle"); if (!handle) return;
+    var split = handle.parentElement;
+    var saved = parseInt(localStorage.getItem(SPLIT_KEY), 10);
+    if (saved && saved >= SPLIT_MIN) applyMapW(Math.min(saved, splitMaxW(split)));
+    var raf = null, curW = null;
+    function setW(px) {
+      curW = Math.max(SPLIT_MIN, Math.min(px, splitMaxW(split)));
+      if (raf) return;
+      raf = requestAnimationFrame(function () { raf = null; applyMapW(curW); notifyMapResize(); });
+    }
+    handle.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      handle.classList.add("dragging"); document.body.classList.add("split-dragging");
+      function onMove(ev) { setW(split.getBoundingClientRect().right - ev.clientX - 8); } // 8 = 핸들 절반+갭 보정
+      function onUp(ev) {
+        handle.releasePointerCapture(ev.pointerId);
+        handle.classList.remove("dragging"); document.body.classList.remove("split-dragging");
+        handle.removeEventListener("pointermove", onMove);
+        handle.removeEventListener("pointerup", onUp);
+        if (curW) localStorage.setItem(SPLIT_KEY, String(curW));
+        notifyMapResize();
+      }
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onUp);
+    });
+    handle.addEventListener("dblclick", function () { // 기본 폭으로 초기화
+      clearMapW(); localStorage.removeItem(SPLIT_KEY); curW = null; notifyMapResize();
+    });
+    handle.addEventListener("keydown", function (e) { // 접근성: 화살표로 20px 조절
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      var w = curW || parseInt(getComputedStyle(document.querySelector(".result-map")).width, 10) || 420;
+      setW(w + (e.key === "ArrowLeft" ? 20 : -20)); // ←: 지도 넓게, →: 리스트 넓게
+      localStorage.setItem(SPLIT_KEY, String(curW));
     });
   }
 
@@ -1341,7 +1401,7 @@
   }
 
   function boot() {
-    initNav(); renderSidoTabs(); bindControls();
+    initNav(); initSplit(); renderSidoTabs(); bindControls();
     resolveMode().then(function () {
       // 탭 배지 프리페치는 API 모드에서만(각 시도 size=1 카운트). JSON 모드는 파일 전체를 받게 되므로 생략.
       if (MODE === "api") SIDO.forEach(function (s) { loadSidoTotal(s.key).then(renderSidoTabs).catch(function () {}); });
