@@ -117,3 +117,12 @@
 | 페이지 기준일 스탬프 | `min(items[].collected_on)` |
 
 페이지 헤더의 "공식 안내 30곳 — 쇼핑 22 · 배달 8" 같은 문구는 전부 이 계산의 결과여야 한다.
+
+## online_catalog.json — 온라인 플랫폼 취급품목·브랜드 태깅 (2026-08-10 신설)
+
+- **성격:** online_platforms.json(공식 목록 미러)과 별도 파일 — 출처(각 몰 실측)·갱신 주기가 다르다. items[].id는 online_platforms.json의 id와 **조인 키**.
+- **taxonomy:** 물품종류 계층 트리(대분류→subs 소분류)를 최상위에 1곳만 저장. 항목의 cats는 id 참조만(계층 중복 저장 금지). 소분류는 실측에서 관찰된 분류만 등재.
+- **items[]:** `{ id, cats[](leaf 또는 대분류 id — 대분류는 하위 전체 취급으로 렌더 전개), brands[](실측 확인분만, 빈 배열 허용), evidence(관찰 근거 한 줄), survey_url, surveyed_on, survey_status(ok|blocked|login-required|unreachable) }`
+- **파생 값 원칙:** 브랜드 목록·순위·카운트는 저장하지 않고 렌더 시 집계. 페이지 스탬프는 min(surveyed_on).
+- **금지:** 실측 없는 태그(추측), 배달앱 태깅(물품 축 불성립), 기획전 딥링크 몰을 호스트 몰 전체 기준으로 태깅(온누리 결제 범위 밖 포함 오류).
+- 관찰 로그: `_workspace/15_online_catalog_report.md`. 갱신 시 config.js dataVersion 동반 상향.

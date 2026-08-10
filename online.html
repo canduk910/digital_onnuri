@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온라인 사용처 찾기 — 코스콤 디지털온누리 가이드</title>
+<style>
+  /* ===== 디자인 시스템 (merchants.html과 동일 토큰) ===== */
+  @font-face { font-family:'GmarketSans'; font-weight:700; font-display:swap;
+    src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff'); }
+  :root{
+    --font-display:'GmarketSans',"Pretendard Variable",Pretendard,-apple-system,sans-serif;
+    --bg:#FFFFFF; --surface:#F6F6F7; --surface-2:#EFF0F2; --border:#E5E6E8; --border-2:#D3D5D9;
+    --text:#0B0C0E; --text-sub:#585D64; --text-faint:#989DA5;
+    --accent:#F26B1D; --accent-hover:#DD5E12; --accent-press:#C4510F; --accent-soft:#FEF3EC; --accent-line:#F6C9A8;
+    --no-soft:#F2F2F2;
+    --r-sm:6px; --r-md:10px; --r-lg:14px; --sb-w:248px;
+    --shadow-sm:0 1px 2px rgba(11,12,14,.05); --shadow-md:0 6px 24px rgba(11,12,14,.09);
+    --pat-dot:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='1.5' cy='1.5' r='1.1' fill='%230B0C0E' fill-opacity='0.05'/%3E%3C/svg%3E");
+    --pat-stripe:repeating-linear-gradient(0deg, transparent 0 5px, rgba(11,12,14,.022) 5px 6px);
+    --pat-hatch:repeating-linear-gradient(135deg, rgba(11,12,14,.028) 0 1px, transparent 1px 11px);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { color:var(--text); font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; font-size:14px; line-height:1.6; letter-spacing:-0.005em;
+    background:radial-gradient(720px 340px at 82% -60px, rgba(242,107,29,.055), transparent 70%), var(--pat-dot), var(--bg); }
+  a { color:var(--accent-press); text-decoration:none; }
+  a:hover { color:var(--accent); text-decoration:underline; }
+  ::selection { background:var(--accent-soft); }
+  input::placeholder { color:var(--text-faint); }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:2px; }
+
+  /* ===== 사이드바 셸 ===== */
+  .sidebar { position:fixed; top:0; left:0; bottom:0; width:var(--sb-w); background:var(--pat-stripe), var(--bg); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:18px 14px 14px; z-index:50; transition:transform .2s ease; }
+  .sb-logo { display:flex; flex-direction:column; align-items:flex-start; gap:5px; padding:6px 6px 16px; color:var(--text); }
+  .sb-logo:hover { text-decoration:none; color:var(--text); }
+  .sb-logo-txt { font-family:var(--font-display); font-size:11.5px; font-weight:700; letter-spacing:-0.01em; color:var(--text-sub); }
+  .ci-img { display:block; height:19px; width:auto; }
+  .ci-img-sm { height:14px; }
+  .sb-nav { display:flex; flex-direction:column; gap:1px; overflow-y:auto; flex:1; }
+  .sb-group { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); padding:14px 10px 6px; }
+  .sb-item { position:relative; display:block; padding:8px 12px; border-radius:var(--r-sm); font-size:13.5px; color:var(--text-sub); transition:background .15s ease,color .15s ease; }
+  .sb-item:hover { background:var(--surface); color:var(--text); text-decoration:none; }
+  .sb-item.active { background:var(--accent-soft); color:var(--text); font-weight:700; }
+  .sb-item.active::before { content:""; position:absolute; left:0; top:6px; bottom:6px; width:3px; border-radius:0 3px 3px 0; background:var(--accent); }
+  .sb-ext { display:flex; align-items:center; gap:6px; margin-top:10px; padding:10px 12px; border-top:1px solid var(--border); color:var(--text-sub); font-size:13px; font-weight:600; }
+  .sb-ext:hover { color:var(--accent-press); text-decoration:none; }
+  .topbar { display:none; position:fixed; top:0; left:0; right:0; height:52px; align-items:center; gap:10px; padding:0 14px; background:var(--bg); border-bottom:1px solid var(--border); z-index:40; }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-size:12.5px; font-weight:700; }
+  .hamburger { flex:none; width:38px; height:38px; border:1px solid var(--border); background:var(--bg); border-radius:var(--r-sm); font-size:16px; color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .hamburger:hover { background:var(--surface); }
+  .overlay { position:fixed; inset:0; background:rgba(11,12,14,.38); z-index:45; }
+  .content { margin-left:var(--sb-w); }
+  .content-inner { max-width:1080px; margin:0 auto; padding:40px 32px 72px; }
+
+  /* ===== 페이지 헤더 ===== */
+  .page-head { position:relative; margin-bottom:26px; padding-top:6px; }
+  .page-head::after { content:"온"; position:absolute; right:-8px; top:-46px; font-size:190px; font-weight:900;
+    color:var(--accent); opacity:.045; line-height:1; pointer-events:none; user-select:none; z-index:-1; }
+  h1 { font-family:var(--font-display); font-size:clamp(32px, 4.4vw, 50px); font-weight:700; letter-spacing:-0.035em; line-height:1.08; margin-bottom:10px; }
+  .subtitle { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent-press); margin-bottom:8px; }
+  .meta-line { font-size:13px; color:var(--text-sub); }
+  .num { font-variant-numeric:tabular-nums; }
+
+  .notice { background:repeating-linear-gradient(135deg, rgba(242,107,29,.03) 0 1px, transparent 1px 12px), var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:var(--r-md); padding:14px 18px; margin:0 0 18px; }
+  .notice p { font-size:13.5px; color:var(--text-sub); }
+  .notice strong { color:var(--text); font-weight:700; }
+
+  /* ===== 구분 탭(숫자가 주인공) ===== */
+  .kind-tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .kind-tab { flex:1; font-family:inherit; cursor:pointer; text-align:left; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; border-radius:var(--r-sm); padding:12px 14px 10px; color:var(--text-faint); background:var(--bg); border:1px solid var(--border); transition:.15s ease; }
+  .kind-tab:hover { border-color:var(--border-2); background:var(--surface); }
+  .kind-tab.active { color:rgba(255,255,255,.75); background:var(--text); border-color:var(--text); }
+  .kind-tab .tab-sub { display:block; font-family:var(--font-display); font-size:clamp(16px, 1.7vw, 22px); font-weight:700; letter-spacing:-0.02em; color:var(--text); margin-top:3px; font-variant-numeric:tabular-nums; }
+  .kind-tab.active .tab-sub { color:#fff; }
+
+  /* ===== 칩 ===== */
+  .chip-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
+  .chip-label { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); margin-right:2px; }
+  .chip-hint { font-size:11.5px; color:var(--text-faint); margin-right:4px; }
+  .chip-hint b { font-weight:700; color:var(--text-sub); }
+  .chip { font-family:inherit; cursor:pointer; font-size:13px; font-weight:600; border-radius:var(--r-sm); padding:6px 12px; color:var(--text-sub); background:var(--bg); border:1px solid var(--border); transition:.15s ease; }
+  .chip:hover { border-color:var(--border-2); background:var(--surface); }
+  .chip b { font-variant-numeric:tabular-nums; color:inherit; }
+  .chip.active { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .chip.active:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
+  .aux-row { display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; margin-bottom:14px; padding:12px 14px; background:var(--pat-hatch), var(--surface); border:1px solid var(--border); border-radius:var(--r-md); }
+  .aux-group { display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
+  select.sel { font-family:inherit; font-size:13px; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:9px 12px; outline:none; cursor:pointer; min-width:120px; transition:.15s ease; }
+  select.sel:hover { border-color:var(--border-2); }
+  select.sel:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+
+  /* ===== 컨트롤 ===== */
+  .controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:14px; }
+  .search-wrap { position:relative; flex:1; min-width:230px; }
+  .search-wrap svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); width:15px; height:15px; stroke:var(--text-faint); fill:none; stroke-width:2; pointer-events:none; }
+  .search-wrap input { width:100%; font-family:inherit; font-size:14px; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:10px 36px; outline:none; transition:.15s ease; }
+  .search-wrap input:hover { border-color:var(--border-2); }
+  .search-wrap input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .search-clear { position:absolute; right:6px; top:50%; transform:translateY(-50%); border:none; background:none; color:var(--text-faint); cursor:pointer; font-size:14px; padding:4px 9px; border-radius:var(--r-sm); font-family:inherit; }
+  .search-clear:hover { background:var(--surface-2); color:var(--text); }
+  .nationwide-toggle { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:8px 12px; user-select:none; transition:.15s ease; }
+  .nationwide-toggle:hover { border-color:var(--border-2); }
+  .nationwide-toggle input { accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
+  .count-text { font-size:16px; font-weight:800; letter-spacing:-0.02em; color:var(--text); margin-left:auto; font-variant-numeric:tabular-nums; }
+
+  /* ===== 카드 그리드 ===== */
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; }
+  .pf-card { display:flex; flex-direction:column; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); padding:16px 18px; transition:.15s ease; }
+  .pf-card:hover { border-color:var(--accent-line); box-shadow:var(--shadow-sm); }
+  .pf-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .pf-name { font-size:15.5px; font-weight:800; letter-spacing:-0.02em; }
+  .kind-badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--r-sm); font-size:11px; font-weight:700; white-space:nowrap; }
+  .kind-badge.shopping { background:var(--accent-soft); color:var(--accent-press); }
+  .kind-badge.delivery { background:var(--text); color:#fff; }
+  .region-badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--r-sm); font-size:11px; font-weight:700; background:var(--no-soft); color:var(--text-sub); white-space:nowrap; }
+  .pf-summary { font-size:12.5px; color:var(--text-sub); line-height:1.5; }
+  .pf-tags { display:flex; flex-wrap:wrap; gap:5px; }
+  .cat-tag { display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--r-sm); font-size:11.5px; font-weight:600; background:var(--surface-2); color:var(--text-sub); white-space:nowrap; }
+  .cat-tag.hit { background:var(--accent-soft); color:var(--accent-press); font-weight:700; }
+  .brand-tag { display:inline-flex; align-items:center; padding:2px 7px; border-radius:var(--r-sm); font-size:11px; font-weight:700; background:var(--text); color:#fff; white-space:nowrap; }
+  .pf-note { font-size:11.5px; color:var(--text-faint); line-height:1.5; }
+  .pf-foot { margin-top:auto; padding-top:8px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .visit-btn { display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700; color:var(--text); background:var(--bg); border:1px solid var(--border-2); border-radius:var(--r-sm); padding:7px 13px; transition:.15s ease; }
+  .visit-btn:hover { background:var(--surface); color:var(--text); text-decoration:none; border-color:var(--accent); }
+  .untagged-badge { font-size:11px; font-weight:700; color:var(--text-faint); }
+
+  /* ===== 상태 ===== */
+  .state { padding:52px 20px; text-align:center; color:var(--text-sub); font-size:13.5px; line-height:1.7; }
+  .state .lead { display:block; color:var(--text); font-weight:800; font-size:19px; letter-spacing:-0.02em; margin-bottom:4px; }
+  .state-actions { margin-top:14px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .btn-primary, .btn-outline { font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; border-radius:var(--r-sm); padding:9px 16px; text-decoration:none; display:inline-flex; align-items:center; transition:.15s ease; }
+  .btn-primary { background:var(--accent); color:#fff; border:1px solid var(--accent); }
+  .btn-primary:hover { background:var(--accent-hover); border-color:var(--accent-hover); color:#fff; text-decoration:none; }
+  .btn-outline { background:var(--bg); color:var(--text); border:1px solid var(--border-2); }
+  .btn-outline:hover { background:var(--surface); color:var(--text); text-decoration:none; }
+
+  .footnotes { margin-top:26px; padding-top:16px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:6px; }
+  .footnotes p { font-size:12.5px; color:var(--text-faint); line-height:1.6; }
+  .footnotes strong { color:var(--text-sub); }
+
+  @media (max-width:959px){
+    .sidebar { transform:translateX(-100%); box-shadow:var(--shadow-md); }
+    .sidebar.open { transform:translateX(0); }
+    .topbar { display:flex; }
+    .content { margin-left:0; padding-top:52px; }
+    .content-inner { padding:24px 20px 56px; }
+    .count-text { margin-left:0; width:100%; }
+    .page-head::after { font-size:120px; top:-28px; right:-4px; }
+    .kind-tab { padding:10px 10px 8px; }
+  }
+  @media (min-width:960px){ .overlay { display:none !important; } }
+  @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <button class="hamburger" id="navToggle" aria-label="메뉴 열기" aria-expanded="false">☰</button>
+    <span class="topbar-brand"><img class="ci-img ci-img-sm" src="assets/koscom_ci.png" alt="koscom"> 코스콤 디지털온누리 가이드</span>
+  </div>
+  <div class="overlay" id="navOverlay" hidden></div>
+
+  <aside class="sidebar" id="sidebar">
+    <a class="sb-logo" href="index.html">
+      <img class="ci-img" src="assets/koscom_ci.png" alt="koscom">
+      <span class="sb-logo-txt">코스콤 디지털온누리 가이드</span>
+    </a>
+    <nav class="sb-nav">
+      <div class="sb-group">사용 가이드</div>
+      <a class="sb-item" href="index.html#offline">오프라인 사용처</a>
+      <a class="sb-item" href="index.html#online">온라인 가맹 플랫폼</a>
+      <a class="sb-item" href="index.html#payment">결제 방법</a>
+      <a class="sb-item" href="index.html#terms">용어·유의사항</a>
+      <div class="sb-group">가맹점 검색</div>
+      <a class="sb-item" href="merchants.html#sidoTabs">가맹점 찾기</a>
+      <a class="sb-item active" href="#kindTabs" aria-current="page">온라인 사용처 찾기</a>
+    </nav>
+    <a class="sb-ext" href="https://www.onnuri.gift/place" target="_blank" rel="noopener" aria-label="온누리 공식 가맹점 지도 — 새 창에서 열림">공식 가맹점 지도 <span aria-hidden="true">↗</span></a>
+  </aside>
+
+  <main class="content">
+   <div class="content-inner">
+    <header class="page-head">
+      <h1>온라인 사용처 찾기</h1>
+      <p class="subtitle">물품종류·브랜드로 온라인 가맹 플랫폼 검색</p>
+      <p class="meta-line" id="metaLine">불러오는 중…</p>
+    </header>
+
+    <div class="notice"><p id="noticeMain">불러오는 중…</p></div>
+
+    <div class="kind-tabs" id="kindTabs" role="tablist" aria-label="구분 선택"></div>
+
+    <div class="chip-row" id="catChips" aria-label="물품종류 대분류 선택"></div>
+    <div class="chip-row" id="subChips" aria-label="물품종류 소분류 선택" style="display:none"></div>
+
+    <div class="aux-row">
+      <div class="aux-group" id="brandChips" aria-label="브랜드 선택"></div>
+      <div class="aux-group">
+        <span class="chip-label">브랜드 전체</span>
+        <select class="sel" id="selBrand" aria-label="브랜드 전체 목록에서 선택"></select>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+        <input id="q" type="text" autocomplete="off" placeholder="플랫폼·품목·브랜드 검색 (예: 삼성, 건어물, 배달)">
+        <button class="search-clear" id="qClear" aria-label="검색어 지우기" style="display:none">✕</button>
+      </div>
+      <label class="nationwide-toggle"><input type="checkbox" id="nationwideOnly">전국 이용 가능만</label>
+      <span class="count-text" id="countText"></span>
+    </div>
+
+    <div id="resultArea">
+      <div class="state"><span class="lead">플랫폼 목록을 불러오는 중입니다…</span></div>
+    </div>
+
+    <div class="footnotes">
+      <p id="footMethod"></p>
+      <p>※ 플랫폼별 결제 수단·최소금액·배송 정책은 각 몰에서 다시 확인하세요. 온누리 결제 가능 범위는 각 몰의 <strong>전용관·기획전 기준</strong>입니다.</p>
+    </div>
+   </div>
+  </main>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  "use strict";
+  var CFG = window.ONNURI_CONFIG || {};
+  var el = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+  }); };
+  var nf = function (n) { return n.toLocaleString("ko-KR"); };
+  var BRAND_TOPN = 10;
+
+  // ---- 드로어 내비 (merchants.html과 동일) ----
+  function initNav() {
+    var tog = el("navToggle"), sb = el("sidebar"), ov = el("navOverlay");
+    function openNav() { sb.classList.add("open"); ov.hidden = false; tog.setAttribute("aria-expanded", "true"); }
+    function closeNav() { sb.classList.remove("open"); ov.hidden = true; tog.setAttribute("aria-expanded", "false"); }
+    tog.addEventListener("click", function () { sb.classList.contains("open") ? closeNav() : openNav(); });
+    ov.addEventListener("click", closeNav);
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeNav(); });
+    window.addEventListener("resize", function () { if (!window.matchMedia("(max-width:959px)").matches) closeNav(); });
+    Array.prototype.forEach.call(sb.querySelectorAll("a"), function (a) {
+      a.addEventListener("click", function () { if (window.matchMedia("(max-width:959px)").matches) closeNav(); });
+    });
+  }
+
+  // ---- 데이터 ----
+  var PLATFORMS = [], CATALOG = {}, TAXONOMY = [], META = { platforms: "", survey: "" };
+  var state = { kind: "전체", cat: "전체", sub: "전체", brand: "전체", nationwideOnly: false, q: "" };
+
+  function taxLabel(id) { // taxonomy id → 라벨("대분류(소분류)" 표기)
+    for (var i = 0; i < TAXONOMY.length; i++) {
+      var t = TAXONOMY[i];
+      if (t.id === id) return t.label;
+      var subs = t.subs || [];
+      for (var j = 0; j < subs.length; j++) if (subs[j].id === id) return t.label + "(" + subs[j].label + ")";
+    }
+    return id;
+  }
+  function topOf(id) { // leaf id → 대분류 id
+    for (var i = 0; i < TAXONOMY.length; i++) {
+      var t = TAXONOMY[i];
+      if (t.id === id) return t.id;
+      var subs = t.subs || [];
+      for (var j = 0; j < subs.length; j++) if (subs[j].id === id) return t.id;
+    }
+    return null;
+  }
+  // 항목이 특정 대분류/소분류에 매칭되는가 — 대분류 태그는 하위 전체 취급으로 해석
+  function hasCat(item, catId, subId) {
+    var cats = (CATALOG[item.id] || {}).cats || [];
+    if (subId && subId !== "전체") {
+      return cats.indexOf(subId) !== -1 || cats.indexOf(topOf(subId)) !== -1;
+    }
+    if (catId && catId !== "전체") {
+      if (cats.indexOf(catId) !== -1) return true;
+      for (var i = 0; i < cats.length; i++) if (topOf(cats[i]) === catId) return true;
+      return false;
+    }
+    return true;
+  }
+  function itemBrands(item) { return (CATALOG[item.id] || {}).brands || []; }
+
+  function filtered() {
+    var q = state.q.trim().toLowerCase();
+    return PLATFORMS.filter(function (p) {
+      if (state.kind !== "전체" && (state.kind === "쇼핑" ? p.kind !== "shopping" : p.kind !== "delivery")) return false;
+      if (state.nationwideOnly && p.region_limited) return false;
+      var catActive = state.cat !== "전체" || state.sub !== "전체" || state.brand !== "전체";
+      if (catActive && p.kind === "delivery") return false; // 물품·브랜드 축은 쇼핑몰 대상
+      if (!hasCat(p, state.cat, state.sub)) return false;
+      if (state.brand !== "전체" && itemBrands(p).indexOf(state.brand) === -1) return false;
+      if (q) {
+        var cats = ((CATALOG[p.id] || {}).cats || []).map(taxLabel).join(" ");
+        var hay = (p.name + " " + (p.summary || "") + " " + (p.note || "") + " " + cats + " " + itemBrands(p).join(" ")).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  // ---- 렌더 ----
+  function renderKindTabs() {
+    var counts = { "전체": PLATFORMS.length,
+      "쇼핑": PLATFORMS.filter(function (p) { return p.kind === "shopping"; }).length,
+      "배달": PLATFORMS.filter(function (p) { return p.kind === "delivery"; }).length };
+    var wrap = el("kindTabs"); wrap.innerHTML = "";
+    ["전체", "쇼핑", "배달"].forEach(function (k) {
+      var b = document.createElement("button");
+      b.className = "kind-tab" + (state.kind === k ? " active" : "");
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", state.kind === k ? "true" : "false");
+      b.innerHTML = esc(k) + '<span class="tab-sub">' + nf(counts[k]) + "곳</span>";
+      b.onclick = function () { state.kind = k; renderAll(); };
+      wrap.appendChild(b);
+    });
+  }
+
+  function countCat(catId) {
+    return PLATFORMS.filter(function (p) { return p.kind === "shopping" && hasCat(p, catId, null); }).length;
+  }
+  function countSub(subId) {
+    return PLATFORMS.filter(function (p) { return p.kind === "shopping" && hasCat(p, null, subId); }).length;
+  }
+  function renderCatChips() {
+    var cc = el("catChips"); cc.innerHTML = '<span class="chip-label">물품종류</span>'
+      + '<span class="chip-hint">쇼핑몰 ' + nf(countCat("전체")) + '곳 대상 — 배달앱은 음식 주문이라 분류 제외</span>';
+    var addChip = function (id, label, cnt) {
+      var b = document.createElement("button");
+      b.className = "chip" + (state.cat === id ? " active" : "");
+      b.innerHTML = esc(label) + (cnt != null ? ' <b>' + nf(cnt) + "</b>" : "");
+      b.onclick = function () { state.cat = id; state.sub = "전체"; renderAll(); };
+      cc.appendChild(b);
+    };
+    addChip("전체", "전체", null);
+    TAXONOMY.forEach(function (t) { addChip(t.id, t.label, countCat(t.id)); });
+
+    // 소분류: 대분류 선택 + subs 존재 시
+    var sc = el("subChips");
+    var top = TAXONOMY.filter(function (t) { return t.id === state.cat; })[0];
+    if (top && (top.subs || []).length) {
+      sc.style.display = "";
+      sc.innerHTML = '<span class="chip-label">' + esc(top.label) + ' 세부</span>';
+      var addSub = function (id, label, cnt) {
+        var b = document.createElement("button");
+        b.className = "chip" + (state.sub === id ? " active" : "");
+        b.innerHTML = esc(label) + (cnt != null ? ' <b>' + nf(cnt) + "</b>" : "");
+        b.onclick = function () { state.sub = id; renderAll(); };
+        sc.appendChild(b);
+      };
+      addSub("전체", "전체", null);
+      top.subs.forEach(function (s) { addSub(s.id, s.label, countSub(s.id)); });
+    } else { sc.style.display = "none"; sc.innerHTML = ""; }
+  }
+
+  function brandRanked() { // [brand, 플랫폼수] 내림차순
+    var c = {};
+    PLATFORMS.forEach(function (p) { itemBrands(p).forEach(function (b) { c[b] = (c[b] || 0) + 1; }); });
+    return Object.keys(c).map(function (k) { return [k, c[k]]; })
+      .sort(function (a, b) { return b[1] - a[1] || a[0].localeCompare(b[0], "ko"); });
+  }
+  function renderBrandChips() {
+    var ranked = brandRanked();
+    var bc = el("brandChips");
+    bc.innerHTML = '<span class="chip-label">브랜드</span>'
+      + '<span class="chip-hint">실측 태그 기준 — 각 몰의 전 상품·전 브랜드가 아닙니다. 대표만 칩, <b>전체는 드롭다운</b></span>';
+    var addChip = function (key, label, cnt) {
+      var b = document.createElement("button");
+      b.className = "chip" + (state.brand === key ? " active" : "");
+      b.innerHTML = esc(label) + (cnt != null ? ' <b>' + nf(cnt) + "</b>" : "");
+      b.onclick = function () { state.brand = key; renderAll(); };
+      bc.appendChild(b);
+    };
+    addChip("전체", "전체", null);
+    var shown = ranked.slice(0, BRAND_TOPN);
+    shown.forEach(function (p) { addChip(p[0], p[0], p[1]); });
+    if (state.brand !== "전체" && !shown.some(function (p) { return p[0] === state.brand; })) {
+      addChip(state.brand, state.brand, null); // 선택값 항상 노출(숨은 필터 방지)
+    }
+    var sb = el("selBrand");
+    var h = '<option value="전체"' + (state.brand === "전체" ? " selected" : "") + ">브랜드 전체 (" + ranked.length + "종)</option>";
+    ranked.forEach(function (p) {
+      h += '<option value="' + esc(p[0]) + '"' + (state.brand === p[0] ? " selected" : "") + ">" + esc(p[0]) + " (" + p[1] + ")</option>";
+    });
+    sb.innerHTML = h;
+  }
+
+  function cardHTML(p) {
+    var c = CATALOG[p.id];
+    var kindCls = p.kind === "delivery" ? "delivery" : "shopping";
+    var kindLabel = p.kind === "delivery" ? "배달" : "쇼핑";
+    var h = '<article class="pf-card">';
+    h += '<div class="pf-head"><span class="pf-name">' + esc(p.name) + '</span>'
+      + '<span class="kind-badge ' + kindCls + '">' + kindLabel + '</span>'
+      + (p.region_limited ? '<span class="region-badge">지역 한정</span>' : "") + '</div>';
+    if (p.summary) h += '<p class="pf-summary">' + esc(p.summary) + '</p>';
+    if (p.kind === "shopping") {
+      if (c && c.cats.length) {
+        h += '<div class="pf-tags">' + c.cats.map(function (id) {
+          var hit = (state.cat !== "전체" && (id === state.cat || topOf(id) === state.cat))
+                 || (state.sub !== "전체" && (id === state.sub || id === topOf(state.sub)));
+          return '<span class="cat-tag' + (hit ? " hit" : "") + '">' + esc(taxLabel(id)) + '</span>';
+        }).join("") + '</div>';
+      } else {
+        h += '<div class="pf-tags"><span class="untagged-badge">취급 품목 미확인</span></div>';
+      }
+      var brands = c ? c.brands : [];
+      if (brands.length) {
+        h += '<div class="pf-tags">' + brands.slice(0, 8).map(function (b) {
+          return '<span class="brand-tag">' + esc(b) + '</span>';
+        }).join("") + (brands.length > 8 ? '<span class="untagged-badge">+' + (brands.length - 8) + '</span>' : "") + '</div>';
+      }
+    } else {
+      h += '<div class="pf-tags"><span class="cat-tag">음식 주문·배달</span></div>';
+    }
+    if (p.note) h += '<p class="pf-note">' + esc(p.note) + '</p>';
+    h += '<div class="pf-foot"><a class="visit-btn" href="' + esc(p.url) + '" target="_blank" rel="noopener" aria-label="'
+      + esc(p.name) + ' 방문 — 새 창에서 열림">방문 ↗</a></div>';
+    h += '</article>';
+    return h;
+  }
+
+  function render() {
+    var rows = filtered();
+    el("countText").textContent = nf(PLATFORMS.length) + "곳 중 " + nf(rows.length) + "곳 표시";
+    var area = el("resultArea");
+    if (!rows.length) {
+      area.innerHTML = '<div class="state"><span class="lead">선택한 조건에 맞는 플랫폼이 없습니다.</span>'
+        + '물품종류·브랜드 필터를 줄이거나 검색어를 바꿔 보세요. 태그는 ' + esc(META.survey) + ' 실측 기준이라 이후 취급 변화는 반영되지 않을 수 있습니다.'
+        + '<div class="state-actions"><button class="btn-outline" id="resetBtn">검색 초기화</button></div></div>';
+      var rb = el("resetBtn"); if (rb) rb.onclick = resetAll;
+      return;
+    }
+    area.innerHTML = '<div class="card-grid">' + rows.map(cardHTML).join("") + '</div>';
+  }
+
+  function renderAll() { renderKindTabs(); renderCatChips(); renderBrandChips(); render(); }
+
+  function resetAll() {
+    state.kind = "전체"; state.cat = "전체"; state.sub = "전체"; state.brand = "전체";
+    state.nationwideOnly = false; state.q = "";
+    el("q").value = ""; el("qClear").style.display = "none"; el("nationwideOnly").checked = false;
+    renderAll();
+  }
+
+  // ---- 부팅 ----
+  function boot() {
+    initNav();
+    var bust = CFG.dataVersion ? "?v=" + encodeURIComponent(CFG.dataVersion) : "";
+    Promise.all([
+      fetch("data/online_platforms.json" + bust).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch("data/online_catalog.json" + bust).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    ]).then(function (res) {
+      var plat = res[0], cat = res[1];
+      PLATFORMS = (plat.items || []).filter(function (p) { return p.status === "active"; });
+      TAXONOMY = cat.taxonomy || [];
+      (cat.items || []).forEach(function (it) {
+        CATALOG[it.id] = it;
+        if (!PLATFORMS.some(function (p) { return p.id === it.id; })) console.warn("카탈로그 고아 id:", it.id);
+      });
+      META.platforms = (plat.meta || {}).collected_on || "";
+      META.survey = (cat.items || []).reduce(function (m, it) { return !m || it.surveyed_on < m ? it.surveyed_on : m; }, "");
+      var s = PLATFORMS.filter(function (p) { return p.kind === "shopping"; }).length;
+      var d = PLATFORMS.length - s;
+      el("metaLine").innerHTML = "공식 목록 <span class='num'>" + esc(META.platforms) + "</span> 수집 · 취급품목 실측 <span class='num'>"
+        + esc(META.survey) + "</span> 기준 · <span class='num'>" + nf(PLATFORMS.length) + "곳</span> — 쇼핑 <span class='num'>" + s + "</span> · 배달 <span class='num'>" + d + "</span>";
+      el("noticeMain").innerHTML = "<strong>각 쇼핑몰이 취급하는 물품종류와 대표 브랜드를 " + esc(META.survey)
+        + "에 플랫폼 단위로 확인해 태그한 목록입니다.</strong> 상품 재고·전체 브랜드 목록이 아니며, 온누리 결제 가능 범위는 각 몰의 전용관·기획전 기준입니다 — 결제 전 해당 몰에서 확인하세요.";
+      el("footMethod").innerHTML = "※ 취급 품목·브랜드 태그는 각 몰의 카테고리 메뉴·기획전·브랜드관을 " + esc(META.survey)
+        + "에 실측해 기록한 것입니다(조사 로그: 저장소 _workspace/15_online_catalog_report.md). 이후 각 몰의 취급 변화는 반영되지 않을 수 있습니다.";
+      renderAll();
+    }).catch(function (e) {
+      el("resultArea").innerHTML = '<div class="state"><span class="lead">플랫폼 목록을 불러오지 못했습니다.</span>'
+        + '네트워크 상태를 확인하고 새로고침해 주세요.</div>';
+    });
+  }
+
+  // ---- 이벤트 ----
+  var qTimer = null;
+  el("q").addEventListener("input", function (e) {
+    var v = e.target.value;
+    el("qClear").style.display = v ? "" : "none";
+    clearTimeout(qTimer);
+    qTimer = setTimeout(function () { state.q = v; render(); }, 150);
+  });
+  el("qClear").addEventListener("click", function () {
+    state.q = ""; el("q").value = ""; el("qClear").style.display = "none"; el("q").focus(); render();
+  });
+  el("nationwideOnly").addEventListener("change", function (e) { state.nationwideOnly = e.target.checked; render(); });
+  el("selBrand").addEventListener("change", function (e) { state.brand = e.target.value; renderAll(); });
+  document.addEventListener("keydown", function (e) {
+    var t = document.activeElement;
+    var typing = t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.isContentEditable);
+    if (e.key === "/" && !typing) { e.preventDefault(); el("q").focus(); }
+  });
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+</script>
+</body>
+</html>

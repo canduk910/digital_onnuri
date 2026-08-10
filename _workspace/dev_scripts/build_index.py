@@ -424,6 +424,7 @@ SHELL = (
     "    <a class=\"sb-item\" href=\"#terms\">용어·유의사항</a>\n"
     "    <div class=\"sb-group\">가맹점 검색</div>\n"
     "    <a class=\"sb-item\" href=\"merchants.html#sidoTabs\">가맹점 찾기</a>\n"
+    "    <a class=\"sb-item\" href=\"online.html\">온라인 사용처 찾기</a>\n"
     "  </nav>\n"
     "  <a class=\"sb-ext\" href=\"https://www.onnuri.gift/place\" target=\"_blank\" rel=\"noopener\">공식 가맹점 지도 <span aria-hidden=\"true\">↗</span></a>\n"
     "</aside>\n"
@@ -464,6 +465,18 @@ tpl = replace_once(
     "<div style=\"background:#FDF3EA;border:1px dashed #EFC5A3;border-radius:12px;padding:12px 16px;font-size:12.5px;color:#6E6A64;line-height:1.6;margin-bottom:14px\">",
     "<div id=\"online\" style=\"background:#FDF3EA;border:1px dashed #EFC5A3;border-radius:12px;padding:12px 16px;font-size:12.5px;color:#6E6A64;line-height:1.6;margin-bottom:14px\">",
     "24.id.online",
+)
+
+# ---------- S16: 온라인 탭 최상단 '온라인 사용처 찾기' 진입 카드 (online.html) ----------
+# 24.id.online이 부여한 앵커 직전에 삽입. 동적 숫자 없음(D-F1 단순화). S15 서브탭과 동일한 카드 문법.
+tpl = replace_once(
+    tpl,
+    "<div id=\"online\" style=\"background:#FDF3EA;",
+    "<a href=\"online.html\" style=\"display:flex;flex-direction:column;gap:6px;background:#FAFAF9;border:1.5px solid #E7E5E1;border-radius:12px;padding:13px 15px;margin-bottom:14px;text-decoration:none;color:inherit\" style-hover=\"border-color:#F26B1D;background:#FFFFFF\" style-focus=\"border-color:#F26B1D;box-shadow:0 0 0 3px #FBD8BC\">\n"
+    "          <span style=\"display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#171512\">온라인 사용처 찾기 <span style=\"font-size:11px;font-weight:700;color:#C4510F;background:#FDEEE3;border-radius:999px;padding:2px 8px\">내부</span></span>\n"
+    "          <span style=\"font-size:12.5px;color:#6E6A64;line-height:1.55\">쇼핑몰·배달앱을 물품종류(농·수·축산물, 가전, 의류 등)와 브랜드로 골라 찾습니다. 각 몰 실측 태그 기준.</span>\n"
+    "        </a>\n<div id=\"online\" style=\"background:#FDF3EA;",
+    "S16.online-search-entry",
 )
 tpl = replace_once(
     tpl,
