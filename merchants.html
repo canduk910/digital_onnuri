@@ -38,11 +38,9 @@
   .sb-logo { display:flex; flex-direction:column; align-items:flex-start; gap:5px; padding:6px 6px 16px; color:var(--text); }
   .sb-logo:hover { text-decoration:none; color:var(--text); }
   .sb-logo-txt { font-size:12px; font-weight:700; letter-spacing:-0.01em; color:var(--text-sub); }
-  /* 코스콤 CI — 오렌지 셰브론 + 그레이 소문자 워드마크 */
-  .ci-koscom { display:inline-flex; align-items:center; gap:3px; }
-  .ci-koscom svg { display:block; }
-  .ci-word { font-weight:800; font-size:19px; letter-spacing:-0.03em; color:#54565A; line-height:1; }
-  .ci-sm .ci-word { font-size:15px; }
+  /* 코스콤 CI — 공식 로고 이미지(assets/koscom_ci.png, 투명배경) */
+  .ci-img { display:block; height:19px; width:auto; }
+  .ci-img-sm { height:14px; }
   .sb-nav { display:flex; flex-direction:column; gap:1px; overflow-y:auto; flex:1; }
   .sb-group { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); padding:14px 10px 6px; }
   .sb-item { position:relative; display:block; padding:8px 12px; border-radius:var(--r-sm); font-size:13.5px; color:var(--text-sub); transition:background .15s ease,color .15s ease; }
@@ -278,13 +276,13 @@
   <!-- 모바일 상단바 -->
   <header class="topbar">
     <button class="hamburger" id="navToggle" aria-label="메뉴 열기" aria-expanded="false" aria-controls="sidebar">☰</button>
-    <span class="topbar-brand"><span class="ci-koscom ci-sm" aria-label="koscom"><svg viewBox="0 0 12 14" width="9" height="11" aria-hidden="true"><path d="M2.4 1.2 L9.4 7 L2.4 12.8" stroke="#F26B1D" stroke-width="3.4" fill="none"/></svg><span class="ci-word">koscom</span></span> 코스콤 디지털온누리 가이드</span>
+    <span class="topbar-brand"><img class="ci-img ci-img-sm" src="assets/koscom_ci.png" alt="koscom"> 코스콤 디지털온누리 가이드</span>
   </header>
 
   <!-- 사이드바 -->
   <aside class="sidebar" id="sidebar" aria-label="주요 메뉴">
     <a class="sb-logo" href="index.html">
-      <span class="ci-koscom" aria-label="koscom"><svg viewBox="0 0 12 14" width="11" height="13" aria-hidden="true"><path d="M2.4 1.2 L9.4 7 L2.4 12.8" stroke="#F26B1D" stroke-width="3.4" fill="none"/></svg><span class="ci-word">koscom</span></span>
+      <img class="ci-img" src="assets/koscom_ci.png" alt="koscom">
       <span class="sb-logo-txt">코스콤 디지털온누리 가이드</span>
     </a>
     <nav class="sb-nav" aria-label="사이트 메뉴">

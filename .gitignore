@@ -4,3 +4,5 @@
 _workspace/raw/
 .playwright-mcp/
 *.png
+# 저장소 자산은 예외(라이브에서 서빙됨)
+!assets/*.png
