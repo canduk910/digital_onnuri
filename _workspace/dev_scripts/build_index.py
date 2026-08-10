@@ -343,65 +343,8 @@ OLD_STYLE = (
 )
 # 사이드바/셸 CSS 는 merchants.html 과 바이트 동일(명세 §3 복붙 일관성).
 NEW_STYLE = (
-    "  /* ===== 디자인 시스템 (14+24b): 블랙·화이트·그레이 + 오렌지 포인트, 초저투명 패턴 ===== */\n"
-    "  @font-face { font-family:'GmarketSans'; font-weight:700; font-display:swap;\n"
-    "    src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff'); }\n"
-    "  :root{\n"
-    "    --font-display:'GmarketSans',\"Pretendard Variable\",Pretendard,-apple-system,sans-serif;\n"
-    "    --bg:#FFFFFF; --surface:#F6F6F7; --surface-2:#EFF0F2; --border:#E5E6E8; --border-2:#D3D5D9;\n"
-    "    --text:#0B0C0E; --text-sub:#585D64; --text-faint:#989DA5;\n"
-    "    --accent:#F26B1D; --accent-hover:#DD5E12; --accent-press:#C4510F; --accent-soft:#FEF3EC; --accent-line:#F6C9A8;\n"
-    "    --ok:#1F9D57; --ok-soft:#EAF7EF; --warn:#C77A16; --warn-soft:#FBF3E6; --no:#9CA0A6; --no-soft:#F2F2F2;\n"
-    "    --r-sm:6px; --r-md:10px; --r-lg:14px; --sb-w:248px;\n"
-    "    --shadow-sm:0 1px 2px rgba(11,12,14,.05); --shadow-md:0 6px 24px rgba(11,12,14,.09);\n"
-    "    --pat-dot:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='1.5' cy='1.5' r='1.1' fill='%230B0C0E' fill-opacity='0.05'/%3E%3C/svg%3E\");\n"
-    "    --pat-stripe:repeating-linear-gradient(0deg, transparent 0 5px, rgba(11,12,14,.022) 5px 6px);\n"
-    "  }\n"
-    "  * { margin:0; padding:0; box-sizing:border-box; }\n"
-    "  body { color:var(--text); font-family:\"Pretendard Variable\",Pretendard,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; font-size:14px; line-height:1.6; letter-spacing:-0.005em; background:radial-gradient(720px 340px at 82% -60px, rgba(242,107,29,.055), transparent 70%), var(--pat-dot), var(--bg); }\n"
-    "  a { color:var(--accent-press); text-decoration:none; }\n"
-    "  a:hover { color:var(--accent); text-decoration:underline; }\n"
-    "  ::selection { background:var(--accent-soft); }\n"
-    "  input::placeholder { color:var(--text-faint); }\n"
-    "  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:2px; }\n"
-    "  .logo-sym { flex:none; width:28px; height:28px; border-radius:var(--r-sm); background:var(--accent); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:14px; }\n"
-    "  .sidebar { position:fixed; top:0; left:0; bottom:0; width:var(--sb-w); background:var(--pat-stripe), var(--bg); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:18px 14px 14px; z-index:50; transition:transform .2s ease; }\n"
-    "  .sb-logo { display:flex; flex-direction:column; align-items:flex-start; gap:5px; padding:6px 6px 16px; color:var(--text); }\n"
-    "  .sb-logo:hover { text-decoration:none; color:var(--text); }\n"
-    "  .sb-logo-txt { font-family:var(--font-display); font-size:11.5px; font-weight:700; letter-spacing:-0.01em; color:var(--text-sub); }\n"
-    "  .ci-img { display:block; height:19px; width:auto; }\n"
-    "  .ci-img-sm { height:14px; }\n"
-    "  .sb-nav { display:flex; flex-direction:column; gap:1px; overflow-y:auto; flex:1; }\n"
-    "  .sb-group { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); padding:14px 10px 6px; }\n"
-    "  .sb-item { position:relative; display:block; padding:8px 12px; border-radius:var(--r-sm); font-size:13.5px; color:var(--text-sub); transition:background .15s ease,color .15s ease; }\n"
-    "  .sb-item:hover { background:var(--surface); color:var(--text); text-decoration:none; }\n"
-    "  .sb-item.active { background:var(--accent-soft); color:var(--text); font-weight:700; }\n"
-    "  .sb-item.active::before { content:\"\"; position:absolute; left:0; top:6px; bottom:6px; width:3px; border-radius:0 3px 3px 0; background:var(--accent); }\n"
-    "  .sb-ext { display:flex; align-items:center; gap:6px; margin-top:10px; padding:10px 12px; border-top:1px solid var(--border); color:var(--text-sub); font-size:13px; font-weight:600; }\n"
-    "  .sb-ext:hover { color:var(--accent-press); text-decoration:none; }\n"
-    "  .topbar { display:none; position:fixed; top:0; left:0; right:0; height:52px; align-items:center; gap:10px; padding:0 14px; background:var(--bg); border-bottom:1px solid var(--border); z-index:40; }\n"
-    "  .topbar-brand { display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-size:12.5px; font-weight:700; }\n"
-    "  .hamburger { flex:none; width:38px; height:38px; border:1px solid var(--border); background:var(--bg); border-radius:var(--r-sm); font-size:16px; color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; }\n"
-    "  .hamburger:hover { background:var(--surface); }\n"
-    "  .overlay { position:fixed; inset:0; background:rgba(20,22,26,.38); z-index:45; }\n"
-    "  .content { margin-left:var(--sb-w); }\n"
-    "  .content-inner { max-width:var(--page-w, 1080px); margin:0 auto; padding:40px 32px 72px; }\n"
-    "  html[data-pw=\"narrow\"] { --page-w:880px; }\n"
-    "  html[data-pw=\"wide\"]   { --page-w:1640px; }\n"
-    "  .sb-width { display:flex; align-items:center; gap:6px; margin-top:10px; padding:10px 12px 0; border-top:1px solid var(--border); }\n"
-    "  .sb-width-label { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); margin-right:2px; }\n"
-    "  .sb-width button { flex:1; font-family:inherit; font-size:11.5px; font-weight:600; cursor:pointer; padding:5px 0; color:var(--text-sub); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); transition:.15s ease; }\n"
-    "  .sb-width button:hover { border-color:var(--border-2); background:var(--surface); }\n"
-    "  .sb-width button.active { color:#fff; background:var(--text); border-color:var(--text); }\n"
-    "  @media (max-width:959px){\n"
-    "    .sidebar { transform:translateX(-100%); box-shadow:var(--shadow-md); }\n"
-    "    .sidebar.open { transform:translateX(0); }\n"
-    "    .topbar { display:flex !important; }  /* FOUC 방지용 인라인 display:none을 모바일에서 이겨야 함 */\n"
-    "    .content { margin-left:0; padding-top:52px; }\n"
-    "    .content-inner { padding:24px 20px 56px; }\n"
-    "  }\n"
-    "  @media (min-width:960px){ .overlay { display:none !important; } }\n"
-    "  @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }"
+    "  /* 공통 셸(토큰·폰트·사이드바·상단바·폭토글)은 shell.css — ADR-9. */\n"
+    "  /* 이 <style>은 원본 최소 규칙 자리를 대체하는 플레이스홀더다. */"
 )
 tpl = replace_once(tpl, OLD_STYLE, NEW_STYLE, "24.style-tokens")
 
@@ -417,6 +360,8 @@ tpl = replace_once(
 # 가이드 항목=현재 페이지 인페이지 앵커(#offline/#online/#payment/#terms, 해시 라우터가 탭 전환).
 # 검색 항목=merchants.html#앵커(크로스 페이지). 기본 활성=오프라인 사용처.
 SHELL = (
+    "<link rel=\"stylesheet\" href=\"shell.css?v=1\">\n"
+    "<script src=\"shell.js?v=1\"></script>\n"
     # 크리티컬 인라인 스타일: 번들(4MB) 마운트 직후 셸 CSS 적용 전 한 프레임에
     # topbar CI+사이드바 CI가 세로로 겹쳐 보이는 FOUC 방지. img는 width/height 명시(시프트 방지).
     "<header class=\"topbar\" style=\"display:none\">\n"
@@ -500,26 +445,12 @@ tpl = replace_once(
     "24.id.terms",
 )
 
-# ---------- 7e. content 닫기 + 드로어/해시 라우터 스크립트 (<x-dc> 밖) ----------
-# 이벤트 위임(타이밍 무관) + resize 닫힘 리셋(task #23 낮음 관찰) + 해시→탭 라우터.
+# ---------- 7e. content 닫기 + 해시 라우터 스크립트 (<x-dc> 밖) ----------
+# 드로어·폭토글은 shell.js 공통(ADR-9, 위임 방식이라 DC 재렌더 내성) — 여기는 index 전용 해시 라우터만.
 NAV_SCRIPT = (
     "<script>\n"
     "(function(){\n"
     "  \"use strict\";\n"
-    "  var mq = function(){ return window.matchMedia(\"(max-width:959px)\").matches; };\n"
-    "  var sb = function(){ return document.getElementById(\"sidebar\"); };\n"
-    "  var ov = function(){ return document.getElementById(\"navOverlay\"); };\n"
-    "  var tg = function(){ return document.getElementById(\"navToggle\"); };\n"
-    "  function openNav(){ var s=sb(),o=ov(),t=tg(); if(s)s.classList.add(\"open\"); if(o)o.hidden=false; if(t)t.setAttribute(\"aria-expanded\",\"true\"); }\n"
-    "  function closeNav(){ var s=sb(),o=ov(),t=tg(); if(s)s.classList.remove(\"open\"); if(o)o.hidden=true; if(t)t.setAttribute(\"aria-expanded\",\"false\"); }\n"
-    "  document.addEventListener(\"click\", function(e){\n"
-    "    var t=e.target; if(!t||!t.closest) return;\n"
-    "    if(t.closest(\"#navToggle\")){ e.preventDefault(); (sb()&&sb().classList.contains(\"open\"))?closeNav():openNav(); return; }\n"
-    "    if(t.closest(\"#navOverlay\")){ closeNav(); return; }\n"
-    "    if(t.closest(\".sidebar a\") && mq()) closeNav();\n"
-    "  });\n"
-    "  document.addEventListener(\"keydown\", function(e){ if(e.key===\"Escape\") closeNav(); });\n"
-    "  window.addEventListener(\"resize\", function(){ if(!mq()) closeNav(); });\n"
     "  // ---- 해시 → 탭 라우터 (가이드 항목 앵커 동작: 오프라인/온라인 탭 전환 + 스크롤) ----\n"
     "  function scrollToId(id){ var el=document.getElementById(id); if(el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 64, behavior:\"smooth\" }); }\n"
     "  function setActive(hash){ var items=document.querySelectorAll(\".sidebar .sb-nav a.sb-item\"); Array.prototype.forEach.call(items, function(a){ var on=a.getAttribute(\"href\")===hash; a.classList.toggle(\"active\", on); if(on) a.setAttribute(\"aria-current\",\"page\"); else a.removeAttribute(\"aria-current\"); }); }\n"
@@ -542,14 +473,6 @@ NAV_SCRIPT = (
     "  }\n"
     "  window.addEventListener(\"hashchange\", applyHash);\n"
     "  setTimeout(applyHash, 0);\n"
-    "  // ---- 화면 폭 토글(config.js 미로드 페이지라 동일 로직 내장) ----\n"
-    "  var PWKEY=\"onnuri_pw\";\n"
-    "  function applyPw(v){ if(v) document.documentElement.setAttribute(\"data-pw\",v); else document.documentElement.removeAttribute(\"data-pw\");\n"
-    "    Array.prototype.forEach.call(document.querySelectorAll(\".sb-width button\"), function(b){ b.classList.toggle(\"active\", (b.getAttribute(\"data-pw\")||\"\")===(v||\"\")); }); }\n"
-    "  applyPw(localStorage.getItem(PWKEY)||\"\");\n"
-    "  Array.prototype.forEach.call(document.querySelectorAll(\".sb-width button\"), function(b){\n"
-    "    b.addEventListener(\"click\", function(){ var v=b.getAttribute(\"data-pw\")||\"\"; if(v) localStorage.setItem(PWKEY,v); else localStorage.removeItem(PWKEY); applyPw(v); });\n"
-    "  });\n"
     "})();\n"
     "</script>"
 )

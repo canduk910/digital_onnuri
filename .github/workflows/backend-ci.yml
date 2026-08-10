@@ -1,0 +1,98 @@
+# 백엔드 CI/CD (ADR-11)
+# CI : feat/backend-scaffold에 backend/** 푸시 → JDK 21로 ./gradlew test (계약 테스트 포함)
+# CD : 테스트 통과 후, GitHub Secrets에 NCP_SSH_KEY가 등록된 경우에만 NCP VM에 SSH 배포.
+#      미등록이면 배포 잡은 자동 스킵된다(포크·시크릿 없는 환경에서도 CI는 안전하게 동작).
+#
+# 필요한 Secrets (Settings → Secrets and variables → Actions에서 사용자가 직접 등록):
+#   NCP_SSH_KEY  (필수) : 배포 VM 접속용 SSH 개인키 전문 (-----BEGIN ... KEY----- 포함)
+#   NCP_HOST     (선택) : 접속 호스트. 미등록 시 api.koscomlabor.cloud 사용
+#   NCP_SSH_USER (선택) : 접속 계정. 미등록 시 root
+# 키 값은 절대 저장소·채팅에 붙여넣지 않는다 — GitHub Secrets 화면에서만 입력한다.
+name: backend-ci
+
+on:
+  push:
+    branches: [feat/backend-scaffold]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  workflow_dispatch: {}   # 수동 재배포용
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: false   # 배포 중단 방지 — 순차 실행
+
+jobs:
+  test:
+    name: 테스트 (JDK 21)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Gradle 테스트
+        working-directory: backend
+        run: ./gradlew test --no-daemon
+      - name: 테스트 리포트 업로드 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: backend/build/reports/tests/test
+
+  # secrets는 job-level if에서 직접 참조할 수 없어, 존재 여부를 output으로 변환한다.
+  check-deploy-key:
+    name: 배포 키 등록 여부 확인
+    runs-on: ubuntu-latest
+    outputs:
+      has-key: ${{ steps.chk.outputs.has }}
+    steps:
+      - id: chk
+        env:
+          KEY: ${{ secrets.NCP_SSH_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then echo "has=true" >> "$GITHUB_OUTPUT"; else echo "has=false" >> "$GITHUB_OUTPUT"; fi
+
+  deploy:
+    name: NCP 배포
+    needs: [test, check-deploy-key]
+    if: needs.check-deploy-key.outputs.has-key == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: SSH로 pull + 앱 재빌드
+        env:
+          SSH_KEY: ${{ secrets.NCP_SSH_KEY }}
+          HOST: ${{ secrets.NCP_HOST }}
+          SSH_USER: ${{ secrets.NCP_SSH_USER }}
+        run: |
+          HOST="${HOST:-api.koscomlabor.cloud}"
+          SSH_USER="${SSH_USER:-root}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "$SSH_USER@$HOST" '
+            set -e
+            cd "$HOME/digital_onnuri"
+            git fetch origin feat/backend-scaffold
+            git checkout feat/backend-scaffold
+            git reset --hard origin/feat/backend-scaffold
+            cd backend/deploy
+            # db·caddy는 유지하고 앱만 재빌드 — pgdata·TLS 인증서 보존
+            docker compose -f docker-compose.prod.yml up -d --build app
+          '
+      - name: 헬스체크 (최대 2분 대기)
+        run: |
+          HOST_URL="https://${NCP_HOST:-api.koscomlabor.cloud}"
+          for i in $(seq 1 24); do
+            if curl -fsS "$HOST_URL/actuator/health" | grep -q '"UP"'; then
+              echo "헬스체크 통과"; exit 0
+            fi
+            sleep 5
+          done
+          echo "헬스체크 실패 — 서버 로그 확인 필요 (docker compose logs app)"; exit 1
+        env:
+          NCP_HOST: ${{ secrets.NCP_HOST }}
