@@ -451,6 +451,7 @@
   };
   var REGIONS = { si: [], gu: [], dong: [] }; // /api/regions (현재 시도/시/구 기준 하위 옵션)
   var SIDO_TOTAL = {};                          // 시도별 전체 건수(탭 배지·mScope)
+  var BRAND_RANK = {};                          // 시도별 브랜드 전역 빈도순위 {brand: rank} — 칩 동점 tie-break용
 
   var el = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
@@ -466,7 +467,6 @@
   };
   var catLabel = function (k) { for (var i = 0; i < CAT_ORDER.length; i++) if (CAT_ORDER[i][0] === k) return CAT_ORDER[i][1]; return k; };
   // 브랜드 순위: 서버 facet(base 컨텍스트) 그대로 [[brand,count],...] (건수순, 서버 정렬).
-  function brandRanked() { return SNAP.facetBrand.map(function (c) { return [c.key, c.count]; }); }
 
   // ---- API ----
   function apiGet(path, params) {
@@ -642,6 +642,21 @@
       SIDO_TOTAL[sido] = r.total; return r.total;
     });
   }
+  // 시도 전역 브랜드 빈도순위 {brand: rank(0=최다)}. 칩 동점 tie-break에 사용 → 대표 브랜드(GS25 등)가
+  // 소규모 지역(대부분 count 1)에서도 상위 칩에 노출되게 한다. 최초 1회 조회 후 캐시.
+  function loadBrandRank(sido) {
+    if (BRAND_RANK[sido]) return Promise.resolve(BRAND_RANK[sido]);
+    var build = function (order) { var m = {}; order.forEach(function (k, i) { m[k] = i; }); BRAND_RANK[sido] = m; return m; };
+    if (MODE === "json") {
+      return jsonLoadSido(sido).then(function (items) {
+        var c = {}; items.forEach(function (x) { if (x.brand) c[x.brand] = (c[x.brand] || 0) + 1; });
+        return build(Object.keys(c).sort(function (a, b) { return c[b] - c[a] || a.localeCompare(b, "ko"); }));
+      });
+    }
+    return apiGet("/brands", { region: sido }).then(function (list) { // 서버가 count 내림차순 반환
+      return build((list || []).map(function (c) { return c.key; }));
+    });
+  }
   // 지역 계층 옵션(구/동 또는 시/구/동) 로드.
   function loadRegionOptions() {
     if (MODE === "json") {
@@ -778,8 +793,13 @@
       b.onclick = function () { state.cat = key; state.page = 1; refresh("filter"); };
       cc.appendChild(b);
     });
-    // 브랜드(보조) — 개별 브랜드명. 상위 N개만 칩, 나머지는 드롭다운(타입어헤드 검색). 전부 계산.
-    var ranked = brandRanked();
+    // 브랜드(보조) — 상위 N개만 칩, 나머지는 팝업 검색. 동점(count 같음) 시 시도 전역 빈도순위로
+    // tie-break → 대표 브랜드(GS25 등)가 소규모 지역에서도 상위에 노출(이름순이면 라틴이 뒤로 밀려 누락).
+    var rankMap = BRAND_RANK[state.sido] || {};
+    var grk = function (k) { return rankMap[k] == null ? 1e9 : rankMap[k]; };
+    var ranked = SNAP.facetBrand.slice().sort(function (a, b) {
+      return b.count - a.count || (grk(a.key) - grk(b.key)) || a.key.localeCompare(b.key, "ko");
+    }).map(function (c) { return [c.key, c.count]; });
     var bc = el("brandChips"); bc.innerHTML = '<span class="chip-label">브랜드</span>';
     function addBrandChip(key, label, cnt) {
       var b = document.createElement("button");
@@ -1152,7 +1172,7 @@
     state.sido = sido; state.si = "전체"; state.gu = "전체"; state.dong = "전체";
     state.cat = "전체"; state.brand = "전체"; state.mtype = "전체"; state.page = 1;
     loadingSido = sido; renderSidoTabs(); showLoading(sido + " 가맹점 목록을 불러오는 중입니다…");
-    Promise.all([loadRegionOptions(), loadSidoTotal(sido)]).then(function () {
+    Promise.all([loadRegionOptions(), loadSidoTotal(sido), loadBrandRank(sido)]).then(function () {
       loadingSido = null;
       SNAP.sidoTotal = SIDO_TOTAL[sido];
       renderMeta(); renderSidoTabs(); renderRegionSelects();
