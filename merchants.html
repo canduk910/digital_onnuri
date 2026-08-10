@@ -516,12 +516,11 @@
   };
   // 지역 스코프(구/동, digital 제외) — regionFiltered와 동일 규칙. "동 미상"은 서버가 IS NULL로 해석.
   function regionParams() {
-    var p = { region: state.sido };
-    if (MAP_BOUNDS) { // 지도범위 검색 모드 — 좌표 범위(API 모드는 백엔드 bounds 파라미터)
-      p.minLat = MAP_BOUNDS.minLat; p.maxLat = MAP_BOUNDS.maxLat;
-      p.minLng = MAP_BOUNDS.minLng; p.maxLng = MAP_BOUNDS.maxLng;
-      return p;
+    if (MAP_BOUNDS) { // 지도범위 검색 모드 — 시도 무관 전 지역, 좌표 범위만(region 생략)
+      return { minLat: MAP_BOUNDS.minLat, maxLat: MAP_BOUNDS.maxLat,
+               minLng: MAP_BOUNDS.minLng, maxLng: MAP_BOUNDS.maxLng };
     }
+    var p = { region: state.sido };
     if (isGG() && state.si !== "전체") p.si = state.si;
     if (state.gu !== "전체") p.gu = state.gu;
     if (state.dong !== "전체") p.dong = state.dong;
@@ -633,8 +632,15 @@
       return out;
     });
   }
+  // 전 지역(서울·인천·경기·부산) 합본 — 지도범위 검색은 시도 무관 전체를 대상으로.
+  function jsonAllItems() {
+    return Promise.all(SIDO.map(function (s) { return jsonLoadSido(s.key); }))
+      .then(function (lists) { return [].concat.apply([], lists); });
+  }
+  // 현재 검색 소스: 지도범위 모드면 전 지역, 아니면 선택 시도.
+  function jsonSourceItems() { return MAP_BOUNDS ? jsonAllItems() : jsonLoadSido(state.sido); }
   function jsonQuery(scope) { // apiQuery와 동일한 정규화 결과 반환
-    return jsonLoadSido(state.sido).then(function (items) {
+    return jsonSourceItems().then(function (items) {
       var base = jBase(items), full = jFull(base), R = { total: full.length };
       var start = (state.page - 1) * PAGE_SIZE;
       R.list = full.slice(start, start + PAGE_SIZE);
@@ -895,7 +901,7 @@
   // 현재 지역·디지털 컨텍스트에서 특정 업종(cat)에 속한 브랜드 목록+카운트.
   function brandsForCat(cat) {
     if (MODE === "json") {
-      return jsonLoadSido(state.sido).then(function (items) {
+      return jsonSourceItems().then(function (items) {
         var base = jBase(items), bc = {};
         base.forEach(function (x) { if (x.brand && (cat === "전체" || x.cat === cat)) bc[x.brand] = (bc[x.brand] || 0) + 1; });
         return Object.keys(bc).map(function (k) { return { key: k, count: bc[k] }; });
@@ -978,7 +984,9 @@
   }
 
   function render() {
-    el("mScope").textContent = state.sido + " " + nf(SNAP.sidoTotal || 0) + "곳";
+    el("mScope").textContent = MAP_BOUNDS
+      ? "지도 영역 — 전 지역(서울·인천·경기·부산) 대상"
+      : state.sido + " " + nf(SNAP.sidoTotal || 0) + "곳";
     el("countText").textContent = nf(SNAP.regionTotal) + "곳 중 " + nf(SNAP.total) + "곳 표시";
 
     var area = el("resultArea");
@@ -1109,10 +1117,22 @@
     if (!initMap()) { var note = el("mapNote"); if (note) note.textContent = "지도를 사용할 수 없어 영역 검색을 할 수 없습니다."; return; }
     var bd = mapObj.getBounds(), sw = bd.getSW(), ne = bd.getNE();
     MAP_BOUNDS = { minLat: sw.lat(), maxLat: ne.lat(), minLng: sw.lng(), maxLng: ne.lng() };
-    // 지역(구/동) 필터와 병행하면 혼동 → 지역은 전체로 리셋하고 좌표 범위만 적용
+    // 지역(구/동) 필터와 병행하면 혼동 → 지역은 전체로 리셋. 검색 대상은 시도 무관 전 지역.
     state.si = "전체"; state.gu = "전체"; state.dong = "전체"; state.page = 1;
-    updateBoundsBtn();
-    loadRegionOptions().then(function () { renderRegionSelects(); refresh("all"); });
+    var btn = el("boundsBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "전 지역 데이터 불러오는 중…"; }
+    // JSON 모드 첫 실행은 미로드 시도 파일을 받아와야 함(캐시 후 즉시)
+    var ready = (MODE === "json") ? jsonAllItems() : Promise.resolve();
+    ready.then(function () {
+      if (btn) btn.disabled = false;
+      updateBoundsBtn();
+      loadRegionOptions().then(function () { renderRegionSelects(); refresh("all"); });
+    }).catch(function () {
+      MAP_BOUNDS = null;
+      if (btn) btn.disabled = false;
+      updateBoundsBtn();
+      var note2 = el("mapNote"); if (note2) note2.textContent = "전 지역 데이터를 불러오지 못했습니다. 다시 시도해 주세요.";
+    });
   }
 
   /* ── 현재 위치(GPS·Wi‑Fi·기지국 = 브라우저 Geolocation) ── */
