@@ -343,29 +343,35 @@ OLD_STYLE = (
 )
 # 사이드바/셸 CSS 는 merchants.html 과 바이트 동일(명세 §3 복붙 일관성).
 NEW_STYLE = (
-    "  /* ===== 디자인 시스템 (14): 화이트 중립 모노톤 + 오렌지 ===== */\n"
+    "  /* ===== 디자인 시스템 (14+24b): 블랙·화이트·그레이 + 오렌지 포인트, 초저투명 패턴 ===== */\n"
     "  :root{\n"
-    "    --bg:#FFFFFF; --surface:#F7F7F7; --surface-2:#F0F0F0; --border:#E6E6E6; --border-2:#D6D6D6;\n"
-    "    --text:#17181A; --text-sub:#6B6E73; --text-faint:#9CA0A6;\n"
+    "    --bg:#FFFFFF; --surface:#F6F6F7; --surface-2:#EFF0F2; --border:#E5E6E8; --border-2:#D3D5D9;\n"
+    "    --text:#0B0C0E; --text-sub:#585D64; --text-faint:#989DA5;\n"
     "    --accent:#F26B1D; --accent-hover:#DD5E12; --accent-press:#C4510F; --accent-soft:#FEF3EC; --accent-line:#F6C9A8;\n"
     "    --ok:#1F9D57; --ok-soft:#EAF7EF; --warn:#C77A16; --warn-soft:#FBF3E6; --no:#9CA0A6; --no-soft:#F2F2F2;\n"
     "    --r-sm:6px; --r-md:10px; --r-lg:14px; --sb-w:248px;\n"
-    "    --shadow-sm:0 1px 2px rgba(20,22,26,.05); --shadow-md:0 6px 24px rgba(20,22,26,.09);\n"
+    "    --shadow-sm:0 1px 2px rgba(11,12,14,.05); --shadow-md:0 6px 24px rgba(11,12,14,.09);\n"
+    "    --pat-dot:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='1.5' cy='1.5' r='1.1' fill='%230B0C0E' fill-opacity='0.05'/%3E%3C/svg%3E\");\n"
+    "    --pat-stripe:repeating-linear-gradient(0deg, transparent 0 5px, rgba(11,12,14,.022) 5px 6px);\n"
     "  }\n"
     "  * { margin:0; padding:0; box-sizing:border-box; }\n"
-    "  body { background:var(--bg); color:var(--text); font-family:\"Pretendard Variable\",Pretendard,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; font-size:14px; line-height:1.6; letter-spacing:-0.005em; }\n"
+    "  body { color:var(--text); font-family:\"Pretendard Variable\",Pretendard,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; font-size:14px; line-height:1.6; letter-spacing:-0.005em; background:radial-gradient(720px 340px at 82% -60px, rgba(242,107,29,.055), transparent 70%), var(--pat-dot), var(--bg); }\n"
     "  a { color:var(--accent-press); text-decoration:none; }\n"
     "  a:hover { color:var(--accent); text-decoration:underline; }\n"
     "  ::selection { background:var(--accent-soft); }\n"
     "  input::placeholder { color:var(--text-faint); }\n"
     "  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:2px; }\n"
     "  .logo-sym { flex:none; width:28px; height:28px; border-radius:var(--r-sm); background:var(--accent); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:14px; }\n"
-    "  .sidebar { position:fixed; top:0; left:0; bottom:0; width:var(--sb-w); background:var(--bg); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:18px 14px 14px; z-index:50; transition:transform .2s ease; }\n"
-    "  .sb-logo { display:flex; align-items:center; gap:9px; padding:4px 6px 16px; color:var(--text); }\n"
+    "  .sidebar { position:fixed; top:0; left:0; bottom:0; width:var(--sb-w); background:var(--pat-stripe), var(--bg); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:18px 14px 14px; z-index:50; transition:transform .2s ease; }\n"
+    "  .sb-logo { display:flex; flex-direction:column; align-items:flex-start; gap:5px; padding:6px 6px 16px; color:var(--text); }\n"
     "  .sb-logo:hover { text-decoration:none; color:var(--text); }\n"
-    "  .sb-logo-txt { font-size:13.5px; font-weight:700; letter-spacing:-0.01em; }\n"
+    "  .sb-logo-txt { font-size:12px; font-weight:700; letter-spacing:-0.01em; color:var(--text-sub); }\n"
+    "  .ci-koscom { display:inline-flex; align-items:center; gap:3px; }\n"
+    "  .ci-koscom svg { display:block; }\n"
+    "  .ci-word { font-weight:800; font-size:19px; letter-spacing:-0.03em; color:#54565A; line-height:1; }\n"
+    "  .ci-sm .ci-word { font-size:15px; }\n"
     "  .sb-nav { display:flex; flex-direction:column; gap:1px; overflow-y:auto; flex:1; }\n"
-    "  .sb-group { font-size:11.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint); padding:14px 10px 6px; }\n"
+    "  .sb-group { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); padding:14px 10px 6px; }\n"
     "  .sb-item { position:relative; display:block; padding:8px 12px; border-radius:var(--r-sm); font-size:13.5px; color:var(--text-sub); transition:background .15s ease,color .15s ease; }\n"
     "  .sb-item:hover { background:var(--surface); color:var(--text); text-decoration:none; }\n"
     "  .sb-item.active { background:var(--accent-soft); color:var(--text); font-weight:700; }\n"
@@ -391,16 +397,24 @@ NEW_STYLE = (
 )
 tpl = replace_once(tpl, OLD_STYLE, NEW_STYLE, "24.style-tokens")
 
+# ---------- 7a-2. 페이지 타이틀 극대화 (24b: 극단 타이포 — 본문 대비 큰 대비) ----------
+tpl = replace_once(
+    tpl,
+    "<h1 style=\"margin:0 0 10px;font-size:32px;font-weight:800;letter-spacing:-0.03em;color:#171512;line-height:1.2\">",
+    "<h1 style=\"margin:0 0 12px;font-size:clamp(34px,4.6vw,52px);font-weight:900;letter-spacing:-0.045em;color:#171512;line-height:1.06\">",
+    "24b.h1-display",
+)
+
 # ---------- 7b. 사이드바 셸 마크업 (<x-dc> 밖 — 정적, DC 비관여) ----------
 # 가이드 항목=현재 페이지 인페이지 앵커(#offline/#online/#payment/#terms, 해시 라우터가 탭 전환).
 # 검색 항목=merchants.html#앵커(크로스 페이지). 기본 활성=오프라인 사용처.
 SHELL = (
     "<header class=\"topbar\">\n"
     "  <button class=\"hamburger\" id=\"navToggle\" aria-label=\"메뉴 열기\" aria-expanded=\"false\" aria-controls=\"sidebar\">☰</button>\n"
-    "  <span class=\"topbar-brand\"><span class=\"logo-sym\">온</span> 디지털온누리 가이드</span>\n"
+    "  <span class=\"topbar-brand\"><span class=\"ci-koscom ci-sm\" aria-label=\"koscom\"><svg viewBox=\"0 0 12 14\" width=\"9\" height=\"11\" aria-hidden=\"true\"><path d=\"M2.4 1.2 L9.4 7 L2.4 12.8\" stroke=\"#F26B1D\" stroke-width=\"3.4\" fill=\"none\"/></svg><span class=\"ci-word\">koscom</span></span> 코스콤 디지털온누리 가이드</span>\n"
     "</header>\n"
     "<aside class=\"sidebar\" id=\"sidebar\" aria-label=\"주요 메뉴\">\n"
-    "  <a class=\"sb-logo\" href=\"index.html\"><span class=\"logo-sym\">온</span><span class=\"sb-logo-txt\">디지털온누리 가이드</span></a>\n"
+    "  <a class=\"sb-logo\" href=\"index.html\"><span class=\"ci-koscom\" aria-label=\"koscom\"><svg viewBox=\"0 0 12 14\" width=\"11\" height=\"13\" aria-hidden=\"true\"><path d=\"M2.4 1.2 L9.4 7 L2.4 12.8\" stroke=\"#F26B1D\" stroke-width=\"3.4\" fill=\"none\"/></svg><span class=\"ci-word\">koscom</span></span><span class=\"sb-logo-txt\">코스콤 디지털온누리 가이드</span></a>\n"
     "  <nav class=\"sb-nav\" aria-label=\"사이트 메뉴\">\n"
     "    <div class=\"sb-group\">사용 가이드</div>\n"
     "    <a class=\"sb-item active\" href=\"#offline\" aria-current=\"page\">오프라인 사용처</a>\n"

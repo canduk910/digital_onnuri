@@ -7,15 +7,23 @@
 <style>
   /* ===== 디자인 시스템 (14): 화이트 중립 모노톤 + 오렌지 ===== */
   :root{
-    --bg:#FFFFFF; --surface:#F7F7F7; --surface-2:#F0F0F0; --border:#E6E6E6; --border-2:#D6D6D6;
-    --text:#17181A; --text-sub:#6B6E73; --text-faint:#9CA0A6;
+    --bg:#FFFFFF; --surface:#F6F6F7; --surface-2:#EFF0F2; --border:#E5E6E8; --border-2:#D3D5D9;
+    --text:#0B0C0E; --text-sub:#585D64; --text-faint:#989DA5;
     --accent:#F26B1D; --accent-hover:#DD5E12; --accent-press:#C4510F; --accent-soft:#FEF3EC; --accent-line:#F6C9A8;
     --ok:#1F9D57; --ok-soft:#EAF7EF; --warn:#C77A16; --warn-soft:#FBF3E6; --no:#9CA0A6; --no-soft:#F2F2F2;
     --r-sm:6px; --r-md:10px; --r-lg:14px; --sb-w:248px;
-    --shadow-sm:0 1px 2px rgba(20,22,26,.05); --shadow-md:0 6px 24px rgba(20,22,26,.09);
+    --shadow-sm:0 1px 2px rgba(11,12,14,.05); --shadow-md:0 6px 24px rgba(11,12,14,.09);
+    /* 배경 패턴(초저투명) — 도트·핀스트라이프·사선해칭 */
+    --pat-dot:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='1.5' cy='1.5' r='1.1' fill='%230B0C0E' fill-opacity='0.05'/%3E%3C/svg%3E");
+    --pat-stripe:repeating-linear-gradient(0deg, transparent 0 5px, rgba(11,12,14,.022) 5px 6px);
+    --pat-hatch:repeating-linear-gradient(135deg, rgba(11,12,14,.028) 0 1px, transparent 1px 11px);
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; font-size:14px; line-height:1.6; letter-spacing:-0.005em; }
+  body { color:var(--text); font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; font-size:14px; line-height:1.6; letter-spacing:-0.005em;
+    background:
+      radial-gradient(720px 340px at 82% -60px, rgba(242,107,29,.055), transparent 70%),
+      var(--pat-dot),
+      var(--bg); }
   a { color:var(--accent-press); text-decoration:none; }
   a:hover { color:var(--accent); text-decoration:underline; }
   ::selection { background:var(--accent-soft); }
@@ -26,12 +34,17 @@
   .logo-sym { flex:none; width:28px; height:28px; border-radius:var(--r-sm); background:var(--accent); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:14px; }
 
   /* ===== 사이드바 셸 ===== */
-  .sidebar { position:fixed; top:0; left:0; bottom:0; width:var(--sb-w); background:var(--bg); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:18px 14px 14px; z-index:50; transition:transform .2s ease; }
-  .sb-logo { display:flex; align-items:center; gap:9px; padding:4px 6px 16px; color:var(--text); }
+  .sidebar { position:fixed; top:0; left:0; bottom:0; width:var(--sb-w); background:var(--pat-stripe), var(--bg); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:18px 14px 14px; z-index:50; transition:transform .2s ease; }
+  .sb-logo { display:flex; flex-direction:column; align-items:flex-start; gap:5px; padding:6px 6px 16px; color:var(--text); }
   .sb-logo:hover { text-decoration:none; color:var(--text); }
-  .sb-logo-txt { font-size:13.5px; font-weight:700; letter-spacing:-0.01em; }
+  .sb-logo-txt { font-size:12px; font-weight:700; letter-spacing:-0.01em; color:var(--text-sub); }
+  /* 코스콤 CI — 오렌지 셰브론 + 그레이 소문자 워드마크 */
+  .ci-koscom { display:inline-flex; align-items:center; gap:3px; }
+  .ci-koscom svg { display:block; }
+  .ci-word { font-weight:800; font-size:19px; letter-spacing:-0.03em; color:#54565A; line-height:1; }
+  .ci-sm .ci-word { font-size:15px; }
   .sb-nav { display:flex; flex-direction:column; gap:1px; overflow-y:auto; flex:1; }
-  .sb-group { font-size:11.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint); padding:14px 10px 6px; }
+  .sb-group { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); padding:14px 10px 6px; }
   .sb-item { position:relative; display:block; padding:8px 12px; border-radius:var(--r-sm); font-size:13.5px; color:var(--text-sub); transition:background .15s ease,color .15s ease; }
   .sb-item:hover { background:var(--surface); color:var(--text); text-decoration:none; }
   .sb-item.active { background:var(--accent-soft); color:var(--text); font-weight:700; }
@@ -50,28 +63,32 @@
   .content { margin-left:var(--sb-w); }
   .content-inner { max-width:1080px; margin:0 auto; padding:40px 32px 72px; }
 
-  /* ===== 페이지 헤더 ===== */
-  .page-head { margin-bottom:20px; }
-  h1 { font-size:26px; font-weight:700; letter-spacing:-0.02em; line-height:1.25; margin-bottom:8px; }
-  .subtitle { font-size:14px; color:var(--text-sub); margin-bottom:6px; }
+  /* ===== 페이지 헤더 — 극단 타이포 + 자이언트 워터마크 ===== */
+  .page-head { position:relative; margin-bottom:26px; padding-top:6px; }
+  .page-head::after { /* signature: 초저투명 오렌지 '온' 워터마크 */
+    content:"온"; position:absolute; right:-8px; top:-46px; font-size:190px; font-weight:900;
+    color:var(--accent); opacity:.045; line-height:1; pointer-events:none; user-select:none; z-index:-1; }
+  h1 { font-size:clamp(34px, 4.6vw, 54px); font-weight:900; letter-spacing:-0.045em; line-height:1.04; margin-bottom:10px; }
+  .subtitle { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent-press); margin-bottom:8px; }
   .meta-line { font-size:13px; color:var(--text-sub); }
   .meta-line .num, .num { font-variant-numeric:tabular-nums; }
 
   /* ===== 배너 (M10-2) ===== */
-  .notice { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:var(--r-md); padding:14px 18px; margin:0 0 18px; }
+  .notice { background:repeating-linear-gradient(135deg, rgba(242,107,29,.03) 0 1px, transparent 1px 12px), var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:var(--r-md); padding:14px 18px; margin:0 0 18px; }
   .notice p { font-size:13.5px; color:var(--text-sub); }
   .notice strong { color:var(--text); font-weight:700; }
 
-  /* ===== 시도 탭 ===== */
+  /* ===== 시도 탭 — 숫자가 주인공(극단 대비) ===== */
   .sido-tabs { display:flex; gap:8px; margin-bottom:14px; }
-  .sido-tab { flex:1; font-family:inherit; cursor:pointer; text-align:center; font-size:14px; font-weight:700; border-radius:var(--r-sm); padding:11px 10px; color:var(--text-sub); background:var(--bg); border:1px solid var(--border); transition:.15s ease; }
+  .sido-tab { flex:1; font-family:inherit; cursor:pointer; text-align:left; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; border-radius:var(--r-sm); padding:12px 14px 10px; color:var(--text-faint); background:var(--bg); border:1px solid var(--border); transition:.15s ease; }
   .sido-tab:hover { border-color:var(--border-2); background:var(--surface); }
-  .sido-tab.active { color:#fff; background:var(--text); border-color:var(--text); }
-  .sido-tab .tab-sub { display:block; font-size:11.5px; font-weight:500; opacity:.72; margin-top:2px; font-variant-numeric:tabular-nums; }
+  .sido-tab.active { color:rgba(255,255,255,.75); background:var(--text); border-color:var(--text); }
+  .sido-tab .tab-sub { display:block; font-size:clamp(17px, 1.8vw, 23px); font-weight:800; letter-spacing:-0.03em; color:var(--text); opacity:1; margin-top:3px; font-variant-numeric:tabular-nums; }
+  .sido-tab.active .tab-sub { color:#fff; }
 
   /* ===== 지역 계층 드롭다운 ===== */
   .region-row { display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
-  .rr-label { font-size:11.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint); }
+  .rr-label { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); }
   select.sel { font-family:inherit; font-size:13px; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:9px 12px; outline:none; cursor:pointer; min-width:120px; transition:.15s ease; }
   select.sel:hover { border-color:var(--border-2); }
   select.sel:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
@@ -79,7 +96,7 @@
 
   /* ===== 칩 (샤프 라운드, pill 아님) ===== */
   .chip-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
-  .chip-label { font-size:11.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint); margin-right:2px; }
+  .chip-label { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); margin-right:2px; }
   .chip-hint { font-size:11.5px; color:var(--text-faint); margin-right:4px; }
   .chip-hint b { font-weight:700; color:var(--text-sub); }
   .chip { font-family:inherit; cursor:pointer; font-size:13px; font-weight:600; border-radius:var(--r-sm); padding:6px 12px; color:var(--text-sub); background:var(--bg); border:1px solid var(--border); transition:.15s ease; }
@@ -87,7 +104,7 @@
   .chip b { font-variant-numeric:tabular-nums; color:inherit; }
   .chip.active { color:#fff; background:var(--accent); border-color:var(--accent); }
   .chip.active:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
-  .aux-row { display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; margin-bottom:14px; padding:12px 14px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); }
+  .aux-row { display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; margin-bottom:14px; padding:12px 14px; background:var(--pat-hatch), var(--surface); border:1px solid var(--border); border-radius:var(--r-md); }
   .aux-group { display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
 
   /* ===== 컨트롤 (검색·토글·정렬) ===== */
@@ -102,13 +119,13 @@
   .digital-toggle { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:8px 12px; user-select:none; transition:.15s ease; }
   .digital-toggle:hover { border-color:var(--border-2); }
   .digital-toggle input { accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
-  .count-text { font-size:13px; color:var(--text-sub); margin-left:auto; font-variant-numeric:tabular-nums; }
+  .count-text { font-size:16px; font-weight:800; letter-spacing:-0.02em; color:var(--text); margin-left:auto; font-variant-numeric:tabular-nums; }
 
   /* ===== 결과 카드·표 ===== */
   .card { background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; }
   .table-scroll { overflow-x:auto; }
   table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:880px; }
-  th { padding:11px 16px; text-align:left; font-size:12px; font-weight:700; color:var(--text-sub); background:var(--surface); border-bottom:1px solid var(--border); white-space:nowrap; }
+  th { padding:11px 16px; text-align:left; font-size:10.5px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); background:var(--surface); border-bottom:1px solid var(--border); white-space:nowrap; }
   td { padding:12px 16px; border-top:1px solid var(--border); vertical-align:middle; }
   tr:hover td { background:var(--surface); }
   td.name { font-weight:700; color:var(--text); }
@@ -125,8 +142,8 @@
   .pay.none { background:var(--no-soft); color:var(--text-faint); }
 
   /* ===== 상태(로딩·빈결과) ===== */
-  .state { padding:44px 20px; text-align:center; color:var(--text-sub); font-size:13.5px; line-height:1.7; }
-  .state .lead { color:var(--text); font-weight:700; }
+  .state { padding:52px 20px; text-align:center; color:var(--text-sub); font-size:13.5px; line-height:1.7; }
+  .state .lead { display:block; color:var(--text); font-weight:800; font-size:19px; letter-spacing:-0.02em; margin-bottom:4px; }
   .state-actions { margin-top:14px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
   .app-install { margin-top:12px; font-size:12.5px; color:var(--text-faint); }
   .app-install a { font-weight:700; }
@@ -159,6 +176,8 @@
     .content { margin-left:0; padding-top:52px; }
     .content-inner { padding:24px 20px 56px; }
     .count-text { margin-left:0; width:100%; }
+    .page-head::after { font-size:120px; top:-28px; right:-4px; }
+    .sido-tab { padding:10px 10px 8px; }
   }
   @media (min-width:960px){ .overlay { display:none !important; } }
   @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
@@ -169,6 +188,12 @@
   .result-map{ flex:0 0 clamp(360px,34vw,460px); position:sticky; top:16px; }
   .map-wrap{ position:relative; }
   #map{ width:100%; height:calc(100vh - 120px); min-height:420px; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; background:var(--surface); }
+  .bounds-btn{ position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:5;
+    padding:8px 14px; font-size:12.5px; font-weight:700; color:var(--text); background:#fff;
+    border:1px solid var(--border); border-radius:999px; box-shadow:0 1px 4px rgba(0,0,0,.14); cursor:pointer; white-space:nowrap; }
+  .bounds-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .bounds-btn.on{ background:var(--text); color:#fff; border-color:var(--text); }
+  .bounds-btn.on:hover{ background:#26282c; color:#fff; }
   .loc-btn{ position:absolute; top:12px; right:12px; z-index:5; display:inline-flex; align-items:center; gap:6px;
     padding:8px 12px; font-size:13px; font-weight:600; color:var(--text); background:#fff;
     border:1px solid var(--border); border-radius:var(--r-md); box-shadow:0 1px 4px rgba(0,0,0,.12); cursor:pointer; }
@@ -187,8 +212,8 @@
   .modal-backdrop{ position:absolute; inset:0; background:rgba(20,20,20,.45); }
   .modal-box{ position:relative; width:min(560px,92vw); max-height:82vh; display:flex; flex-direction:column;
     background:#fff; border:1px solid var(--border); border-radius:var(--r-md); box-shadow:0 12px 40px rgba(0,0,0,.25); overflow:hidden; }
-  .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); }
-  .modal-head strong{ font-size:15px; }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); background:var(--pat-dot), var(--bg); }
+  .modal-head strong{ font-size:17px; font-weight:800; letter-spacing:-0.02em; }
   .modal-close{ border:0; background:transparent; font-size:16px; cursor:pointer; color:var(--text-faint); padding:4px 8px; border-radius:6px; }
   .modal-close:hover{ background:var(--surface); color:var(--text); }
   .modal-tools{ display:flex; gap:10px; padding:12px 16px; border-bottom:1px solid var(--border); align-items:center; flex-wrap:wrap; }
@@ -249,12 +274,15 @@
   <!-- 모바일 상단바 -->
   <header class="topbar">
     <button class="hamburger" id="navToggle" aria-label="메뉴 열기" aria-expanded="false" aria-controls="sidebar">☰</button>
-    <span class="topbar-brand"><span class="logo-sym">온</span> 디지털온누리 가이드</span>
+    <span class="topbar-brand"><span class="ci-koscom ci-sm" aria-label="koscom"><svg viewBox="0 0 12 14" width="9" height="11" aria-hidden="true"><path d="M2.4 1.2 L9.4 7 L2.4 12.8" stroke="#F26B1D" stroke-width="3.4" fill="none"/></svg><span class="ci-word">koscom</span></span> 코스콤 디지털온누리 가이드</span>
   </header>
 
   <!-- 사이드바 -->
   <aside class="sidebar" id="sidebar" aria-label="주요 메뉴">
-    <a class="sb-logo" href="index.html"><span class="logo-sym">온</span><span class="sb-logo-txt">디지털온누리 가이드</span></a>
+    <a class="sb-logo" href="index.html">
+      <span class="ci-koscom" aria-label="koscom"><svg viewBox="0 0 12 14" width="11" height="13" aria-hidden="true"><path d="M2.4 1.2 L9.4 7 L2.4 12.8" stroke="#F26B1D" stroke-width="3.4" fill="none"/></svg><span class="ci-word">koscom</span></span>
+      <span class="sb-logo-txt">코스콤 디지털온누리 가이드</span>
+    </a>
     <nav class="sb-nav" aria-label="사이트 메뉴">
       <div class="sb-group">사용 가이드</div>
       <a class="sb-item" href="index.html#offline">오프라인 사용처</a>
@@ -335,6 +363,7 @@
       <div class="result-map">
         <div class="map-wrap">
           <div id="map"></div>
+          <button id="boundsBtn" class="bounds-btn" type="button" aria-label="현재 지도 범위에서 가맹점 검색">현 지도에서 가맹점 검색</button>
           <button id="locBtn" class="loc-btn" type="button" aria-label="현재 위치를 지도에 표시">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3a8.994 8.994 0 00-7.94-7.94V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19a7 7 0 110-14 7 7 0 010 14z"/></svg>
             <span>내 위치</span>
@@ -488,6 +517,11 @@
   // 지역 스코프(구/동, digital 제외) — regionFiltered와 동일 규칙. "동 미상"은 서버가 IS NULL로 해석.
   function regionParams() {
     var p = { region: state.sido };
+    if (MAP_BOUNDS) { // 지도범위 검색 모드 — 좌표 범위(API 모드는 백엔드 bounds 파라미터)
+      p.minLat = MAP_BOUNDS.minLat; p.maxLat = MAP_BOUNDS.maxLat;
+      p.minLng = MAP_BOUNDS.minLng; p.maxLng = MAP_BOUNDS.maxLng;
+      return p;
+    }
     if (isGG() && state.si !== "전체") p.si = state.si;
     if (state.gu !== "전체") p.gu = state.gu;
     if (state.dong !== "전체") p.dong = state.dong;
@@ -542,6 +576,13 @@
     });
   }
   function jRegionFiltered(items) { // regionParams와 동일 규칙(digital 제외)
+    if (MAP_BOUNDS) { // 지도범위 검색 모드 — 지역(구/동) 대신 좌표 범위로
+      var b = MAP_BOUNDS;
+      return items.filter(function (x) {
+        return x.lat != null && x.lng != null &&
+          x.lat >= b.minLat && x.lat <= b.maxLat && x.lng >= b.minLng && x.lng <= b.maxLng;
+      });
+    }
     var it = items;
     if (isGG() && state.si !== "전체") it = it.filter(function (x) { return x.si === state.si; });
     if (state.gu !== "전체") it = it.filter(function (x) { return x.gu === state.gu; });
@@ -781,6 +822,7 @@
   }
   // reloadOpts=true면 하위 옵션(구/동)을 서버에서 다시 받아 셀렉트를 갱신한 뒤 결과 조회.
   function afterRegionChange(reloadOpts) {
+    clearBoundsSearch(); // 지역 셀렉트 조작 = 지역 필터로 복귀(지도범위 검색 해제)
     if (reloadOpts) { loadRegionOptions().then(function () { renderRegionSelects(); refresh(); }); }
     else { refresh(); }
   }
@@ -975,6 +1017,7 @@
   /* ── 네이버 지도 ── */
   var mapObj = null, clusterObj = null, mapMarkers = [], infoWin = null, mapReady = false;
   var locMarker = null, locCircle = null; // 현재 위치(결과 마커와 분리 — clearMarkers 영향 없음)
+  var MAP_BOUNDS = null; // 지도범위 검색 모드 {minLat,maxLat,minLng,maxLng} | null — 활성 시 지역(구/동) 필터 대신 적용
   var MAP_MAX = 3000;   // 개별 마커 상한(성능). 초과 시 안내 후 생략.
 
   function mapAvailable() { return !window.__naverAuthFail && window.naver && window.naver.maps; }
@@ -1048,7 +1091,28 @@
         if (box) box.textContent = count;
       }
     });
-    if (n) mapObj.fitBounds(bounds);
+    if (n && !MAP_BOUNDS) mapObj.fitBounds(bounds); // 지도범위 검색 중엔 사용자가 잡은 뷰 유지
+  }
+
+  /* ── 지도범위 검색: 현재 보이는 지도 영역으로 가맹점 필터 ── */
+  function updateBoundsBtn() {
+    var b = el("boundsBtn"); if (!b) return;
+    b.textContent = MAP_BOUNDS ? "지도 영역 검색 중 · 해제 ✕" : "현 지도에서 가맹점 검색";
+    b.className = "bounds-btn" + (MAP_BOUNDS ? " on" : "");
+  }
+  function clearBoundsSearch() { // 지역 필터로 복귀할 때 호출
+    if (!MAP_BOUNDS) return false;
+    MAP_BOUNDS = null; updateBoundsBtn(); return true;
+  }
+  function toggleBoundsSearch() {
+    if (MAP_BOUNDS) { MAP_BOUNDS = null; updateBoundsBtn(); refresh("all"); return; }
+    if (!initMap()) { var note = el("mapNote"); if (note) note.textContent = "지도를 사용할 수 없어 영역 검색을 할 수 없습니다."; return; }
+    var bd = mapObj.getBounds(), sw = bd.getSW(), ne = bd.getNE();
+    MAP_BOUNDS = { minLat: sw.lat(), maxLat: ne.lat(), minLng: sw.lng(), maxLng: ne.lng() };
+    // 지역(구/동) 필터와 병행하면 혼동 → 지역은 전체로 리셋하고 좌표 범위만 적용
+    state.si = "전체"; state.gu = "전체"; state.dong = "전체"; state.page = 1;
+    updateBoundsBtn();
+    loadRegionOptions().then(function () { renderRegionSelects(); refresh("all"); });
   }
 
   /* ── 현재 위치(GPS·Wi‑Fi·기지국 = 브라우저 Geolocation) ── */
@@ -1175,6 +1239,7 @@
 
   // ---- 상호작용 ----
   function selectSido(sido) {
+    clearBoundsSearch();
     state.sido = sido; state.si = "전체"; state.gu = "전체"; state.dong = "전체";
     state.cat = "전체"; state.brand = "전체"; state.mtype = "전체"; state.page = 1;
     loadingSido = sido; renderSidoTabs(); showLoading(sido + " 가맹점 목록을 불러오는 중입니다…");
@@ -1196,6 +1261,7 @@
     });
     el("qClear").addEventListener("click", function () { resetSearch(); });
     var locBtn = el("locBtn"); if (locBtn) locBtn.addEventListener("click", showMyLocation);
+    var bdBtn = el("boundsBtn"); if (bdBtn) bdBtn.addEventListener("click", toggleBoundsSearch);
     el("sort").addEventListener("change", function (e) { state.sort = e.target.value; state.page = 1; refresh("page"); });
     el("selMtype").addEventListener("change", function (e) { state.mtype = e.target.value; state.page = 1; refresh("filter"); });
     el("digitalOnly").addEventListener("change", function (e) { state.digitalOnly = e.target.checked; state.page = 1; refresh("all"); });
@@ -1219,6 +1285,7 @@
   }
   function resetSearch() { state.q = ""; state.page = 1; el("q").value = ""; el("qClear").style.display = "none"; el("q").focus(); refresh("filter"); }
   function resetAll() {
+    clearBoundsSearch();
     state.si = "전체"; state.gu = "전체"; state.dong = "전체";
     state.cat = "전체"; state.brand = "전체"; state.mtype = "전체";
     state.digitalOnly = false; state.q = ""; state.page = 1;
