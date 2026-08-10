@@ -6,7 +6,7 @@
 
 **목표:** 날짜에 종속된 상품권 정책·사용처 정보를 정확하게 유지하며 가이드 페이지를 갱신한다. 이용자가 계산대에서 결제 실패를 겪지 않는 것이 품질 기준이다.
 
-**트리거:** 가이드 제작·갱신·최신화, 사용처 목록 변경, 정책 반영, 문구·페이지 수정, 배포 전 검수 요청 시 `onnuri-guide-orchestrator` 스킬을 사용하라. 개별 사용처 단건 질문("우리 동네 CU 되나")은 스킬 없이 직접 답해도 된다. 커밋·푸시 요청("커밋푸시하자" 등)은 `doc-commit` 스킬로 — 문서(변경이력·명세) 갱신 후 안전 점검을 거쳐 커밋한다.
+**트리거:** 두 단계 이상 얽힌 작업 — 가이드 제작·갱신·정책 반영(업무팀), 기능 개발·API 확장·리팩토링·TDD(개발팀), 데이터 스키마 변경처럼 두 팀에 걸친 작업(혼성) — 은 `onnuri-guide-orchestrator` 스킬을 사용하라(2팀 라우팅). 단일 단계는 개별 스킬 직행: 백엔드 단건 수정 `backend-server-dev`, 테스트·검증 `dev-testing`, 구조 판단 `app-architecture`, 데이터 `onnuri-usage-data`, 문구 `guide-content-style`, 페이지 소수정 `guide-page-build`, 콘텐츠 검수 `guide-verification`. 개별 사용처 단건 질문("우리 동네 CU 되나")은 스킬 없이 직접 답해도 된다. 커밋·푸시 요청("커밋푸시하자" 등)은 `doc-commit` 스킬로 — 문서(변경이력·명세) 갱신 후 안전 점검을 거쳐 커밋한다.
 
 **핵심 제약:**
 - 목록의 단일 진실 공급원은 `data/*.json`이다. 페이지에 숫자를 손으로 쓰지 않는다.
@@ -50,3 +50,4 @@
 | 2026-08-10 | 백엔드 NCP 배포 완료 + 라이브 API 모드 전환 | config.js (서버: NCP 101.79.31.30) | NCP Server(Ubuntu 22.04)+Docker Compose(Postgres·Spring·Caddy) 배포, api.koscomlabor.cloud TLS(Let's Encrypt) 자동 발급, 78,734건 적재. 외부 검증 전 통과(개포동 145·팔달 1,241·부산 12,514·해운대 681·bounds·facets·CORS). 라이브 dataMode json→auto(API 우선, 장애 시 JSON 폴백). 서버 갱신 절차: DEPLOY.md. 이슈 해결: NCP 미러에 docker-compose-plugin 없음→get.docker.com, private repo raw 404→public 전환 |
 | 2026-08-10 | 리스트↔지도 드래그 스플리터 + '결제 방법' 토글 자동 펼침 | merchants.html, index.html, build_index.py | 사용자 요청 2건. ①PC에서 리스트·지도 사이 핸들 드래그로 지도 폭 조절(--map-w, 300px~65%, localStorage 유지, 더블클릭 초기화, ←/→ 키, 드래그 시 네이버 지도 resize 트리거, 모바일 숨김). ②사이드바 '결제 방법' 진입 시 접힌 결제 흐름 아코디언(▶) 자동 펼침(openPaymentToggles, DC 마운트 재시도) + 펼침 후 스크롤 보정(450ms) |
 | 2026-08-10 | FOUC 방어 + 리스트 내부 스크롤 + 화면 폭 토글 | build_index.py, merchants.html, online.html, config.js | 사용자 제보 3건. ①index 마운트 순간 CI 2개 세로 겹침 — 4MB 번들 FOUC(이미지 크기 무관) → SHELL 크리티컬 인라인 스타일(topbar none·sidebar fixed·img width/height), 모바일 media는 !important로 복원. ②PC에서 가맹점 리스트를 지도와 같은 높이의 자체 스크롤로 분리(thead sticky, 페이저는 내부 스크롤 리셋). ③화면 폭 토글 좁게 880/표준 1080/넓게 1640 — 사이드바 위젯 3페이지 공통(html[data-pw]+--page-w), localStorage 공유, 로직은 config.js(index는 셸 내장), 변경 시 지도 resize |
+| 2026-08-10 | 하네스 2팀 개편 + TDD 도입 | agents(backend-dev·dev-qa·app-architect 신규, frontend-dev·verifier 갱신), skills(backend-server-dev·dev-testing·app-architecture 신규, orchestrator 2팀 라우팅 개편), backend 테스트 시드 | 사용자 요청(백엔드·클라우드 도입에 따른 팀 재편). 개발팀 4인(frontend/backend/dev-qa/architect — TDD Red·Green·Refactor + 이중게이트) + 업무팀 4인(policy/data/writer/verifier) 분리, 단일 오케가 요청 유형별 라우팅(A업무/B개발/C혼성). dev-qa(코드·경계면)와 verifier(콘텐츠) 관할 상호 불가침. 회귀 기준값 표는 dev-testing 스킬이 관리 |
