@@ -344,7 +344,10 @@ OLD_STYLE = (
 # 사이드바/셸 CSS 는 merchants.html 과 바이트 동일(명세 §3 복붙 일관성).
 NEW_STYLE = (
     "  /* ===== 디자인 시스템 (14+24b): 블랙·화이트·그레이 + 오렌지 포인트, 초저투명 패턴 ===== */\n"
+    "  @font-face { font-family:'GmarketSans'; font-weight:700; font-display:swap;\n"
+    "    src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff'); }\n"
     "  :root{\n"
+    "    --font-display:'GmarketSans',\"Pretendard Variable\",Pretendard,-apple-system,sans-serif;\n"
     "    --bg:#FFFFFF; --surface:#F6F6F7; --surface-2:#EFF0F2; --border:#E5E6E8; --border-2:#D3D5D9;\n"
     "    --text:#0B0C0E; --text-sub:#585D64; --text-faint:#989DA5;\n"
     "    --accent:#F26B1D; --accent-hover:#DD5E12; --accent-press:#C4510F; --accent-soft:#FEF3EC; --accent-line:#F6C9A8;\n"
@@ -365,7 +368,7 @@ NEW_STYLE = (
     "  .sidebar { position:fixed; top:0; left:0; bottom:0; width:var(--sb-w); background:var(--pat-stripe), var(--bg); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:18px 14px 14px; z-index:50; transition:transform .2s ease; }\n"
     "  .sb-logo { display:flex; flex-direction:column; align-items:flex-start; gap:5px; padding:6px 6px 16px; color:var(--text); }\n"
     "  .sb-logo:hover { text-decoration:none; color:var(--text); }\n"
-    "  .sb-logo-txt { font-size:12px; font-weight:700; letter-spacing:-0.01em; color:var(--text-sub); }\n"
+    "  .sb-logo-txt { font-family:var(--font-display); font-size:11.5px; font-weight:700; letter-spacing:-0.01em; color:var(--text-sub); }\n"
     "  .ci-img { display:block; height:19px; width:auto; }\n"
     "  .ci-img-sm { height:14px; }\n"
     "  .sb-nav { display:flex; flex-direction:column; gap:1px; overflow-y:auto; flex:1; }\n"
@@ -377,7 +380,7 @@ NEW_STYLE = (
     "  .sb-ext { display:flex; align-items:center; gap:6px; margin-top:10px; padding:10px 12px; border-top:1px solid var(--border); color:var(--text-sub); font-size:13px; font-weight:600; }\n"
     "  .sb-ext:hover { color:var(--accent-press); text-decoration:none; }\n"
     "  .topbar { display:none; position:fixed; top:0; left:0; right:0; height:52px; align-items:center; gap:10px; padding:0 14px; background:var(--bg); border-bottom:1px solid var(--border); z-index:40; }\n"
-    "  .topbar-brand { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; }\n"
+    "  .topbar-brand { display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-size:12.5px; font-weight:700; }\n"
     "  .hamburger { flex:none; width:38px; height:38px; border:1px solid var(--border); background:var(--bg); border-radius:var(--r-sm); font-size:16px; color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; }\n"
     "  .hamburger:hover { background:var(--surface); }\n"
     "  .overlay { position:fixed; inset:0; background:rgba(20,22,26,.38); z-index:45; }\n"
@@ -399,7 +402,7 @@ tpl = replace_once(tpl, OLD_STYLE, NEW_STYLE, "24.style-tokens")
 tpl = replace_once(
     tpl,
     "<h1 style=\"margin:0 0 10px;font-size:32px;font-weight:800;letter-spacing:-0.03em;color:#171512;line-height:1.2\">",
-    "<h1 style=\"margin:0 0 12px;font-size:clamp(34px,4.6vw,52px);font-weight:900;letter-spacing:-0.045em;color:#171512;line-height:1.06\">",
+    "<h1 style=\"margin:0 0 12px;font-family:var(--font-display);font-size:clamp(32px,4.4vw,48px);font-weight:700;letter-spacing:-0.035em;color:#171512;line-height:1.1\">",
     "24b.h1-display",
 )
 
