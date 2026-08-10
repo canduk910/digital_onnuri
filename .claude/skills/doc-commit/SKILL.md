@@ -41,7 +41,7 @@ python3 _workspace/dev_scripts/build_index.py   # 출력의 "리터럴 </ = 0" �
 ```bash
 git add <대상 파일들>       # git add -A 는 지양 — 의도한 파일만
 git diff --cached --name-only | grep -iE '\.env$|tfvars$|\.tfstate|\.terraform/|\.pem$' && echo "차단!" || echo "OK"
-git diff --cached | grep -iE 'ncp_iam_|HJHzxHq|api[_-]?key.*=.*[A-Za-z0-9]{20}' && echo "차단!" || echo "OK"
+git diff --cached | grep -iE 'ncp_iam_[A-Za-z0-9]|secret[_-]?key\s*[:=]\s*"[A-Za-z0-9]{16,}|api[_-]?key\s*[:=]\s*"[A-Za-z0-9]{20,}' && echo "차단!" || echo "OK"
 ```
 비밀값이 걸리면 커밋을 멈추고 사용자에게 알린다. `.env`/`tfvars`/`.pem`은 예외 없이 커밋 금지.
 
