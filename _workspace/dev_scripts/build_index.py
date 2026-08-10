@@ -258,7 +258,7 @@ tpl = replace_once(
 
 # S15(task #17, 최신 명세): '가맹점 찾기' 서브탭 — 오프라인 탭 **최상단**(메인 탭 바로 아래, 사용 요건 박스 앞).
 # 서브탭 1 '가맹점 찾기'(merchants.html 내부) / 서브탭 2 '공식 지도 검색 ↗'(onnuri.gift/place 외부, 새 탭).
-# 색만으로 구분 금지 → 성격 표지 배지(내부·수도권/외부·전국) + 외부 ↗ + aria-label "새 창에서 열림" + 포커스 링.
+# 색만으로 구분 금지 → 성격 표지 배지(내부·서울·인천·경기·부산/외부·전국) + 외부 ↗ + aria-label "새 창에서 열림" + 포커스 링.
 # 라벨에 "앱" 금지(웹 지도), 공식 지도는 전국 서비스로 지역 한정 서술 없음. 동적 문구 없음.
 S15 = (
     "\n    <div style=\"background:#FFFFFF;border:1.5px solid #E7E5E1;border-radius:14px;margin-bottom:16px;padding:16px 18px\">\n"
@@ -267,8 +267,8 @@ S15 = (
     "      <p style=\"margin:0 0 12px;font-size:12.5px;color:#6E6A64;line-height:1.6\">상호·시장 이름으로 찾으려면 '가맹점 찾기', 지도에서 지역별로 훑으려면 '공식 지도 검색'</p>\n"
     "      <div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px\">\n"
     "        <a href=\"merchants.html\" style=\"display:flex;flex-direction:column;gap:6px;background:#FAFAF9;border:1.5px solid #E7E5E1;border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit\" style-hover=\"border-color:#F26B1D;background:#FFFFFF\" style-focus=\"border-color:#F26B1D;box-shadow:0 0 0 3px #FBD8BC\">\n"
-    "          <span style=\"display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#171512\">가맹점 찾기 <span style=\"font-size:11px;font-weight:700;color:#C4510F;background:#FDEEE3;border-radius:999px;padding:2px 8px\">내부 · 수도권</span></span>\n"
-    "          <span style=\"font-size:12.5px;color:#6E6A64;line-height:1.55\">서울·인천·경기 가맹점을 상호·소속 시장 이름으로 검색 — 시장·상점가 목록과 브랜드 매장(편의점·마트·SSM·다이소)을 함께 봅니다. 온누리 가맹점찾기 수집본 기준.</span>\n"
+    "          <span style=\"display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#171512\">가맹점 찾기 <span style=\"font-size:11px;font-weight:700;color:#C4510F;background:#FDEEE3;border-radius:999px;padding:2px 8px\">내부 · 서울·인천·경기·부산</span></span>\n"
+    "          <span style=\"font-size:12.5px;color:#6E6A64;line-height:1.55\">코스콤·한국거래소 소재지 가맹점을 상호·소속 시장 이름으로 검색 — 시장·상점가 목록과 브랜드 매장(편의점·마트·SSM·다이소)을 함께 봅니다. 온누리 가맹점찾기 수집본 기준.</span>\n"
     "        </a>\n"
     "        <a href=\"https://www.onnuri.gift/place\" target=\"_blank\" rel=\"noopener\" aria-label=\"공식 지도 검색 — 새 창에서 열림\" style=\"display:flex;flex-direction:column;gap:6px;background:#FAFAF9;border:1.5px solid #E7E5E1;border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit\" style-hover=\"border-color:#F26B1D;background:#FFFFFF\" style-focus=\"border-color:#F26B1D;box-shadow:0 0 0 3px #FBD8BC\">\n"
     "          <span style=\"display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#171512\">공식 지도 검색 ↗ <span style=\"font-size:11px;font-weight:700;color:#6E6A64;background:#F0EFED;border-radius:999px;padding:2px 8px\">외부 · 전국</span></span>\n"

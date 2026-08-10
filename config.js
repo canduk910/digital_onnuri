@@ -12,5 +12,9 @@ window.ONNURI_CONFIG = {
   // apiBase: "https://api.koscomlabor.cloud/api",
 
   // auto 모드 프로브 제한시간(ms)
-  probeTimeoutMs: 2500
+  probeTimeoutMs: 2500,
+
+  // 데이터(JSON) 캐시 무력화용 버전 — data/merchants/*.json 갱신 때마다 올린다(수집일 사용 권장).
+  // 파일명이 동일해 브라우저가 옛 데이터를 캐시하는 것을 방지.
+  dataVersion: "2026-08-10"
 };

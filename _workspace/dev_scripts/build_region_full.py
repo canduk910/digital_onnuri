@@ -45,10 +45,10 @@ HEADERS = {
     "Referer": "https://www.onnuri.gift/place",
 }
 THROTTLE_SEC = 1.0
-SIDO = {"11000": "서울", "28000": "인천", "41000": "경기"}
+SIDO = {"11000": "서울", "28000": "인천", "41000": "경기", "26000": "부산"}
 CACHE = Path("_workspace/raw/capital_merchants_raw.json")
 OUT_DIR = Path("data/merchants")
-REGION_FILE = {"서울": "seoul", "인천": "incheon", "경기": "gyeonggi"}
+REGION_FILE = {"서울": "seoul", "인천": "incheon", "경기": "gyeonggi", "부산": "busan"}
 CAND_CSV = Path("_workspace/13_brand_candidates.csv")
 
 # 경기 실제 일반구 화이트리스트 — 주소 파싱 아티팩트(타 시도 구 오등록) 차단
@@ -195,7 +195,7 @@ def detect_brands(rows):
 
 # --------------------------------------------------------------- 주소 파싱
 def region_prefix(tok):
-    for r in ("서울", "인천", "경기"):
+    for r in ("서울", "인천", "경기", "부산"):
         if tok.startswith(r):
             return r
     return None
@@ -300,7 +300,7 @@ def main():
     # 브랜드 자동탐지
     brand_of, candidates = detect_brands(uniq_rows)
 
-    by_region = {"서울": [], "인천": [], "경기": []}
+    by_region = {"서울": [], "인천": [], "경기": [], "부산": []}
     cat_counter = Counter()
     dong_missing = 0
     for r in uniq_rows:
@@ -340,7 +340,7 @@ def main():
                 "api_endpoint": API_SEARCH,
                 "collected_on": collected_on,
                 "region": region,
-                "scope": "수도권 전수 — 시도 전 구·군 addrCd 순회, 빈 키워드로 전 페이지 수집",
+                "scope": "전수 — 시도 전 구·군 addrCd 순회, 빈 키워드로 전 페이지 수집",
                 "hierarchy": (["시도", "구", "동"] if region != "경기" else ["시도", "시", "구", "동"]),
                 "cats": ["음식점", "편의점", "마트·슈퍼", "약국", "학원", "의류·신발",
                          "농축수산·식품", "생활·잡화", "생활서비스", "기타"],
