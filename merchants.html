@@ -194,6 +194,10 @@
   .bounds-btn:hover{ border-color:var(--accent); color:var(--accent); }
   .bounds-btn.on{ background:var(--text); color:#fff; border-color:var(--text); }
   .bounds-btn.on:hover{ background:#26282c; color:#fff; }
+  .map-trunc{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%); z-index:5;
+    max-width:86%; padding:9px 15px; font-size:12.5px; font-weight:700; line-height:1.45; text-align:center;
+    color:#fff; background:rgba(11,12,14,.82); border-radius:var(--r-md); box-shadow:0 2px 8px rgba(0,0,0,.25); pointer-events:none; }
+  .map-trunc b{ color:#FFB37E; }
   .loc-btn{ position:absolute; top:12px; right:12px; z-index:5; display:inline-flex; align-items:center; gap:6px;
     padding:8px 12px; font-size:13px; font-weight:600; color:var(--text); background:#fff;
     border:1px solid var(--border); border-radius:var(--r-md); box-shadow:0 1px 4px rgba(0,0,0,.12); cursor:pointer; }
@@ -364,6 +368,7 @@
         <div class="map-wrap">
           <div id="map"></div>
           <button id="boundsBtn" class="bounds-btn" type="button" aria-label="현재 지도 범위에서 가맹점 검색">현 지도에서 가맹점 검색</button>
+          <div id="mapTrunc" class="map-trunc" hidden></div>
           <button id="locBtn" class="loc-btn" type="button" aria-label="현재 위치를 지도에 표시">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3a8.994 8.994 0 00-7.94-7.94V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19a7 7 0 110-14 7 7 0 010 14z"/></svg>
             <span>내 위치</span>
@@ -1026,6 +1031,7 @@
   var mapObj = null, clusterObj = null, mapMarkers = [], infoWin = null, mapReady = false;
   var locMarker = null, locCircle = null; // 현재 위치(결과 마커와 분리 — clearMarkers 영향 없음)
   var MAP_BOUNDS = null; // 지도범위 검색 모드 {minLat,maxLat,minLng,maxLng} | null — 활성 시 지역(구/동) 필터 대신 적용
+  var boundsIdleTimer = null; // 지도 이동 시 자동 재검색 디바운스
   var MAP_MAX = 3000;   // 개별 마커 상한(성능). 초과 시 안내 후 생략.
 
   function mapAvailable() { return !window.__naverAuthFail && window.naver && window.naver.maps; }
@@ -1038,6 +1044,17 @@
       scaleControl: false, mapDataControl: false, logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT }
     });
     infoWin = new naver.maps.InfoWindow({ borderWidth: 1, borderColor: "#E6E6E6", backgroundColor: "#fff", anchorSize: new naver.maps.Size(0, 0), pixelOffset: new naver.maps.Point(0, -6) });
+    // 지도범위 검색 중에는 지도를 움직이면(줌·이동) 자동으로 그 영역을 재검색 — 해제·재적용 불필요.
+    naver.maps.Event.addListener(mapObj, "idle", function () {
+      if (!MAP_BOUNDS) return;
+      clearTimeout(boundsIdleTimer);
+      boundsIdleTimer = setTimeout(function () {
+        if (!MAP_BOUNDS) return;
+        var bd = mapObj.getBounds(), sw = bd.getSW(), ne = bd.getNE();
+        MAP_BOUNDS = { minLat: sw.lat(), maxLat: ne.lat(), minLng: sw.lng(), maxLng: ne.lng() };
+        refresh("all");
+      }, 400);
+    });
     mapReady = true;
     return true;
   }
@@ -1068,14 +1085,20 @@
   }
 
   function renderMap() {
-    var note = el("mapNote");
+    var note = el("mapNote"), trunc = el("mapTrunc");
     if (!initMap()) { return; }   // 인증 실패 등 — authFailure가 note 처리
     clearMarkers();
-    if (SNAP.mapTruncated) {       // 서버 상한(3,000) 초과 — 마커 생략
+    if (SNAP.mapTruncated) {       // 상한(3,000) 초과 — 마커 생략, 지도 위 오버레이로 명확히 안내
       note.innerHTML = "지도에는 <b>" + nf(MAP_MAX) + "곳</b>까지 표시됩니다. 현재 <b>" + nf(SNAP.mapTotal)
-        + "곳</b> — 지역·업종·브랜드 필터를 좁히면 지도에 나타납니다.";
+        + "곳</b> — " + (MAP_BOUNDS ? "지도를 확대하면 자동으로 다시 검색됩니다." : "지역·업종·브랜드 필터를 좁히면 지도에 나타납니다.");
+      if (trunc) {
+        trunc.innerHTML = "이 영역 <b>" + nf(SNAP.mapTotal) + "곳</b> — 마커는 " + nf(MAP_MAX) + "곳 이하일 때 표시됩니다."
+          + (MAP_BOUNDS ? "<br>지도를 확대하면 자동으로 다시 검색됩니다." : "");
+        trunc.hidden = false;
+      }
       return;
     }
+    if (trunc) trunc.hidden = true;
     var rows = SNAP.mapPins;
     if (!rows.length) { note.textContent = "표시할 가맹점이 없습니다."; return; }
     note.innerHTML = "지도에 <b>" + nf(rows.length) + "곳</b> 표시 · 마커를 누르면 상세, 목록 항목을 누르면 지도에서 위치를 보여줍니다.";
@@ -1105,15 +1128,17 @@
   /* ── 지도범위 검색: 현재 보이는 지도 영역으로 가맹점 필터 ── */
   function updateBoundsBtn() {
     var b = el("boundsBtn"); if (!b) return;
-    b.textContent = MAP_BOUNDS ? "지도 영역 검색 중 · 해제 ✕" : "현 지도에서 가맹점 검색";
+    b.textContent = MAP_BOUNDS ? "지도 따라 검색 중 · 해제 ✕" : "현 지도에서 가맹점 검색";
     b.className = "bounds-btn" + (MAP_BOUNDS ? " on" : "");
   }
   function clearBoundsSearch() { // 지역 필터로 복귀할 때 호출
     if (!MAP_BOUNDS) return false;
-    MAP_BOUNDS = null; updateBoundsBtn(); return true;
+    MAP_BOUNDS = null; clearTimeout(boundsIdleTimer); updateBoundsBtn();
+    var t = el("mapTrunc"); if (t) t.hidden = true;
+    return true;
   }
   function toggleBoundsSearch() {
-    if (MAP_BOUNDS) { MAP_BOUNDS = null; updateBoundsBtn(); refresh("all"); return; }
+    if (clearBoundsSearch()) { refresh("all"); return; }
     if (!initMap()) { var note = el("mapNote"); if (note) note.textContent = "지도를 사용할 수 없어 영역 검색을 할 수 없습니다."; return; }
     var bd = mapObj.getBounds(), sw = bd.getSW(), ne = bd.getNE();
     MAP_BOUNDS = { minLat: sw.lat(), maxLat: ne.lat(), minLng: sw.lng(), maxLng: ne.lng() };
