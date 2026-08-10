@@ -18,3 +18,30 @@ window.ONNURI_CONFIG = {
   // 파일명이 동일해 브라우저가 옛 데이터를 캐시하는 것을 방지.
   dataVersion: "2026-08-10"
 };
+
+// ── 화면 폭 토글(좁게/표준/넓게) — 사이드바 .sb-width 위젯 공통 로직 ──
+// html[data-pw]로 --page-w를 전환. localStorage 공유로 페이지 간 일관. index는 셸 스크립트에 동일 로직.
+(function () {
+  var KEY = "onnuri_pw";
+  function apply(v) {
+    if (v) document.documentElement.setAttribute("data-pw", v);
+    else document.documentElement.removeAttribute("data-pw");
+    var btns = document.querySelectorAll(".sb-width button");
+    Array.prototype.forEach.call(btns, function (b) {
+      b.classList.toggle("active", (b.getAttribute("data-pw") || "") === (v || ""));
+    });
+    try { window.dispatchEvent(new Event("pagewidthchange")); } catch (e) {}
+  }
+  function boot() {
+    apply(localStorage.getItem(KEY) || "");
+    Array.prototype.forEach.call(document.querySelectorAll(".sb-width button"), function (b) {
+      b.addEventListener("click", function () {
+        var v = b.getAttribute("data-pw") || "";
+        if (v) localStorage.setItem(KEY, v); else localStorage.removeItem(KEY);
+        apply(v);
+      });
+    });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
