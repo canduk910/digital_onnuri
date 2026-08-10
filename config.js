@@ -5,8 +5,8 @@ window.ONNURI_CONFIG = {
   // "auto" : API를 짧게 프로브해 응답하면 API, 실패하면 기존 JSON(data/merchants/*.json)으로 폴백 (권장)
   // "api"  : 항상 백엔드 API 사용 (백엔드 미기동 시 오류 화면)
   // "json" : 항상 로컬 JSON 사용 (백엔드 무시, 프로브 지연 없음)
-  // 백엔드 미배포 상태 → 라이브는 "json". NCP 배포·검증 후 "auto"(또는 "api")로 전환.
-  dataMode: "json",
+  // 2026-08-10 NCP 배포·검증 완료(api.koscomlabor.cloud) → "auto": API 우선, 장애 시 JSON 자동 폴백.
+  dataMode: "auto",
 
   // (선택) API_BASE 강제 지정. 미지정 시 로컬은 localhost:8080, 그 외는 배포 도메인 사용.
   // apiBase: "https://api.koscomlabor.cloud/api",
