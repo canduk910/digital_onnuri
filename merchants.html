@@ -135,12 +135,19 @@
   .card { background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; }
   /* PC: 리스트는 지도와 같은 높이의 자체 스크롤 — 페이지 스크롤과 분리 */
   @media (min-width:901px){
-    .result-list .card { max-height:calc(100vh - 120px); min-height:420px; overflow-y:auto; }
+    /* 직계(>) 필수 — 하위에 span.pay.card(결제 '카드' 태그)가 있어 후손 선택 시 태그가 420px로 커진다 */
+    .result-list > .card { max-height:calc(100vh - 120px); min-height:420px; overflow-y:auto; }
     thead th { position:sticky; top:0; z-index:2; box-shadow:0 1px 0 var(--border); }
   }
   .table-scroll { overflow-x:auto; }
   table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:880px; }
-  th { padding:11px 16px; text-align:left; font-size:10.5px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); background:var(--surface); border-bottom:1px solid var(--border); white-space:nowrap; }
+  th { position:relative; padding:11px 16px; text-align:left; font-size:10.5px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); background:var(--surface); border-bottom:1px solid var(--border); white-space:nowrap; }
+  /* 컬럼 폭 드래그 그립 — 헤더 우측 경계 */
+  .col-grip { position:absolute; top:0; right:-5px; bottom:0; width:10px; cursor:col-resize; z-index:3; touch-action:none; }
+  .col-grip::after { content:""; position:absolute; top:20%; bottom:20%; left:4px; width:2px; border-radius:2px; background:transparent; transition:background .15s ease; }
+  .col-grip:hover::after, .col-grip.dragging::after { background:var(--accent); }
+  /* 폭 고정(table-layout:fixed) 시 셀 내용 말줄임 — 표가 깨지지 않게 */
+  table[style*="fixed"] td, table[style*="fixed"] th { overflow:hidden; text-overflow:ellipsis; }
   td { padding:12px 16px; border-top:1px solid var(--border); vertical-align:middle; }
   tr:hover td { background:var(--surface); }
   td.name { font-weight:700; color:var(--text); }
@@ -251,6 +258,7 @@
   .bm-searchwrap svg{ position:absolute; left:10px; color:var(--text-faint); }
   .bm-searchwrap input{ width:100%; padding:9px 12px 9px 32px; border:1px solid var(--border); border-radius:var(--r-md); font-size:14px; }
   .bm-searchwrap input:focus{ outline:none; border-color:var(--accent); }
+  .bm-scope-hint{ flex-basis:100%; margin:2px 0 0; font-size:11.5px; color:var(--text-faint); line-height:1.5; }
   .modal-body{ display:flex; min-height:0; flex:1; }
   .bm-index{ list-style:none; margin:0; padding:6px 2px; width:26px; overflow-y:auto; border-right:1px solid var(--border); text-align:center; }
   .bm-index li{ font-size:11px; line-height:1.5; color:var(--text-faint); cursor:pointer; border-radius:4px; padding:1px 0; }
@@ -293,7 +301,7 @@
     #map{ height:300px; min-height:0; }
     /* 세로 스택 시 표(넓은 폭)가 뷰포트를 밀지 않도록 리스트 패널을 뷰포트에 clamp
        — 표는 .table-scroll 안에서 가로 스크롤 */
-    .result-list, .result-list .card, #resultArea{ min-width:0; max-width:100%; }
+    .result-list, .result-list > .card, #resultArea{ min-width:0; max-width:100%; }
     #resultArea{ overflow-x:hidden; }
     .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
   }
@@ -436,6 +444,7 @@
           <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2"></line></svg>
           <input id="bmQ" type="text" autocomplete="off" placeholder="브랜드 이름 입력 (부분 검색: 파리, gs, 커피)">
         </div>
+        <p class="bm-scope-hint">전 지역(서울·인천·경기·부산) 기준 매장 수 — 현재 선택한 지역·지도 범위에 없는 브랜드는 결과가 0곳으로 표시됩니다.</p>
       </div>
       <div class="modal-body">
         <ul id="bmIndex" class="bm-index" aria-label="초성·알파벳 색인"></ul>
@@ -987,16 +996,17 @@
     if (/[a-zA-Z]/.test(ch)) return ch.toUpperCase();
     return "#";
   }
-  // 현재 지역·디지털 컨텍스트에서 특정 업종(cat)에 속한 브랜드 목록+카운트.
+  // 팝업용 브랜드 목록 — **전 지역(서울·인천·경기·부산) 기준**. 지역·지도범위·디지털 필터와 무관하게
+  // 전체 리스트에서 집계한다. 선택한 브랜드가 현재 지역에 없으면 결과가 0곳으로 표시되는 것이 정상 동작.
   function brandsForCat(cat) {
     if (MODE === "json") {
-      return jsonSourceItems().then(function (items) {
-        var base = jBase(items), bc = {};
-        base.forEach(function (x) { if (x.brand && (cat === "전체" || x.cat === cat)) bc[x.brand] = (bc[x.brand] || 0) + 1; });
+      return jsonAllItems().then(function (items) {
+        var bc = {};
+        items.forEach(function (x) { if (x.brand && (cat === "전체" || x.cat === cat)) bc[x.brand] = (bc[x.brand] || 0) + 1; });
         return Object.keys(bc).map(function (k) { return { key: k, count: bc[k] }; });
       });
     }
-    var p = baseParams(); if (cat !== "전체") p.cat = cat;
+    var p = {}; if (cat !== "전체") p.cat = cat; // region 생략 = 전 지역
     return apiGet("/merchants/facets", p).then(function (d) { return d.brand || []; });
   }
 
@@ -1084,8 +1094,15 @@
     var pages = SNAP.pages;
     var slice = SNAP.list; // 서버가 현재 페이지만 반환
 
-    var h = '<div class="table-scroll"><table><thead><tr>'
-      + '<th>가맹점명</th><th>업종</th><th>소속 시장·상점가</th><th>도로명 주소</th><th>결제</th>'
+    // 컬럼 폭: 사용자가 드래그로 조정한 값(COL_W)이 있으면 fixed 레이아웃으로 적용
+    var colgroup = COL_W
+      ? '<colgroup>' + COL_W.map(function (w) { return '<col style="width:' + w + 'px">'; }).join("") + '</colgroup>'
+      : "";
+    var HEADERS = ["가맹점명", "업종", "소속 시장·상점가", "도로명 주소", "결제"];
+    var h = '<div class="table-scroll"><table' + (COL_W ? ' style="table-layout:fixed;min-width:0;width:' + COL_W.reduce(function(a,b){return a+b;},0) + 'px"' : "") + '>' + colgroup + '<thead><tr>'
+      + HEADERS.map(function (t, i) {
+          return '<th>' + esc(t) + (i < HEADERS.length - 1 ? '<span class="col-grip" data-col="' + i + '" title="드래그로 열 너비 조절"></span>' : "") + '</th>';
+        }).join("")
       + '</tr></thead><tbody>';
     for (var i = 0; i < slice.length; i++) {
       var r = slice[i];
@@ -1109,6 +1126,58 @@
     area.innerHTML = h;
     wirePager(pages);
     wireRowMap();
+    wireColResize();
+  }
+
+  // ---- 컬럼 폭 드래그 리사이저 ----
+  // 렌더마다 테이블이 재생성되므로 폭 상태는 전역 COL_W(px 배열)+localStorage에 두고 매 렌더 재적용.
+  var COL_W = (function () {
+    try { var v = JSON.parse(localStorage.getItem("onnuri_col_w")); return Array.isArray(v) && v.length === 5 ? v : null; }
+    catch (e) { return null; }
+  })();
+  var COL_MIN = 64;
+  function wireColResize() {
+    var table = el("resultArea").querySelector("table"); if (!table) return;
+    Array.prototype.forEach.call(table.querySelectorAll(".col-grip"), function (grip) {
+      grip.addEventListener("pointerdown", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        // 첫 드래그 시 현재 렌더 폭을 스냅샷해 fixed로 전환
+        if (!COL_W) COL_W = Array.prototype.map.call(table.querySelectorAll("thead th"), function (th) { return Math.round(th.getBoundingClientRect().width); });
+        var idx = parseInt(grip.getAttribute("data-col"), 10);
+        var startX = e.clientX, startW = COL_W[idx];
+        try { grip.setPointerCapture(e.pointerId); } catch (err) {} // 합성/특수 포인터에서 캡처 불가여도 계속
+        grip.classList.add("dragging"); document.body.classList.add("split-dragging");
+        var cols = null;
+        function apply() {
+          if (!cols) { // colgroup이 없으면(첫 전환) 만들어 붙인다
+            if (!table.querySelector("colgroup")) {
+              var cg = document.createElement("colgroup");
+              COL_W.forEach(function (w) { var c = document.createElement("col"); c.style.width = w + "px"; cg.appendChild(c); });
+              table.insertBefore(cg, table.firstChild);
+              table.style.tableLayout = "fixed"; table.style.minWidth = "0";
+            }
+            cols = table.querySelectorAll("colgroup col");
+          }
+          cols[idx].style.width = COL_W[idx] + "px";
+          table.style.width = COL_W.reduce(function (a, b) { return a + b; }, 0) + "px";
+        }
+        function onMove(ev) { COL_W[idx] = Math.max(COL_MIN, startW + Math.round(ev.clientX - startX)); apply(); }
+        function onUp(ev) {
+          try { grip.releasePointerCapture(ev.pointerId); } catch (err) {}
+          grip.classList.remove("dragging"); document.body.classList.remove("split-dragging");
+          document.removeEventListener("pointermove", onMove);
+          document.removeEventListener("pointerup", onUp);
+          localStorage.setItem("onnuri_col_w", JSON.stringify(COL_W));
+        }
+        // document에 바인딩 — 캡처 실패 환경에서도 그립 밖 이동을 추적
+        document.addEventListener("pointermove", onMove);
+        document.addEventListener("pointerup", onUp);
+      });
+      grip.addEventListener("dblclick", function () { // 더블클릭: 열 폭 초기화
+        COL_W = null; localStorage.removeItem("onnuri_col_w"); render();
+      });
+      grip.addEventListener("click", function (e) { e.stopPropagation(); }); // 정렬 등 헤더 클릭과 분리
+    });
   }
 
   /* ── 네이버 지도 ── */
