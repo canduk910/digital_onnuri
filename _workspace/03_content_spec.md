@@ -239,3 +239,12 @@ merchants.html 진입 링크("수도권 가맹점 검색 ↗")가 지금 오프�
 - 출처: onnuri.gift FAQ·공지, semas, 온누리시장 카드형 안내(카드사 목록 포함), 롯데카드 공지. 코퍼스 card_payment_details.md와 1:1 — 페이지·챗봇 답변이 같은 사실을 말해야 한다.
 - 내비: 3페이지+index 사이드바 '결제 방법' → payment.html. index 내 기존 결제 흐름 아코디언(S9·S10)과 해시 라우터(#payment)는 요약용으로 유지. 챗 navigate에 payment 페이지 추가.
 - 갱신: 할인율·한도·실적 정책 변경 시 이 페이지와 card_payment_details.md를 함께 수정 후 build_rag_corpus.py 재적재.
+
+## S18. index 슬림화 + 용어·유의사항 분리 (terms.html) — 2026-08-11
+
+사용자 요청: index 오프라인 탭 하단 결제 흐름 아코디언(S9·S10) 전부 제거, 용어·각주(S13·S14)를 별도 페이지로.
+
+- index: 빌더 7g 스텝(인코딩 직전 실행)이 #payment 블록 제거·#terms 블록을 포인터+AI면책 한 줄로 치환. S9·S10·S13·S14 콘텐츠 스텝은 유지(7g 이전에 실행되어야 하므로 삭제 금지) — 산출물에서만 빠진다. 해시 #payment/#terms는 각 전용 페이지로 리다이렉트(구 링크·챗 호환).
+- terms.html: 용어 3카드(골목형상점가·SSM·선차감) + 유의사항 6개(30억 시행·잔액부족 강조·지역배달앱·AI면책 등). 지역 배달앱 목록은 online_platforms.json에서 동적 렌더(수기 금지 원칙).
+- 내비: 사이드바 5페이지 '용어·유의사항' → terms.html. 챗 navigate에 terms 페이지 추가.
+- 갱신: 각주·용어 문구 변경 시 terms.html 직접 수정(S13·S14의 index 스텝은 산출물 미노출이므로 이 페이지가 정본).

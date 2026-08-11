@@ -379,7 +379,7 @@ SHELL = (
     "    <a class=\"sb-item active\" href=\"#offline\" aria-current=\"page\">오프라인 사용처</a>\n"
     "    <a class=\"sb-item\" href=\"#online\">온라인 가맹 플랫폼</a>\n"
     "    <a class=\"sb-item\" href=\"payment.html\">결제 방법</a>\n"
-    "    <a class=\"sb-item\" href=\"#terms\">용어·유의사항</a>\n"
+    "    <a class=\"sb-item\" href=\"terms.html\">용어·유의사항</a>\n"
     "    <div class=\"sb-group\">가맹점 검색</div>\n"
     "    <a class=\"sb-item\" href=\"merchants.html#sidoTabs\">가맹점 찾기</a>\n"
     "    <a class=\"sb-item\" href=\"online.html\">온라인 사용처 찾기</a>\n"
@@ -458,21 +458,11 @@ NAV_SCRIPT = (
     "  // ---- 해시 → 탭 라우터 (가이드 항목 앵커 동작: 오프라인/온라인 탭 전환 + 스크롤) ----\n"
     "  function scrollToId(id){ var el=document.getElementById(id); if(el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 64, behavior:\"smooth\" }); }\n"
     "  function setActive(hash){ var items=document.querySelectorAll(\".sidebar .sb-nav a.sb-item\"); Array.prototype.forEach.call(items, function(a){ var on=a.getAttribute(\"href\")===hash; a.classList.toggle(\"active\", on); if(on) a.setAttribute(\"aria-current\",\"page\"); else a.removeAttribute(\"aria-current\"); }); }\n"
-    "  // 결제 방법 진입 시 접힌 결제 흐름 아코디언(카드형·모바일형)을 펼친다 — 접힘 표시는 ▶.\n"
-    "  // DC(React) 마운트가 늦을 수 있어 버튼이 없으면 잠시 후 재시도.\n"
-    "  function openPaymentToggles(tries){\n"
-    "    var btns=Array.prototype.filter.call(document.querySelectorAll(\"button\"), function(b){\n"
-    "      var s=b.querySelector(\"span\");\n"
-    "      return b.textContent.indexOf(\"결제 흐름\")!==-1 && s && s.textContent.trim()===\"▶\";\n"
-    "    });\n"
-    "    if(btns.length){ btns.forEach(function(b){ b.click(); }); }\n"
-    "    else if(tries>0){ setTimeout(function(){ openPaymentToggles(tries-1); }, 300); }\n"
-    "  }\n"
     "  function applyHash(){\n"
     "    var h=(location.hash||\"\").replace(/^#/, \"\");\n"
     "    if(h===\"online\"){ var a=document.getElementById(\"tabOn\"); if(a)a.click(); setActive(\"#online\"); setTimeout(function(){ scrollToId(\"online\"); }, 70); }\n"
-    "    else if(h===\"payment\"){ var b=document.getElementById(\"tabOff\"); if(b)b.click(); setActive(\"#payment\"); openPaymentToggles(5); setTimeout(function(){ scrollToId(\"payment\"); }, 450); }\n"
-    "    else if(h===\"terms\"){ setActive(\"#terms\"); setTimeout(function(){ scrollToId(\"terms\"); }, 20); }\n"
+    "    else if(h===\"payment\"){ location.replace(\"payment.html\"); }   // 결제 방법은 전용 페이지로 분리(2026-08-11)\n"
+    "    else if(h===\"terms\"){ location.replace(\"terms.html\"); }        // 용어·유의사항도 전용 페이지\n"
     "    else if(h===\"offline\"){ var c=document.getElementById(\"tabOff\"); if(c)c.click(); setActive(\"#offline\"); window.scrollTo({ top:0, behavior:\"smooth\" }); }\n"
     "  }\n"
     "  window.addEventListener(\"hashchange\", applyHash);\n"
@@ -528,6 +518,35 @@ print(f"[OK] 24.radius: pill 999px -> 6px ({_pill_n}개)")
 # 중요: 이 JSON 문자열은 <script type="__bundler/template"> 요소의 textContent 로 들어간다.
 # HTML 파서는 script 요소 안에서 첫 리터럴 </script(더 넓게는 </) 를 만나면 요소를 조기 종료하고
 # textContent 를 그 자리에서 잘라버린다 → 로더의 JSON.parse 가 미완결 문자열로 실패한다.
+# ---------- 7g. 결제·용어 섹션 분리 (2026-08-11) ----------
+# 결제 흐름 아코디언(payment.html로 이동)과 용어·각주(terms.html로 이동)를 index에서 제거.
+# 모든 콘텐츠 스텝(S9·S10·S13·S14 등) 이후에 실행해야 한다 — 스텝들이 이 블록 안을 참조한다.
+_i = tpl.find('<div id="payment"')
+if _i < 0:
+    raise SystemExit("[FAIL] 7g: payment 블록을 찾지 못함")
+_p = tpl.find('<sc-if value="{{ isOn }}"', _i)
+_q = tpl.rfind('</sc-if>', _i, _p)          # isOff 탭 닫힘(유지)
+_r = tpl.rfind('</div>', _i, _q)            # #payment div 닫힘(제거 범위 끝)
+if _p < 0 or _q < 0 or _r < 0:
+    raise SystemExit("[FAIL] 7g: payment 닫힘 구조 불일치")
+tpl = tpl[:_i] + tpl[_r + len('</div>'):]
+print("[OK] 7g. payment 블록 제거 (payment.html로 분리)")
+
+_j = tpl.find('<div id="terms"')
+if _j < 0:
+    raise SystemExit("[FAIL] 7g: terms 블록을 찾지 못함")
+_e = tpl.find('</div>', _j)
+TERMS_POINTER = (
+    '<div id="terms" style="margin-top:26px;padding-top:16px;border-top:1px solid #E6E6E6">'
+    '<p style="margin:0;font-size:12px;color:#8A8580;line-height:1.7">'
+    '용어 풀이와 유의사항 각주는 <a href="terms.html" style="color:#C4510F;font-weight:700">용어·유의사항</a>, '
+    '결제 단계·카드 실적 안내는 <a href="payment.html" style="color:#C4510F;font-weight:700">결제 방법</a> 페이지로 옮겼습니다. '
+    '※ 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong style="color:#26231F">정확하지 않을 수 있습니다</strong> — '
+    '내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.</p></div>'
+)
+tpl = tpl[:_j] + TERMS_POINTER + tpl[_e + len('</div>'):]
+print("[OK] 7g. terms 블록 → 포인터·면책 치환 (terms.html로 분리)")
+
 # json.dumps 는 '/' 를 이스케이프하지 않으므로 </ 가 리터럴로 남는다. 원본 번들과 동일하게
 # 모든 </ 를 </ 로 복구해 리터럴 </ 를 제거한다(JSON 에서 / 는 '/' 로 디코드되어 내용 불변).
 encoded = json.dumps(tpl, ensure_ascii=False).replace("</", "<\\u002F")
