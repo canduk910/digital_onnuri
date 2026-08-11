@@ -353,7 +353,6 @@
       <div class="result-map">
         <div class="map-wrap">
           <div id="map"></div>
-          <button id="boundsBtn" class="bounds-btn" type="button" aria-label="현재 지도 범위에서 가맹점 검색">현 지도에서 가맹점 검색</button>
           <div id="mapTrunc" class="map-trunc" hidden></div>
           <button id="locBtn" class="loc-btn" type="button" aria-label="현재 위치를 지도에 표시">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3a8.994 8.994 0 00-7.94-7.94V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19a7 7 0 110-14 7 7 0 010 14z"/></svg>
@@ -566,10 +565,6 @@
   };
   // 지역 스코프(구/동, digital 제외) — regionFiltered와 동일 규칙. "동 미상"은 서버가 IS NULL로 해석.
   function regionParams() {
-    if (MAP_BOUNDS) { // 지도범위 검색 모드 — 시도 무관 전 지역, 좌표 범위만(region 생략)
-      return { minLat: MAP_BOUNDS.minLat, maxLat: MAP_BOUNDS.maxLat,
-               minLng: MAP_BOUNDS.minLng, maxLng: MAP_BOUNDS.maxLng };
-    }
     var p = { region: state.sido };
     if (isGG() && state.si !== "전체") p.si = state.si;
     if (state.gu !== "전체") p.gu = state.gu;
@@ -625,13 +620,6 @@
     });
   }
   function jRegionFiltered(items) { // regionParams와 동일 규칙(digital 제외)
-    if (MAP_BOUNDS) { // 지도범위 검색 모드 — 지역(구/동) 대신 좌표 범위로
-      var b = MAP_BOUNDS;
-      return items.filter(function (x) {
-        return x.lat != null && x.lng != null &&
-          x.lat >= b.minLat && x.lat <= b.maxLat && x.lng >= b.minLng && x.lng <= b.maxLng;
-      });
-    }
     var it = items;
     if (isGG() && state.si !== "전체") it = it.filter(function (x) { return x.si === state.si; });
     if (state.gu !== "전체") it = it.filter(function (x) { return x.gu === state.gu; });
@@ -688,7 +676,7 @@
       .then(function (lists) { return [].concat.apply([], lists); });
   }
   // 현재 검색 소스: 지도범위 모드면 전 지역, 아니면 선택 시도.
-  function jsonSourceItems() { return MAP_BOUNDS ? jsonAllItems() : jsonLoadSido(state.sido); }
+  function jsonSourceItems() { return jsonLoadSido(state.sido); }
   function jsonQuery(scope) { // apiQuery와 동일한 정규화 결과 반환
     return jsonSourceItems().then(function (items) {
       var base = jBase(items), full = jFull(base), R = { total: full.length };
@@ -708,7 +696,7 @@
         R.mapTotal = full.length;
         R.mapTruncated = full.length > MAP_MAX;
         R.mapPins = R.mapTruncated ? [] : full;
-        R.mapClusterRows = R.mapTruncated ? full : null;   // 폴백 클러스터 집계용(참조만 — 복사 없음)
+        R.mapClusterRows = full;   // 뷰포트 판단·폴백 클러스터 집계용(참조만 — 복사 없음)
       }
       return R;
     });
@@ -884,7 +872,6 @@
   }
   // reloadOpts=true면 하위 옵션(구/동)을 서버에서 다시 받아 셀렉트를 갱신한 뒤 결과 조회.
   function afterRegionChange(reloadOpts) {
-    clearBoundsSearch(); // 지역 셀렉트 조작 = 지역 필터로 복귀(지도범위 검색 해제)
     if (reloadOpts) { loadRegionOptions().then(function () { renderRegionSelects(); refresh(); }); }
     else { refresh(); }
   }
@@ -1041,9 +1028,7 @@
   }
 
   function render() {
-    el("mScope").textContent = MAP_BOUNDS
-      ? "지도 영역 — 전 지역(서울·인천·경기·부산) 대상"
-      : state.sido + " " + nf(SNAP.sidoTotal || 0) + "곳";
+    el("mScope").textContent = state.sido + " " + nf(SNAP.sidoTotal || 0) + "곳";
     el("countText").textContent = nf(SNAP.regionTotal) + "곳 중 " + nf(SNAP.total) + "곳 표시";
 
     var area = el("resultArea");
@@ -1151,8 +1136,9 @@
   /* ── 네이버 지도 ── */
   var mapObj = null, clusterObj = null, mapMarkers = [], infoWin = null, mapReady = false;
   var locMarker = null, locCircle = null; // 현재 위치(결과 마커와 분리 — clearMarkers 영향 없음)
-  var MAP_BOUNDS = null; // 지도범위 검색 모드 {minLat,maxLat,minLng,maxLng} | null — 활성 시 지역(구/동) 필터 대신 적용
-  var boundsIdleTimer = null; // 지도 이동 시 자동 재검색 디바운스
+  // 뷰포트 자동 지도(2026-08-12): 지도는 항상 "필터 ∩ 현재 화면"을 스스로 판단해
+  // 3,000곳 이하면 개별 도트, 초과면 클러스터를 그린다. 별도 모드·버튼 없음.
+  var viewportTimer = null, viewportSeq = 0, SKIP_IDLE_ONCE = false;
   var MAP_MAX = 3000;   // 개별 마커 상한(성능). 초과 시 안내 후 생략.
 
   function mapAvailable() { return !window.__naverAuthFail && window.naver && window.naver.maps; }
@@ -1165,22 +1151,11 @@
       scaleControl: false, mapDataControl: false, logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT }
     });
     infoWin = new naver.maps.InfoWindow({ borderWidth: 1, borderColor: "#E6E6E6", backgroundColor: "#fff", anchorSize: new naver.maps.Size(0, 0), pixelOffset: new naver.maps.Point(0, -6) });
-    // 지도범위 검색 중에는 지도를 움직이면(줌·이동) 자동으로 그 영역을 재검색 — 해제·재적용 불필요.
-    var zoomTimer = null;
-    naver.maps.Event.addListener(mapObj, "zoom_changed", function () {
-      if (!CLUSTER_MODE || MAP_BOUNDS) return;   // bounds 모드는 idle 재검색이 처리
-      clearTimeout(zoomTimer);
-      zoomTimer = setTimeout(renderClusters, 350);
-    });
+    // 지도를 움직이면(줌·이동) 현재 화면 기준으로 도트/클러스터를 자동 갱신
     naver.maps.Event.addListener(mapObj, "idle", function () {
-      if (!MAP_BOUNDS) return;
-      clearTimeout(boundsIdleTimer);
-      boundsIdleTimer = setTimeout(function () {
-        if (!MAP_BOUNDS) return;
-        var bd = mapObj.getBounds(), sw = bd.getSW(), ne = bd.getNE();
-        MAP_BOUNDS = { minLat: sw.lat(), maxLat: ne.lat(), minLng: sw.lng(), maxLng: ne.lng() };
-        refresh("all");
-      }, 400);
+      if (SKIP_IDLE_ONCE) { SKIP_IDLE_ONCE = false; return; }   // 프로그램적 fit 직후 1회 생략
+      clearTimeout(viewportTimer);
+      viewportTimer = setTimeout(viewportRender, 400);
     });
     mapReady = true;
     return true;
@@ -1190,9 +1165,6 @@
      격자 크기는 줌에서 계산(셀 ≈ 80px). API 모드는 /merchants/clusters,
      JSON 폴백은 동일 floor 격자 집계를 클라이언트에서 수행(폴백 대칭 원칙). */
   var CLUSTER_MODE = false, clusterMarkers = [], clusterSeq = 0;
-  // 지도범위 검색 해제 직후 1회 — 결과 전체로 fit하지 않고 사용자가 보던 뷰를 유지한다(2026-08-12 제보)
-  var KEEP_VIEW_ONCE = false;
-  function consumeKeepView() { if (KEEP_VIEW_ONCE) { KEEP_VIEW_ONCE = false; return true; } return false; }
   function gridForZoom() {
     var z = mapObj ? mapObj.getZoom() : 10;
     return Math.min(Math.max(112.5 / Math.pow(2, z), 0.001), 2);
@@ -1215,28 +1187,32 @@
       return { lat: c.latSum / c.count, lng: c.lngSum / c.count, count: c.count };
     });
   }
+  function drawCells(cells, fit) {
+    clearMarkers(); clearClusterMarkers();
+    var bounds = new naver.maps.LatLngBounds();
+    cells.forEach(function (c) {
+      var size = c.count >= 1000 ? "c4" : c.count >= 200 ? "c3" : c.count >= 50 ? "c2" : "c1";
+      var pos = new naver.maps.LatLng(c.lat, c.lng);
+      var mk = new naver.maps.Marker({
+        map: mapObj, position: pos,
+        icon: { content: '<div class="cmark ' + size + '">' + nf(c.count) + '</div>',
+                anchor: new naver.maps.Point(22, 22) }
+      });
+      naver.maps.Event.addListener(mk, "click", function () {
+        mapObj.setCenter(pos); mapObj.setZoom(mapObj.getZoom() + 2);
+      });
+      clusterMarkers.push(mk); bounds.extend(pos);
+    });
+    // fit은 필터 변경 직후 1회만 — 이후 뷰는 사용자 소유
+    if (fit && cells.length) { SKIP_IDLE_ONCE = true; mapObj.fitBounds(bounds); }
+  }
+
   function renderClusters(fit) {
     CLUSTER_MODE = true;
     var seq = ++clusterSeq, g = gridForZoom();
     var done = function (cells) {
       if (seq !== clusterSeq || !CLUSTER_MODE) return;   // 최신 요청 + 클러스터 모드일 때만 반영
-      clearMarkers(); clearClusterMarkers();
-      var bounds = new naver.maps.LatLngBounds();
-      cells.forEach(function (c) {
-        var size = c.count >= 1000 ? "c4" : c.count >= 200 ? "c3" : c.count >= 50 ? "c2" : "c1";
-        var pos = new naver.maps.LatLng(c.lat, c.lng);
-        var mk = new naver.maps.Marker({
-          map: mapObj, position: pos,
-          icon: { content: '<div class="cmark ' + size + '">' + nf(c.count) + '</div>',
-                  anchor: new naver.maps.Point(22, 22) }
-        });
-        naver.maps.Event.addListener(mk, "click", function () {
-          mapObj.setCenter(pos); mapObj.setZoom(mapObj.getZoom() + 2);
-        });
-        clusterMarkers.push(mk); bounds.extend(pos);
-      });
-      // fit은 필터 변경 직후 1회만 — 줌 재클러스터에서 fit하면 사용자의 줌이 되돌아간다
-      if (fit && cells.length && !MAP_BOUNDS && !consumeKeepView()) mapObj.fitBounds(bounds);
+      drawCells(cells, fit);
     };
     if (MODE === "json") {
       done(localClusters(SNAP.mapClusterRows || [], g));
@@ -1287,6 +1263,10 @@
     var rows = SNAP.mapPins;
     if (!rows.length) { note.textContent = "표시할 가맹점이 없습니다."; return; }
     note.innerHTML = "지도에 <b>" + nf(rows.length) + "곳</b> 표시 · 마커를 누르면 상세, 목록 항목을 누르면 지도에서 위치를 보여줍니다.";
+    drawPins(rows, true);
+  }
+
+  function drawPins(rows, fit) {
     var bounds = new naver.maps.LatLngBounds(), n = 0;
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
@@ -1307,43 +1287,47 @@
         if (box) box.textContent = count;
       }
     });
-    if (n && !MAP_BOUNDS && !consumeKeepView()) mapObj.fitBounds(bounds); // 범위검색 중·해제 직후엔 뷰 유지
+    if (fit && n) { SKIP_IDLE_ONCE = true; mapObj.fitBounds(bounds); }
   }
 
-  /* ── 지도범위 검색: 현재 보이는 지도 영역으로 가맹점 필터 ── */
-  function updateBoundsBtn() {
-    var b = el("boundsBtn"); if (!b) return;
-    b.textContent = MAP_BOUNDS ? "지도 따라 검색 중 · 해제 ✕" : "현 지도에서 가맹점 검색";
-    b.className = "bounds-btn" + (MAP_BOUNDS ? " on" : "");
-  }
-  function clearBoundsSearch() { // 지역 필터로 복귀할 때 호출
-    if (!MAP_BOUNDS) return false;
-    MAP_BOUNDS = null; clearTimeout(boundsIdleTimer); updateBoundsBtn();
-    var t = el("mapTrunc"); if (t) t.hidden = true;
-    return true;
-  }
-  function toggleBoundsSearch() {
-    if (clearBoundsSearch()) { KEEP_VIEW_ONCE = true; refresh("all"); return; }   // 해제 시 현재 뷰 유지
-    if (!initMap()) { var note = el("mapNote"); if (note) note.textContent = "지도를 사용할 수 없어 영역 검색을 할 수 없습니다."; return; }
+  /* 뷰포트 자동 렌더(2026-08-12): 지도 이동·줌마다 "필터 ∩ 현재 화면"을 판단 —
+     3,000곳 이하면 개별 도트, 초과면 격자 클러스터. 뷰는 사용자 소유(fit 없음). */
+  function viewportRender() {
+    if (!mapReady || !mapObj) return;
     var bd = mapObj.getBounds(), sw = bd.getSW(), ne = bd.getNE();
-    MAP_BOUNDS = { minLat: sw.lat(), maxLat: ne.lat(), minLng: sw.lng(), maxLng: ne.lng() };
-    // 지역(구/동) 필터와 병행하면 혼동 → 지역은 전체로 리셋. 검색 대상은 시도 무관 전 지역.
-    state.si = "전체"; state.gu = "전체"; state.dong = "전체"; state.page = 1;
-    var btn = el("boundsBtn");
-    if (btn) { btn.disabled = true; btn.textContent = "전 지역 데이터 불러오는 중…"; }
-    // JSON 모드 첫 실행은 미로드 시도 파일을 받아와야 함(캐시 후 즉시)
-    var ready = (MODE === "json") ? jsonAllItems() : Promise.resolve();
-    ready.then(function () {
-      if (btn) btn.disabled = false;
-      updateBoundsBtn();
-      loadRegionOptions().then(function () { renderRegionSelects(); refresh("all"); });
-    }).catch(function () {
-      MAP_BOUNDS = null;
-      if (btn) btn.disabled = false;
-      updateBoundsBtn();
-      var note2 = el("mapNote"); if (note2) note2.textContent = "전 지역 데이터를 불러오지 못했습니다. 다시 시도해 주세요.";
-    });
+    var vb = { minLat: sw.lat(), maxLat: ne.lat(), minLng: sw.lng(), maxLng: ne.lng() };
+    var seq = ++viewportSeq;
+    var note = el("mapNote");
+    function showPins(rows) {
+      if (seq !== viewportSeq) return;
+      CLUSTER_MODE = false; clusterSeq++; clearClusterMarkers(); clearMarkers();
+      if (note) note.innerHTML = "화면 영역 <b>" + nf(rows.length) + "곳</b> 표시 · 마커를 누르면 상세를 보여줍니다.";
+      drawPins(rows, false);
+    }
+    function showCells(cells, total) {
+      if (seq !== viewportSeq) return;
+      CLUSTER_MODE = true; clusterSeq++;
+      if (note) note.innerHTML = "화면 영역 <b>" + nf(total) + "곳</b> — 확대하면 개별 마커로 바뀝니다.";
+      drawCells(cells, false);
+    }
+    if (MODE === "json") {
+      var rows = (SNAP.mapClusterRows || SNAP.mapPins || []).filter(function (x) {
+        return x.lat != null && x.lng != null &&
+          x.lat >= vb.minLat && x.lat <= vb.maxLat && x.lng >= vb.minLng && x.lng <= vb.maxLng;
+      });
+      if (rows.length <= MAP_MAX) showPins(rows);
+      else showCells(localClusters(rows, gridForZoom()), rows.length);
+      return;
+    }
+    apiGet("/merchants/map", assign(fullParams(), vb)).then(function (d) {
+      if (seq !== viewportSeq) return;
+      if (!d.truncated) { showPins((d.pins || []).map(normItem)); return; }
+      apiGet("/merchants/clusters?grid=" + gridForZoom(), assign(fullParams(), vb)).then(function (c) {
+        showCells(c.items || [], c.total);
+      }).catch(function () {});
+    }).catch(function () {});
   }
+
 
   /* ── 현재 위치(GPS·Wi‑Fi·기지국 = 브라우저 Geolocation) ── */
   function showMyLocation() {
@@ -1471,7 +1455,6 @@
 
   // ---- 상호작용 ----
   function selectSido(sido) {
-    clearBoundsSearch();
     state.sido = sido; state.si = "전체"; state.gu = "전체"; state.dong = "전체";
     state.cat = "전체"; state.brand = "전체"; state.mtype = "전체"; state.page = 1;
     loadingSido = sido; renderSidoTabs(); showLoading(sido + " 가맹점 목록을 불러오는 중입니다…");
@@ -1541,7 +1524,6 @@
     });
     el("qClear").addEventListener("click", function () { resetSearch(); });
     var locBtn = el("locBtn"); if (locBtn) locBtn.addEventListener("click", showMyLocation);
-    var bdBtn = el("boundsBtn"); if (bdBtn) bdBtn.addEventListener("click", toggleBoundsSearch);
     el("sort").addEventListener("change", function (e) { state.sort = e.target.value; state.page = 1; refresh("page"); });
     el("selMtype").addEventListener("change", function (e) { state.mtype = e.target.value; state.page = 1; refresh("filter"); });
     el("digitalOnly").addEventListener("change", function (e) { state.digitalOnly = e.target.checked; state.page = 1; refresh("all"); });
@@ -1565,7 +1547,6 @@
   }
   function resetSearch() { state.q = ""; state.page = 1; el("q").value = ""; el("qClear").style.display = "none"; el("q").focus(); refresh("filter"); }
   function resetAll() {
-    clearBoundsSearch();
     state.si = "전체"; state.gu = "전체"; state.dong = "전체";
     state.cat = "전체"; state.brand = "전체"; state.mtype = "전체";
     state.digitalOnly = false; state.q = ""; state.page = 1;
