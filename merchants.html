@@ -521,6 +521,18 @@
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
   }); };
   var nf = function (n) { return n.toLocaleString("ko-KR"); };
+  // 다중 필터(2026-08-12): 콤마 구분 상태 값("음식점,카페") 토글·판정. 서버 FilterCsv와 동일 규칙.
+  function multiHas(stateVal, key) {
+    return stateVal !== "전체" && stateVal.split(",").indexOf(key) !== -1;
+  }
+  function multiToggle(stateVal, key) {
+    if (key === "전체") return "전체";
+    var list = stateVal === "전체" ? [] : stateVal.split(",");
+    var i = list.indexOf(key);
+    if (i === -1) list.push(key); else list.splice(i, 1);
+    return list.length ? list.join(",") : "전체";
+  }
+  function multiList(stateVal) { return stateVal === "전체" ? [] : stateVal.split(","); }
   var isGG = function () { return state.sido === "경기"; };
   var uniqSorted = function (arr) {
     var seen = {}, out = [];
@@ -638,9 +650,9 @@
     var q = state.q.trim().toLowerCase(), out = [];
     for (var i = 0; i < base.length; i++) {
       var r = base[i];
-      if (state.cat !== "전체" && r.cat !== state.cat) continue;
-      if (state.brand !== "전체" && r.brand !== state.brand) continue;
-      if (state.mtype !== "전체" && r.market_type !== state.mtype) continue;
+      if (state.cat !== "전체" && multiList(state.cat).indexOf(r.cat) === -1) continue;
+      if (state.brand !== "전체" && multiList(state.brand).indexOf(r.brand) === -1) continue;
+      if (state.mtype !== "전체" && multiList(state.mtype).indexOf(r.market_type) === -1) continue;
       if (q && ((r.name || "") + " " + (r.addr || "") + " " + (r.market || "")).toLowerCase().indexOf(q) === -1) continue;
       out.push(r);
     }
@@ -883,9 +895,9 @@
     [["전체", "전체"]].concat(CAT_ORDER).forEach(function (pair) {
       var key = pair[0], label = pair[1];
       var b = document.createElement("button");
-      b.className = "chip" + (state.cat === key ? " active" : "");
+      b.className = "chip" + ((key === "전체" ? state.cat === "전체" : multiHas(state.cat, key)) ? " active" : "");
       b.innerHTML = esc(label) + ' <b>' + nf(catCount(key)) + "</b>";
-      b.onclick = function () { state.cat = key; state.page = 1; refresh("filter"); };
+      b.onclick = function () { state.cat = multiToggle(state.cat, key); state.page = 1; refresh("filter"); };
       cc.appendChild(b);
     });
     // 브랜드(보조) — 상위 N개만 칩, 나머지는 팝업 검색. 동점(count 같음) 시 시도 전역 빈도순위로
@@ -901,9 +913,9 @@
     var bc = el("brandChips"); bc.innerHTML = '<span class="chip-label">브랜드</span>' + brandHint;
     function addBrandChip(key, label, cnt) {
       var b = document.createElement("button");
-      b.className = "chip" + (state.brand === key ? " active" : "");
+      b.className = "chip" + ((key === "전체" ? state.brand === "전체" : multiHas(state.brand, key)) ? " active" : "");
       b.innerHTML = esc(label) + (cnt != null ? ' <b>' + nf(cnt) + "</b>" : "");
-      b.onclick = function () { state.brand = key; state.page = 1; refresh("filter"); };
+      b.onclick = function () { state.brand = multiToggle(state.brand, key); state.page = 1; refresh("filter"); };
       bc.appendChild(b);
     }
     addBrandChip("전체", "전체", null);
@@ -1020,7 +1032,7 @@
     if (hd) hd.scrollIntoView({ block: "start", behavior: "smooth" });
   }
   function pickBrand(key) {
-    state.brand = key;
+    state.brand = multiToggle(state.brand, key);   // 팝업에서도 다중 토글(2026-08-12)
     // 팝업에서 업종을 (활성 상태로) 골랐다면 그 업종도 함께 적용.
     if (!el("bmCat").disabled && bmState.cat !== state.cat) state.cat = bmState.cat;
     state.page = 1;

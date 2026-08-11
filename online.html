@@ -200,6 +200,16 @@
   // ---- 데이터 ----
   var PLATFORMS = [], CATALOG = {}, TAXONOMY = [], META = { platforms: "", survey: "" };
   var state = { kind: "전체", cat: "전체", sub: "전체", brand: "전체", nationwideOnly: false, q: "" };
+  // 다중 필터(2026-08-12): cat·brand는 콤마 구분 다중 값("agri,fashion"). sub는 대분류 1개일 때만 활성.
+  function multiHas(v, key) { return v !== "전체" && v.split(",").indexOf(key) !== -1; }
+  function multiToggle(v, key) {
+    if (key === "전체") return "전체";
+    var list = v === "전체" ? [] : v.split(",");
+    var i = list.indexOf(key);
+    if (i === -1) list.push(key); else list.splice(i, 1);
+    return list.length ? list.join(",") : "전체";
+  }
+  function multiList(v) { return v === "전체" ? [] : v.split(","); }
 
   function taxLabel(id) { // taxonomy id → 라벨("대분류(소분류)" 표기)
     for (var i = 0; i < TAXONOMY.length; i++) {
@@ -241,8 +251,17 @@
       if (state.nationwideOnly && p.region_limited) return false;
       var catActive = state.cat !== "전체" || state.sub !== "전체" || state.brand !== "전체";
       if (catActive && p.kind === "delivery") return false; // 물품·브랜드 축은 쇼핑몰 대상
-      if (!hasCat(p, state.cat, state.sub)) return false;
-      if (state.brand !== "전체" && itemBrands(p).indexOf(state.brand) === -1) return false;
+      if (state.cat !== "전체" || state.sub !== "전체") {
+        var catsSel = multiList(state.cat);
+        var catOk = state.sub !== "전체"
+          ? hasCat(p, null, state.sub)                       // 소분류는 단일(대분류 1개일 때만 노출)
+          : catsSel.some(function (c) { return hasCat(p, c, null); });   // 대분류 다중 OR
+        if (!catOk) return false;
+      }
+      if (state.brand !== "전체") {
+        var bs = itemBrands(p), sel = multiList(state.brand);
+        if (!sel.some(function (b2) { return bs.indexOf(b2) !== -1; })) return false;   // 브랜드 다중 OR
+      }
       if (q) {
         var cats = ((CATALOG[p.id] || {}).cats || []).map(taxLabel).join(" ");
         var hay = (p.name + " " + (p.summary || "") + " " + (p.note || "") + " " + cats + " " + itemBrands(p).join(" ")).toLowerCase();
@@ -280,9 +299,13 @@
       + '<span class="chip-hint">쇼핑몰 ' + nf(countCat("전체")) + '곳 대상 — 배달앱은 음식 주문이라 분류 제외</span>';
     var addChip = function (id, label, cnt) {
       var b = document.createElement("button");
-      b.className = "chip" + (state.cat === id ? " active" : "");
+      b.className = "chip" + ((id === "전체" ? state.cat === "전체" : multiHas(state.cat, id)) ? " active" : "");
       b.innerHTML = esc(label) + (cnt != null ? ' <b>' + nf(cnt) + "</b>" : "");
-      b.onclick = function () { state.cat = id; state.sub = "전체"; renderAll(); };
+      b.onclick = function () {
+        state.cat = multiToggle(state.cat, id);
+        if (multiList(state.cat).length !== 1) state.sub = "전체";   // 소분류는 대분류 1개일 때만 유효
+        renderAll();
+      };
       cc.appendChild(b);
     };
     addChip("전체", "전체", null);
@@ -290,7 +313,8 @@
 
     // 소분류: 대분류 선택 + subs 존재 시
     var sc = el("subChips");
-    var top = TAXONOMY.filter(function (t) { return t.id === state.cat; })[0];
+    var single = multiList(state.cat);
+    var top = single.length === 1 ? TAXONOMY.filter(function (t) { return t.id === single[0]; })[0] : null;
     if (top && (top.subs || []).length) {
       sc.style.display = "";
       sc.innerHTML = '<span class="chip-label">' + esc(top.label) + ' 세부</span>';
@@ -319,21 +343,21 @@
       + '<span class="chip-hint">실측 태그 기준 — 각 몰의 전 상품·전 브랜드가 아닙니다. 대표만 칩, <b>전체는 드롭다운</b></span>';
     var addChip = function (key, label, cnt) {
       var b = document.createElement("button");
-      b.className = "chip" + (state.brand === key ? " active" : "");
+      b.className = "chip" + ((key === "전체" ? state.brand === "전체" : multiHas(state.brand, key)) ? " active" : "");
       b.innerHTML = esc(label) + (cnt != null ? ' <b>' + nf(cnt) + "</b>" : "");
-      b.onclick = function () { state.brand = key; renderAll(); };
+      b.onclick = function () { state.brand = multiToggle(state.brand, key); renderAll(); };
       bc.appendChild(b);
     };
     addChip("전체", "전체", null);
     var shown = ranked.slice(0, BRAND_TOPN);
     shown.forEach(function (p) { addChip(p[0], p[0], p[1]); });
-    if (state.brand !== "전체" && !shown.some(function (p) { return p[0] === state.brand; })) {
-      addChip(state.brand, state.brand, null); // 선택값 항상 노출(숨은 필터 방지)
-    }
+    multiList(state.brand).forEach(function (sel) {
+      if (!shown.some(function (p) { return p[0] === sel; })) addChip(sel, sel, null); // 선택값 항상 노출
+    });
     var sb = el("selBrand");
     var h = '<option value="전체"' + (state.brand === "전체" ? " selected" : "") + ">브랜드 전체 (" + ranked.length + "종)</option>";
     ranked.forEach(function (p) {
-      h += '<option value="' + esc(p[0]) + '"' + (state.brand === p[0] ? " selected" : "") + ">" + esc(p[0]) + " (" + p[1] + ")</option>";
+      h += '<option value="' + esc(p[0]) + '"' + (multiHas(state.brand, p[0]) ? " selected" : "") + ">" + esc(p[0]) + " (" + p[1] + ")</option>";
     });
     sb.innerHTML = h;
   }
@@ -350,7 +374,7 @@
     if (p.kind === "shopping") {
       if (c && c.cats.length) {
         h += '<div class="pf-tags">' + c.cats.map(function (id) {
-          var hit = (state.cat !== "전체" && (id === state.cat || topOf(id) === state.cat))
+          var hit = (state.cat !== "전체" && (multiHas(state.cat, id) || multiHas(state.cat, topOf(id))))
                  || (state.sub !== "전체" && (id === state.sub || id === topOf(state.sub)));
           return '<span class="cat-tag' + (hit ? " hit" : "") + '">' + esc(taxLabel(id)) + '</span>';
         }).join("") + '</div>';
@@ -486,7 +510,7 @@
     state.q = ""; el("q").value = ""; el("qClear").style.display = "none"; el("q").focus(); render();
   });
   el("nationwideOnly").addEventListener("change", function (e) { state.nationwideOnly = e.target.checked; render(); });
-  el("selBrand").addEventListener("change", function (e) { state.brand = e.target.value; renderAll(); });
+  el("selBrand").addEventListener("change", function (e) { state.brand = multiToggle(state.brand, e.target.value); renderAll(); });   // 드롭다운도 다중 토글
   document.addEventListener("keydown", function (e) {
     var t = document.activeElement;
     var typing = t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.isContentEditable);
