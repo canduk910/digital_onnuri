@@ -81,7 +81,8 @@ html[data-pw="wide"]   { --page-w:1640px; }
 @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
 
 /* ===== 모바일 PC 최적화 안내 (2026-08-11) — 한 번 닫으면 localStorage로 재노출 안 함 ===== */
-.pc-notice { display:none; position:fixed; left:12px; right:12px; bottom:12px; z-index:80;
+/* bottom 84px: 챗 플로팅 버튼(52px)·라벨과 겹치지 않게 그 위에 띄운다(2026-08-12 겹침 제보) */
+.pc-notice { display:none; position:fixed; left:12px; right:12px; bottom:84px; z-index:80;
   background:var(--bg); border:1px solid var(--border-2); border-left:3px solid var(--accent);
   border-radius:var(--r-md); box-shadow:var(--shadow-md); padding:11px 40px 11px 14px;
   font-size:12.5px; line-height:1.55; color:var(--text-sub); }
