@@ -54,6 +54,9 @@
       .then(function () {
         window.mermaid.initialize({
           startOnLoad: false, securityLevel: "strict", theme: "base",
+          // 파싱 실패 시 body에 에러 SVG를 삽입하는 기본 동작 차단(스트리밍 중 미완성
+          // 코드 렌더 시 페이지가 "Syntax error" 블록으로 도배되던 결함 — 2026-08-11)
+          suppressErrorRendering: true,
           // htmlLabels:false — 라벨을 SVG <text>로 렌더. HTML(foreignObject) 라벨은
           // DOMPurify SVG 새니타이즈에서 제거되어 노드가 빈 상자로 보인다.
           flowchart: { htmlLabels: false },
@@ -69,12 +72,12 @@
   }
 
   // ---- 마크다운 렌더 ----
-  function renderMd(el, text) {
+  function renderMd(el, text, skipMermaid) {
     if (window.marked && window.DOMPurify) {
       var html = window.marked.parse(text, { gfm: true, breaks: true });
       el.innerHTML = window.DOMPurify.sanitize(html);
       el.classList.add("cw-md");
-      renderMermaid(el);
+      if (!skipMermaid) renderMermaid(el);   // 스트리밍 중엔 생략 — 완성본에서만 렌더
     } else {
       el.textContent = text;
     }
@@ -87,10 +90,14 @@
       var box = document.createElement("div");
       box.className = "cw-mermaid";
       pre.replaceWith(box);
-      window.mermaid.render("cwm" + (++mermaidSeq), src).then(function (r) {
+      var mid = "cwm" + (++mermaidSeq);
+      window.mermaid.render(mid, src).then(function (r) {
         box.innerHTML = window.DOMPurify ? window.DOMPurify.sanitize(r.svg, { USE_PROFILES: { svg: true, svgFilters: true } }) : r.svg;
       }).catch(function () {
         var p = document.createElement("pre"); p.textContent = src; box.replaceWith(p); // 파싱 실패 시 원문 유지
+        ["#" + mid, "#d" + mid].forEach(function (sel) {   // mermaid가 body에 남긴 측정·에러 노드 제거
+          var n = document.querySelector(sel); if (n && !el.contains(n)) n.remove();
+        });
       });
     });
   }
@@ -291,7 +298,7 @@
         if (ev === "token") {
           acc += d.text || "";
           botEl.dataset.md = acc;
-          renderMd(botEl, acc);
+          renderMd(botEl, acc, true);   // 미완성 mermaid 시도 금지
           scrollEnd();
         } else if (ev === "action") {
           handleAction(d);
