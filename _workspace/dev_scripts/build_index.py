@@ -307,8 +307,9 @@ tpl = replace_once(
     tpl,
     "<p style=\"margin:0;font-size:12px;color:#8A8580;line-height:1.6\">※ 지역 기반 배달앱(대구로, 배달특급, 배달의 명수, 전주맛배달 등)은 해당 지역에서만 주문 가능합니다.</p>",
     "<p style=\"margin:0;font-size:12px;color:#8A8580;line-height:1.6\">※ 카드형 선차감에서 결제액이 충전 잔액보다 큰 경우 — 공식몰 안내로는 충전금 차감 없이 전액 일반 카드로 결제됩니다(부족분만 청구되는 방식이 아닐 수 있음). 안내가 갈리는 부분이므로 잔액보다 큰 결제 전에는 앱에서 잔액 확인이 필요합니다.</p>\n"
-    "    <p style=\"margin:0;font-size:12px;color:#8A8580;line-height:1.6\">※ 지역 기반 배달앱(<span>{{ regionApps }}</span>)은 해당 지역에서만 주문 가능합니다.</p>",
-    "S13.footnote3+4",
+    "    <p style=\"margin:0;font-size:12px;color:#8A8580;line-height:1.6\">※ 지역 기반 배달앱(<span>{{ regionApps }}</span>)은 해당 지역에서만 주문 가능합니다.</p>\n"
+    "    <p style=\"margin:0;font-size:12px;color:#8A8580;line-height:1.6\">※ 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong style=\"color:#26231F\">정확하지 않을 수 있습니다</strong> — 내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.</p>",
+    "S13.footnote3+4+AI면책",
 )
 
 # S14 선차감 용어
@@ -362,9 +363,9 @@ tpl = replace_once(
 SHELL = (
     "<link rel=\"stylesheet\" href=\"shell.css?v=1\">\n"
     "<script src=\"shell.js?v=1\"></script>\n"
-    "<link rel=\"stylesheet\" href=\"chat-widget.css?v=4\">\n"
+    "<link rel=\"stylesheet\" href=\"chat-widget.css?v=5\">\n"
     "<script src=\"config.js?v=1\"></script>\n"
-    "<script src=\"chat-widget.js?v=4\" defer></script>\n"
+    "<script src=\"chat-widget.js?v=5\" defer></script>\n"
     # 크리티컬 인라인 스타일: 번들(4MB) 마운트 직후 셸 CSS 적용 전 한 프레임에
     # topbar CI+사이드바 CI가 세로로 겹쳐 보이는 FOUC 방지. img는 width/height 명시(시프트 방지).
     "<header class=\"topbar\" style=\"display:none\">\n"

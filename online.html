@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>온라인 사용처 찾기 — 코스콤 디지털온누리 가이드</title>
 <link rel="stylesheet" href="shell.css?v=1">
-<link rel="stylesheet" href="chat-widget.css?v=4">
+<link rel="stylesheet" href="chat-widget.css?v=5">
 <style>
   /* ===== 디자인 시스템 (merchants.html과 동일 토큰) ===== */
   /* 공통 셸(토큰·사이드바·상단바·폭토글)은 shell.css — 이 블록은 온라인 검색 페이지 전용 스타일만 (ADR-9) */
@@ -180,7 +180,7 @@
   </main>
 
 <script src="shell.js?v=1"></script>
-<script src="chat-widget.js?v=4" defer></script>
+<script src="chat-widget.js?v=5" defer></script>
 <script src="config.js"></script>
 <script>
 (function () {
@@ -434,7 +434,7 @@
       el("noticeMain").innerHTML = "<strong>각 쇼핑몰이 취급하는 물품종류와 대표 브랜드를 " + esc(META.survey)
         + "에 플랫폼 단위로 확인해 태그한 목록입니다.</strong> 상품 재고·전체 브랜드 목록이 아니며, 온누리 결제 가능 범위는 각 몰의 전용관·기획전 기준입니다 — 결제 전 해당 몰에서 확인하세요.";
       el("footMethod").innerHTML = "※ 취급 품목·브랜드 태그는 각 몰의 카테고리 메뉴·기획전·브랜드관을 " + esc(META.survey)
-        + "에 실측해 기록한 것입니다(조사 로그: 저장소 _workspace/15_online_catalog_report.md). 이후 각 몰의 취급 변화는 반영되지 않을 수 있습니다.";
+        + "에 실측해 기록한 것입니다(조사 로그: 저장소 _workspace/15_online_catalog_report.md). 이후 각 몰의 취급 변화는 반영되지 않을 수 있습니다." + "<br>" + " 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong>정확하지 않을 수 있습니다</strong> — 내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.";
       applyUrlParams();
       renderAll();
     }).catch(function (e) {

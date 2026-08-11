@@ -155,7 +155,10 @@
   function restore() {
     try { history = JSON.parse(sessionStorage.getItem(HIST_KEY) || "[]"); } catch (e) { history = []; }
     if (history.length) {
-      history.forEach(function (m) { appendMsg(m.role === "user" ? "user" : "bot", m.content); });
+      history.forEach(function (m) {
+        var d = appendMsg(m.role === "user" ? "user" : "bot", m.content);
+        if (m.role !== "user") d.classList.add("cw-final");   // 복원된 AI 답변에도 면책 표기
+      });
     } else {
       greet();
     }
@@ -311,6 +314,7 @@
       if (!busy) return;
       busy = false; sendBtn.disabled = false;
       botEl.classList.remove("cw-typing");
+      if (acc) botEl.classList.add("cw-final");   // AI 답변 면책 표기(CSS ::after)
       if (errMsg) {
         if (!acc) botEl.remove();
         appendNote(errMsg, true);
