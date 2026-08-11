@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>디지털온누리상품권 가맹점 검색</title>
 <link rel="stylesheet" href="shell.css?v=1">
-<link rel="stylesheet" href="chat-widget.css?v=2">
+<link rel="stylesheet" href="chat-widget.css?v=4">
 <style>
   /* 공통 셸(토큰·사이드바·상단바·폭토글)은 shell.css — 이 블록은 가맹점 검색 페이지 전용 스타일만 (ADR-9) */
 
@@ -76,7 +76,9 @@
     thead th { position:sticky; top:0; z-index:2; box-shadow:0 1px 0 var(--border); }
   }
   .table-scroll { overflow-x:auto; }
-  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:880px; }
+  /* min-width는 결과 표(.table-scroll 안)에만 — 맨 table 셀렉터로 두면 챗 위젯 등
+     다른 표까지 오염된다(2026-08-11 결함: 위젯 말풍선 표가 880px로 삐져나감). */
+  .table-scroll table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:880px; }
   th { position:relative; padding:11px 16px; text-align:left; font-size:10.5px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); background:var(--surface); border-bottom:1px solid var(--border); white-space:nowrap; }
   /* 컬럼 폭 드래그 그립 — 헤더 우측 경계 */
   .col-grip { position:absolute; top:0; right:-5px; bottom:0; width:10px; cursor:col-resize; z-index:3; touch-action:none; }
@@ -395,7 +397,7 @@
 <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=x79smqla3u"></script>
 <script src="lib/MarkerClustering.js"></script>
 <script src="shell.js?v=1"></script>
-<script src="chat-widget.js?v=3" defer></script>
+<script src="chat-widget.js?v=4" defer></script>
 <script src="config.js"></script>
 <script>
 (function () {
@@ -792,8 +794,12 @@
       if (R.regionTotal !== undefined) SNAP.regionTotal = R.regionTotal;
       SNAP.sidoTotal = SIDO_TOTAL[state.sido] != null ? SIDO_TOTAL[state.sido] : SNAP.sidoTotal;
       renderChips(); render();
-      if (hasMap) renderMap();   // 지도는 대상 집합이 바뀐 경우에만 재그림
-    }).catch(function () { if (seq === refreshSeq) renderResultError(); });
+      // 지도는 보조 — 지도 렌더 예외(인증 실패 반초기화 등)가 목록을 죽이면 안 된다
+      if (hasMap) { try { renderMap(); } catch (e) { console.warn("[map] 렌더 스킵:", e); } }
+    }).catch(function (e) {
+      console.error("[refresh] 실패:", e);   // 렌더 예외가 네트워크 오류로 오인되지 않게 원인을 남긴다
+      if (seq === refreshSeq) renderResultError();
+    });
   }
   function catCount(k) { return k === "전체" ? SNAP.catTotal : (SNAP.facetCat[k] || 0); }
 
@@ -1396,8 +1402,8 @@
       return Object.keys(o).length ? o : null;
     } catch (e) { return null; }
   })();
-  function applyNavFilter() {
-    var p = NAV_FILTER; if (!p) return;
+  function applyNavFilter(pIn) {
+    var p = pIn || NAV_FILTER; if (!p) return;
     var chain = Promise.resolve();
     if (p.si) chain = chain.then(function () { state.si = p.si; return loadRegionOptions(); });
     if (p.gu) chain = chain.then(function () { state.gu = p.gu; return loadRegionOptions(); });
@@ -1407,6 +1413,22 @@
     if (p.q) { state.q = p.q; var qi = el("q"); if (qi) qi.value = state.q; }
     return chain.then(function () { state.page = 1; renderRegionSelects(); return refresh("all"); });
   }
+
+  // 챗 위젯 '지도 바로 이동'(ON) 훅 — 페이지 이동 없이 현재 화면의 필터·지도를 즉시 이동한다.
+  // 지역(시도)이 다르면 selectSido로 갈아탄 뒤 나머지 필터를 적용한다.
+  window.onnuriApplyChatFilter = function (p) {
+    p = p || {};
+    if (p.region && p.region !== state.sido && SIDO.some(function (s) { return s.key === p.region; })) {
+      var pr = selectSido(p.region);
+      if (pr && pr.then) pr.then(function () { return applyNavFilter(p); });
+      return;
+    }
+    // 같은 시도: 기존 필터를 초기화 후 적용(누적 방지)
+    state.si = "전체"; state.gu = "전체"; state.dong = "전체";
+    state.cat = "전체"; state.brand = "전체"; state.mtype = "전체"; state.q = "";
+    var qi = el("q"); if (qi) qi.value = "";
+    loadRegionOptions().then(function () { return applyNavFilter(p); });
+  };
 
   var qTimer = null;
   function bindControls() {

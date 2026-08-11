@@ -32,9 +32,14 @@
 .cw-msg { max-width:88%; font-size:13px; line-height:1.65; }
 .cw-msg.user { align-self:flex-end; background:var(--text, #0B0C0E); color:#fff;
   padding:9px 13px; border-radius:14px 14px 3px 14px; white-space:pre-wrap; word-break:break-word; }
+/* 말풍선 내부 스크롤 금지(2026-08-11) — 채팅창 스크롤과 이중이 되면 불편.
+   넓은 콘텐츠(표·코드·다이어그램)는 스크롤 대신 줄바꿈·축소로 풀어낸다. */
 .cw-msg.bot { align-self:flex-start; background:var(--surface, #F6F6F7); color:var(--text, #0B0C0E);
   padding:11px 14px; border-radius:14px 14px 14px 3px; border:1px solid var(--border, #E5E6E8);
-  overflow-x:auto; max-width:95%; }
+  overflow:visible; max-width:95%; min-width:0; word-break:break-word; }
+/* 표·다이어그램을 품은 말풍선은 고정 폭 — 내용맞춤 폭에서는 표의 width:100%가
+   순환 참조로 무효가 되어 원본 폭으로 삐져나간다(2026-08-11 결함). */
+.cw-msg.bot:has(table), .cw-msg.bot:has(.cw-mermaid), .cw-msg.bot:has(pre) { width:95%; }
 .cw-msg.bot.cw-typing::after { content:"▍"; color:var(--accent, #F26B1D); animation:cwBlink 1s step-end infinite; }
 @keyframes cwBlink { 50% { opacity:0; } }
 
@@ -44,15 +49,16 @@
 .cw-md p { margin:6px 0; }
 .cw-md ul, .cw-md ol { margin:6px 0 6px 18px; }
 .cw-md li { margin:2px 0; }
-.cw-md table { border-collapse:collapse; margin:8px 0; font-size:12px; width:100%; }
+.cw-md table { border-collapse:collapse; margin:8px 0; font-size:11.5px; width:100%; table-layout:fixed; }
 .cw-md th { background:var(--surface-2, #EFF0F2); font-weight:700; text-align:left; }
-.cw-md th, .cw-md td { border:1px solid var(--border-2, #D3D5D9); padding:5px 8px; }
-.cw-md code { background:var(--surface-2, #EFF0F2); border-radius:4px; padding:1px 5px; font-size:12px; }
-.cw-md pre { background:var(--surface-2, #EFF0F2); border-radius:8px; padding:10px; overflow-x:auto; margin:8px 0; }
-.cw-md pre code { background:none; padding:0; }
+.cw-md th, .cw-md td { border:1px solid var(--border-2, #D3D5D9); padding:5px 7px; word-break:break-word; }
+.cw-md code { background:var(--surface-2, #EFF0F2); border-radius:4px; padding:1px 5px; font-size:12px; word-break:break-all; }
+.cw-md pre { background:var(--surface-2, #EFF0F2); border-radius:8px; padding:10px; margin:8px 0;
+  white-space:pre-wrap; word-break:break-word; }   /* 스크롤 대신 줄바꿈 */
+.cw-md pre code { background:none; padding:0; word-break:inherit; }
 .cw-md a { color:var(--accent-press, #C4510F); text-decoration:underline; }
 .cw-md .cw-mermaid { background:#fff; border:1px solid var(--border, #E5E6E8); border-radius:8px;
-  padding:8px; margin:8px 0; overflow-x:auto; text-align:center; }
+  padding:8px; margin:8px 0; text-align:center; }   /* svg는 max-width 축소 — 스크롤 없음 */
 .cw-md .cw-mermaid svg { max-width:100%; height:auto; }
 
 /* ── 이동 액션 카드 ── */
@@ -72,6 +78,16 @@
 /* ── 오류·안내 ── */
 .cw-note { align-self:center; font-size:11.5px; color:var(--text-faint, #989DA5); text-align:center; }
 .cw-note.err { color:#B3261E; }
+
+/* ── 옵션줄 (지도 바로 이동 토글) ── */
+.cw-opts { flex:none; display:flex; align-items:center; gap:8px; padding:7px 14px; border-top:1px solid var(--border, #E5E6E8); background:var(--bg, #fff); }
+.cw-switch { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text, #0B0C0E); cursor:pointer; user-select:none; }
+.cw-switch input { position:absolute; opacity:0; }
+.cw-switch span { width:30px; height:17px; border-radius:999px; background:var(--border-2, #D3D5D9); position:relative; transition:background .15s ease; flex:none; }
+.cw-switch span::after { content:""; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:#fff; transition:transform .15s ease; }
+.cw-switch input:checked + span { background:var(--accent, #F26B1D); }
+.cw-switch input:checked + span::after { transform:translateX(13px); }
+.cw-opts-hint { font-size:10px; color:var(--text-faint, #989DA5); }
 
 /* ── 입력줄 ── */
 .cw-input { flex:none; display:flex; gap:8px; padding:12px 14px; border-top:1px solid var(--border, #E5E6E8); background:var(--bg, #fff); }

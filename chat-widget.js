@@ -36,6 +36,9 @@
   var busy = false;
   var libsReady = null;   // Promise
   var mermaidSeq = 0;
+  var AUTOMAP_KEY = "onnuri_chat_automap";   // 지도 바로 이동 토글 (기본 ON)
+  var pendingNav = null;                      // 자동 이동 예약(답변 완료 후 실행)
+  function autoMapOn() { return localStorage.getItem(AUTOMAP_KEY) !== "0"; }
 
   // ---- 지연 로드 ----
   function loadScript(src) {
@@ -109,6 +112,8 @@
       '<span class="cw-head-sub">공식 출처 기반 안내<br>AI 답변 — 결제 전 확인 권장</span>' +
       '<button class="cw-close" type="button" aria-label="닫기">×</button></div>' +
       '<div class="cw-body"></div>' +
+      '<div class="cw-opts"><label class="cw-switch"><input type="checkbox" id="cwAutoMap"><span></span>지도 바로 이동</label>' +
+      '<span class="cw-opts-hint">위치 문의 시 확인 없이 지도·목록을 이동합니다</span></div>' +
       '<div class="cw-input"><textarea rows="1" placeholder="예: 환불 어떻게 하나요?" aria-label="질문 입력"></textarea>' +
       '<button class="cw-send" type="button" aria-label="보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>' +
       '<div class="cw-disclaim">AI가 생성한 답변으로 오류가 있을 수 있습니다 · 개인정보를 입력하지 마세요</div>';
@@ -120,6 +125,11 @@
 
     fab.addEventListener("click", toggle);
     panel.querySelector(".cw-close").addEventListener("click", toggle);
+    var am = panel.querySelector("#cwAutoMap");
+    am.checked = autoMapOn();
+    am.addEventListener("change", function () {
+      localStorage.setItem(AUTOMAP_KEY, am.checked ? "1" : "0");
+    });
     sendBtn.addEventListener("click", submit);
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
@@ -188,6 +198,23 @@
     body.appendChild(d);
     scrollEnd();
   }
+  // 액션 분기(2026-08-11 지도 바로 이동): 토글 ON이고 검색 페이지 액션이면 —
+  // 같은 페이지: 확인 없이 즉시 필터·지도 이동 / 다른 페이지: 답변 완료 후 자동 이동.
+  // 토글 OFF 또는 가이드 액션: 기존 확인 카드.
+  function handleAction(a) {
+    var isSearch = a.page === "merchants" || a.page === "online";
+    if (!isSearch || !autoMapOn()) { appendAction(a); return; }
+    var target = a.page === "online" ? "online.html" : "merchants.html";
+    var onTarget = location.pathname.indexOf(target) !== -1;
+    if (onTarget && typeof window.onnuriApplyChatFilter === "function") {
+      window.onnuriApplyChatFilter(a.params || {});
+      appendNote("지도·목록을 이동했습니다 — " + (a.label || ""));
+      return;
+    }
+    pendingNav = a;   // 스트리밍 중 이탈하면 답이 끊기므로 done에서 이동
+    appendNote("답변 완료 후 " + (a.page === "online" ? "온라인 사용처" : "가맹점 찾기") + " 화면으로 이동합니다…");
+  }
+
   function appendAction(a) {
     var card = document.createElement("div");
     card.className = "cw-action";
@@ -264,7 +291,7 @@
           renderMd(botEl, acc);
           scrollEnd();
         } else if (ev === "action") {
-          appendAction(d);
+          handleAction(d);
         } else if (ev === "error") {
           finish(d.message || "오류가 발생했습니다.");
         } else if (ev === "done") {
@@ -294,6 +321,12 @@
         saveHist();
       }
       scrollEnd();
+      if (pendingNav && !errMsg) {
+        var nav = pendingNav; pendingNav = null;
+        setTimeout(function () { location.href = actionUrl(nav); }, 600);   // 이력은 저장됨 — 새 페이지에서 대화 복원
+      } else {
+        pendingNav = null;
+      }
     }
   }
 
