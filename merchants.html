@@ -1029,11 +1029,15 @@
     var slice = SNAP.list; // 서버가 현재 페이지만 반환
 
     // 컬럼 폭: 사용자가 드래그로 조정한 값(COL_W)이 있으면 fixed 레이아웃으로 적용
+    // 마지막 열은 폭을 지정하지 않아 남는 공간을 흡수한다 — 열을 좁혀도 표 오른쪽이
+    // 카드 라운딩 테두리까지 항상 차게(2026-08-11 사용자 제보: 표 우측 공백).
     var colgroup = COL_W
-      ? '<colgroup>' + COL_W.map(function (w) { return '<col style="width:' + w + 'px">'; }).join("") + '</colgroup>'
+      ? '<colgroup>' + COL_W.map(function (w, i) {
+          return i === COL_W.length - 1 ? '<col>' : '<col style="width:' + w + 'px">';
+        }).join("") + '</colgroup>'
       : "";
     var HEADERS = ["가맹점명", "업종", "소속 시장·상점가", "도로명 주소", "결제"];
-    var h = '<div class="table-scroll"><table' + (COL_W ? ' style="table-layout:fixed;min-width:0;width:' + COL_W.reduce(function(a,b){return a+b;},0) + 'px"' : "") + '>' + colgroup + '<thead><tr>'
+    var h = '<div class="table-scroll"><table' + (COL_W ? ' style="table-layout:fixed;width:100%;min-width:' + Math.max(880, COL_W.reduce(function(a,b){return a+b;},0)) + 'px"' : "") + '>' + colgroup + '<thead><tr>'
       + HEADERS.map(function (t, i) {
           return '<th>' + esc(t) + (i < HEADERS.length - 1 ? '<span class="col-grip" data-col="' + i + '" title="드래그로 열 너비 조절"></span>' : "") + '</th>';
         }).join("")
@@ -1086,14 +1090,20 @@
           if (!cols) { // colgroup이 없으면(첫 전환) 만들어 붙인다
             if (!table.querySelector("colgroup")) {
               var cg = document.createElement("colgroup");
-              COL_W.forEach(function (w) { var c = document.createElement("col"); c.style.width = w + "px"; cg.appendChild(c); });
+              COL_W.forEach(function (w, i2) {
+                var c = document.createElement("col");
+                if (i2 < COL_W.length - 1) c.style.width = w + "px";   // 마지막 열은 잔여 흡수
+                cg.appendChild(c);
+              });
               table.insertBefore(cg, table.firstChild);
-              table.style.tableLayout = "fixed"; table.style.minWidth = "0";
+              table.style.tableLayout = "fixed";
             }
             cols = table.querySelectorAll("colgroup col");
           }
-          cols[idx].style.width = COL_W[idx] + "px";
-          table.style.width = COL_W.reduce(function (a, b) { return a + b; }, 0) + "px";
+          if (idx < COL_W.length - 1) cols[idx].style.width = COL_W[idx] + "px";
+          // 표 폭은 카드에 맞춰 100% 유지 — 열 합계가 넘치면 min-width로 가로 스크롤
+          table.style.width = "100%";
+          table.style.minWidth = Math.max(880, COL_W.reduce(function (a, b) { return a + b; }, 0)) + "px";
         }
         function onMove(ev) { COL_W[idx] = Math.max(COL_MIN, startW + Math.round(ev.clientX - startX)); apply(); }
         function onUp(ev) {
