@@ -383,6 +383,8 @@ SHELL = (
     "    <div class=\"sb-group\">가맹점 검색</div>\n"
     "    <a class=\"sb-item\" href=\"merchants.html#sidoTabs\">가맹점 찾기</a>\n"
     "    <a class=\"sb-item\" href=\"online.html\">온라인 사용처 찾기</a>\n"
+    "    <div class=\"sb-group\">피드백</div>\n"
+    "    <a class=\"sb-item\" href=\"report.html\">버그 제보</a>\n"
     "  </nav>\n"
     "  <div class=\"sb-width\" role=\"group\" aria-label=\"화면 폭 조절\">\n"
     "    <span class=\"sb-width-label\">화면 폭</span>\n"

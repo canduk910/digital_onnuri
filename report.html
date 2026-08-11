@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>버그 제보 — 코스콤 디지털온누리 가이드</title>
+<link rel="stylesheet" href="shell.css?v=3">
+<link rel="stylesheet" href="chat-widget.css?v=5">
+<style>
+  /* 버그 제보 게시판 전용 스타일 — 공통 셸은 shell.css (ADR-9) */
+  .page-head { position:relative; margin-bottom:26px; padding-top:6px; }
+  .page-head::after { content:"온"; position:absolute; right:-8px; top:-46px; font-size:190px; font-weight:900;
+    color:var(--accent); opacity:.045; line-height:1; pointer-events:none; user-select:none; z-index:-1; }
+  h1 { font-family:var(--font-display); font-size:clamp(32px, 4.4vw, 50px); font-weight:700; letter-spacing:-0.035em; line-height:1.08; margin-bottom:10px; }
+  .subtitle { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent-press); margin-bottom:8px; }
+  .meta-line { font-size:13px; color:var(--text-sub); }
+
+  /* 제보 폼 */
+  .report-form { background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); padding:20px 22px; margin:18px 0 26px; }
+  .rf-row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+  .rf-row > * { font-family:inherit; font-size:13.5px; color:var(--text); background:var(--bg); border:1px solid var(--border-2); border-radius:var(--r-sm); padding:9px 12px; outline:none; }
+  .rf-row > *:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  #rTitle { flex:2; min-width:220px; }
+  #rPage { min-width:150px; cursor:pointer; }
+  #rNick { flex:1; min-width:120px; }
+  #rContent { width:100%; min-height:110px; resize:vertical; font-family:inherit; font-size:13.5px; line-height:1.6; color:var(--text); border:1px solid var(--border-2); border-radius:var(--r-sm); padding:10px 12px; outline:none; }
+  #rContent:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .rf-foot { display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap; }
+  .rf-submit { font-family:inherit; font-size:13.5px; font-weight:800; cursor:pointer; border:none; background:var(--accent); color:#fff; border-radius:var(--r-sm); padding:10px 22px; }
+  .rf-submit:hover { background:var(--accent-hover); }
+  .rf-submit:disabled { background:var(--border-2); cursor:default; }
+  .rf-hint { font-size:11.5px; color:var(--text-faint); }
+  .rf-msg { font-size:12.5px; font-weight:700; }
+  .rf-msg.ok { color:var(--ok); }
+  .rf-msg.err { color:#B3261E; }
+
+  /* 제보 목록 */
+  .rep-list { display:flex; flex-direction:column; gap:10px; }
+  .rep-item { background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); padding:14px 18px; }
+  .rep-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:5px; }
+  .rep-title { font-size:14.5px; font-weight:800; }
+  .rep-badge { display:inline-flex; padding:2px 8px; border-radius:var(--r-sm); font-size:11px; font-weight:700; background:var(--accent-soft); color:var(--accent-press); }
+  .rep-badge.done { background:var(--ok-soft); color:var(--ok); }
+  .rep-meta { margin-left:auto; font-size:11.5px; color:var(--text-faint); font-variant-numeric:tabular-nums; }
+  .rep-body { font-size:13px; color:var(--text-sub); line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+  .rep-empty { padding:28px; text-align:center; color:var(--text-faint); font-size:13px; background:var(--surface); border-radius:var(--r-md); }
+  .rep-more { margin-top:14px; text-align:center; }
+  .rep-more button { font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; background:var(--bg); border:1px solid var(--border-2); border-radius:var(--r-sm); padding:9px 22px; color:var(--text-sub); }
+  .rep-more button:hover { border-color:var(--accent); color:var(--accent-press); }
+
+  .foot-note { margin-top:34px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-faint); line-height:1.7; }
+  @media (max-width:959px){ .page-head::after { display:none; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="hamburger" id="navToggle" aria-label="메뉴 열기" aria-expanded="false">☰</button>
+  <span class="topbar-brand"><img class="ci-img ci-img-sm" src="assets/koscom_ci.png" alt="koscom"> 코스콤 디지털온누리 가이드</span>
+</header>
+<div class="overlay" id="navOverlay" hidden></div>
+
+<aside class="sidebar" id="sidebar">
+  <a class="sb-logo" href="index.html">
+    <img class="ci-img" src="assets/koscom_ci.png" alt="koscom">
+    <span class="sb-logo-txt">코스콤 디지털온누리 가이드</span>
+  </a>
+  <nav class="sb-nav" aria-label="사이트 메뉴">
+    <div class="sb-group">사용 가이드</div>
+    <a class="sb-item" href="index.html#offline">오프라인 사용처</a>
+    <a class="sb-item" href="index.html#online">온라인 가맹 플랫폼</a>
+    <a class="sb-item" href="payment.html">결제 방법</a>
+    <a class="sb-item" href="terms.html">용어·유의사항</a>
+    <div class="sb-group">가맹점 검색</div>
+    <a class="sb-item" href="merchants.html">가맹점 찾기</a>
+    <a class="sb-item" href="online.html">온라인 사용처 찾기</a>
+    <div class="sb-group">피드백</div>
+    <a class="sb-item active" href="report.html" aria-current="page">버그 제보</a>
+  </nav>
+  <div class="sb-width" role="group" aria-label="화면 폭 조절">
+    <span class="sb-width-label">화면 폭</span>
+    <button type="button" data-pw="narrow">좁게</button>
+    <button type="button" data-pw="">표준</button>
+    <button type="button" data-pw="wide">넓게</button>
+  </div>
+  <a class="sb-ext" href="https://www.onnuri.gift/place" target="_blank" rel="noopener">공식 가맹점 지도 ↗</a>
+</aside>
+
+<main class="content">
+  <div class="content-inner">
+    <div class="page-head">
+      <div class="subtitle">Bug Report</div>
+      <h1>버그 제보</h1>
+      <p class="meta-line">가이드에서 잘못된 정보·오류·불편을 발견하셨다면 알려주세요. 확인 후 반영합니다.</p>
+    </div>
+
+    <form class="report-form" id="rForm">
+      <div class="rf-row">
+        <input id="rTitle" maxlength="120" placeholder="제목 — 예: 노량진동 검색이 0곳으로 나와요" required>
+        <select id="rPage">
+          <option value="">화면 선택(선택)</option>
+          <option>가이드(메인)</option>
+          <option>가맹점 찾기</option>
+          <option>온라인 사용처 찾기</option>
+          <option>결제 방법</option>
+          <option>용어·유의사항</option>
+          <option>챗봇</option>
+          <option>기타</option>
+        </select>
+        <input id="rNick" maxlength="40" placeholder="표시명(선택)">
+      </div>
+      <textarea id="rContent" maxlength="2000" placeholder="무엇이 어떻게 잘못됐는지, 재현 방법(어떤 검색·클릭을 했는지)을 적어주시면 빨리 고칠 수 있습니다.&#10;※ 개인정보(연락처·계좌 등)는 적지 마세요." required></textarea>
+      <div class="rf-foot">
+        <button class="rf-submit" type="submit">제보하기</button>
+        <span class="rf-hint">익명 제보 — 개인정보는 수집하지 않습니다 · 도배 방지를 위해 등록 횟수가 제한됩니다</span>
+        <span class="rf-msg" id="rMsg"></span>
+      </div>
+    </form>
+
+    <div class="rep-list" id="repList"><div class="rep-empty">불러오는 중…</div></div>
+    <div class="rep-more" id="repMore" hidden><button type="button" id="moreBtn">더 보기</button></div>
+
+    <div class="foot-note">
+      제보 내용은 이 페이지에 공개됩니다 — 민감한 내용은 적지 마세요. 처리 상태(접수→반영)는 운영자가 갱신합니다.
+    </div>
+  </div>
+</main>
+
+<script src="shell.js?v=3"></script>
+<script src="chat-widget.js?v=6" defer></script>
+<script src="config.js?v=1"></script>
+<script>
+(function () {
+  "use strict";
+  var CFG = window.ONNURI_CONFIG || {};
+  var API = (function () {
+    if (CFG.apiBase) return CFG.apiBase.replace(/\/$/, "");
+    var h = location.hostname;
+    if (h === "localhost" || h === "127.0.0.1") return "http://localhost:8080/api";
+    return "https://api.koscomlabor.cloud/api";
+  })();
+  var el = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+  }); };
+  var PAGE_SIZE = 10, page = 0, total = 0;
+
+  function render(items, append) {
+    var list = el("repList");
+    if (!append) list.innerHTML = "";
+    if (!items.length && !append) {
+      list.innerHTML = '<div class="rep-empty">아직 제보가 없습니다 — 첫 제보를 남겨주세요.</div>';
+      return;
+    }
+    items.forEach(function (r) {
+      var d = document.createElement("div");
+      d.className = "rep-item";
+      var badge = r.status === "반영" ? "rep-badge done" : "rep-badge";
+      d.innerHTML = '<div class="rep-head"><span class="' + badge + '">' + esc(r.status) + '</span>'
+        + '<span class="rep-title">' + esc(r.title) + '</span>'
+        + (r.page ? '<span class="rf-hint">· ' + esc(r.page) + '</span>' : '')
+        + '<span class="rep-meta">' + esc(r.nickname || "익명") + ' · ' + esc(r.createdAt) + '</span></div>'
+        + '<div class="rep-body">' + esc(r.content) + '</div>';
+      list.appendChild(d);
+    });
+  }
+
+  function load(append) {
+    fetch(API + "/reports?page=" + page + "&size=" + PAGE_SIZE)
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (d) {
+        total = d.total;
+        render(d.items, append);
+        el("repMore").hidden = (page + 1) * PAGE_SIZE >= total;
+      })
+      .catch(function () {
+        el("repList").innerHTML = '<div class="rep-empty">목록을 불러오지 못했습니다 — 잠시 후 새로고침해 주세요.</div>';
+      });
+  }
+
+  el("moreBtn").addEventListener("click", function () { page++; load(true); });
+
+  el("rForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var msg = el("rMsg");
+    var btn = document.querySelector(".rf-submit");
+    btn.disabled = true; msg.textContent = ""; msg.className = "rf-msg";
+    fetch(API + "/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: el("rTitle").value.trim(),
+        content: el("rContent").value.trim(),
+        page: el("rPage").value || null,
+        nickname: el("rNick").value.trim() || null
+      })
+    }).then(function (r) {
+      if (r.status === 429) throw new Error("등록 횟수 제한 — 잠시 후 다시 시도해 주세요.");
+      if (!r.ok) throw new Error("등록 실패 — 제목·내용을 확인해 주세요.");
+      msg.textContent = "제보가 등록되었습니다. 감사합니다!";
+      msg.classList.add("ok");
+      el("rTitle").value = ""; el("rContent").value = ""; el("rNick").value = ""; el("rPage").value = "";
+      page = 0; load(false);
+    }).catch(function (err) {
+      msg.textContent = err.message || "서버에 연결하지 못했습니다.";
+      msg.classList.add("err");
+    }).finally(function () { btn.disabled = false; });
+  });
+
+  load(false);
+})();
+</script>
+</body>
+</html>
