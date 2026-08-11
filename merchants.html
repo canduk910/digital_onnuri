@@ -75,6 +75,14 @@
     .result-list > .card { max-height:calc(100vh - 120px); min-height:420px; overflow-y:auto; }
     thead th { position:sticky; top:0; z-index:2; box-shadow:0 1px 0 var(--border); }
   }
+  /* 서버 사이드 클러스터 마커(2026-08-12) — 상한 초과 뷰의 밀도 표시 */
+  .cmark { display:flex; align-items:center; justify-content:center; border-radius:50%; cursor:pointer;
+    background:rgba(242,107,29,.88); color:#fff; font-weight:800; font-variant-numeric:tabular-nums;
+    border:2px solid #fff; box-shadow:0 2px 8px rgba(11,12,14,.25); }
+  .cmark.c1 { width:38px; height:38px; font-size:11px; }
+  .cmark.c2 { width:46px; height:46px; font-size:12px; }
+  .cmark.c3 { width:54px; height:54px; font-size:12.5px; background:rgba(221,94,18,.9); }
+  .cmark.c4 { width:64px; height:64px; font-size:13px; background:rgba(196,81,15,.92); }
   .table-scroll { overflow-x:auto; }
   /* min-width는 결과 표(.table-scroll 안)에만 — 맨 table 셀렉터로 두면 챗 위젯 등
      다른 표까지 오염된다(2026-08-11 결함: 위젯 말풍선 표가 880px로 삐져나감). */
@@ -688,6 +696,7 @@
         R.mapTotal = full.length;
         R.mapTruncated = full.length > MAP_MAX;
         R.mapPins = R.mapTruncated ? [] : full;
+        R.mapClusterRows = R.mapTruncated ? full : null;   // 폴백 클러스터 집계용(참조만 — 복사 없음)
       }
       return R;
     });
@@ -795,6 +804,7 @@
       if (hasMap) {
         SNAP.mapPins = (R.mapPins || []).map(normItem);
         SNAP.mapTotal = R.mapTotal; SNAP.mapTruncated = R.mapTruncated;
+        SNAP.mapClusterRows = R.mapClusterRows || null;
       }
       if (R.regionTotal !== undefined) SNAP.regionTotal = R.regionTotal;
       SNAP.sidoTotal = SIDO_TOTAL[state.sido] != null ? SIDO_TOTAL[state.sido] : SNAP.sidoTotal;
@@ -1144,6 +1154,12 @@
     });
     infoWin = new naver.maps.InfoWindow({ borderWidth: 1, borderColor: "#E6E6E6", backgroundColor: "#fff", anchorSize: new naver.maps.Size(0, 0), pixelOffset: new naver.maps.Point(0, -6) });
     // 지도범위 검색 중에는 지도를 움직이면(줌·이동) 자동으로 그 영역을 재검색 — 해제·재적용 불필요.
+    var zoomTimer = null;
+    naver.maps.Event.addListener(mapObj, "zoom_changed", function () {
+      if (!CLUSTER_MODE || MAP_BOUNDS) return;   // bounds 모드는 idle 재검색이 처리
+      clearTimeout(zoomTimer);
+      zoomTimer = setTimeout(renderClusters, 350);
+    });
     naver.maps.Event.addListener(mapObj, "idle", function () {
       if (!MAP_BOUNDS) return;
       clearTimeout(boundsIdleTimer);
@@ -1156,6 +1172,62 @@
     });
     mapReady = true;
     return true;
+  }
+
+  /* ── 서버 사이드 클러스터(2026-08-12): 상한 초과 뷰의 밀도 표시 ──
+     격자 크기는 줌에서 계산(셀 ≈ 80px). API 모드는 /merchants/clusters,
+     JSON 폴백은 동일 floor 격자 집계를 클라이언트에서 수행(폴백 대칭 원칙). */
+  var CLUSTER_MODE = false, clusterMarkers = [], clusterSeq = 0;
+  function gridForZoom() {
+    var z = mapObj ? mapObj.getZoom() : 10;
+    return Math.min(Math.max(112.5 / Math.pow(2, z), 0.001), 2);
+  }
+  function clearClusterMarkers() {
+    for (var i = 0; i < clusterMarkers.length; i++) { try { clusterMarkers[i].setMap(null); } catch (e) {} }
+    clusterMarkers = [];
+  }
+  function localClusters(rows, g) {
+    var cellMap = {};
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (r.lat == null || r.lng == null) continue;
+      var k = Math.floor(r.lat / g) + "_" + Math.floor(r.lng / g);
+      var c = cellMap[k] || (cellMap[k] = { latSum: 0, lngSum: 0, count: 0 });
+      c.latSum += r.lat; c.lngSum += r.lng; c.count++;
+    }
+    return Object.keys(cellMap).map(function (k) {
+      var c = cellMap[k];
+      return { lat: c.latSum / c.count, lng: c.lngSum / c.count, count: c.count };
+    });
+  }
+  function renderClusters() {
+    CLUSTER_MODE = true;
+    var seq = ++clusterSeq, g = gridForZoom();
+    var done = function (cells) {
+      if (seq !== clusterSeq) return;   // 최신 요청만 반영
+      clearMarkers(); clearClusterMarkers();
+      var bounds = new naver.maps.LatLngBounds();
+      cells.forEach(function (c) {
+        var size = c.count >= 1000 ? "c4" : c.count >= 200 ? "c3" : c.count >= 50 ? "c2" : "c1";
+        var pos = new naver.maps.LatLng(c.lat, c.lng);
+        var mk = new naver.maps.Marker({
+          map: mapObj, position: pos,
+          icon: { content: '<div class="cmark ' + size + '">' + nf(c.count) + '</div>',
+                  anchor: new naver.maps.Point(22, 22) }
+        });
+        naver.maps.Event.addListener(mk, "click", function () {
+          mapObj.setCenter(pos); mapObj.setZoom(mapObj.getZoom() + 2);
+        });
+        clusterMarkers.push(mk); bounds.extend(pos);
+      });
+      if (cells.length && !MAP_BOUNDS) mapObj.fitBounds(bounds);
+    };
+    if (MODE === "json") {
+      done(localClusters(SNAP.mapClusterRows || [], g));
+    } else {
+      apiGet("/merchants/clusters?grid=" + g, fullParams()).then(function (d) { done(d.items || []); })
+        .catch(function () {});
+    }
   }
 
   function clearMarkers() {
@@ -1187,16 +1259,14 @@
     var note = el("mapNote"), trunc = el("mapTrunc");
     if (!initMap()) { return; }   // 인증 실패 등 — authFailure가 note 처리
     clearMarkers();
-    if (SNAP.mapTruncated) {       // 상한(3,000) 초과 — 마커 생략, 지도 위 오버레이로 명확히 안내
-      note.innerHTML = "지도에는 <b>" + nf(MAP_MAX) + "곳</b>까지 표시됩니다. 현재 <b>" + nf(SNAP.mapTotal)
-        + "곳</b> — " + (MAP_BOUNDS ? "지도를 확대하면 자동으로 다시 검색됩니다." : "지역·업종·브랜드 필터를 좁히면 지도에 나타납니다.");
-      if (trunc) {
-        trunc.innerHTML = "이 영역 <b>" + nf(SNAP.mapTotal) + "곳</b> — 마커는 " + nf(MAP_MAX) + "곳 이하일 때 표시됩니다."
-          + (MAP_BOUNDS ? "<br>지도를 확대하면 자동으로 다시 검색됩니다." : "");
-        trunc.hidden = false;
-      }
+    if (SNAP.mapTruncated) {       // 상한(3,000) 초과 — 서버 사이드 클러스터로 밀도 표시(2026-08-12)
+      if (trunc) trunc.hidden = true;
+      note.innerHTML = "현재 <b>" + nf(SNAP.mapTotal) + "곳</b> — 지도에는 <b>묶음(클러스터)</b>으로 표시 중입니다. "
+        + "숫자를 누르면 확대되고, " + nf(MAP_MAX) + "곳 이하로 좁히면 개별 마커로 전환됩니다.";
+      renderClusters();
       return;
     }
+    CLUSTER_MODE = false; clearClusterMarkers();
     if (trunc) trunc.hidden = true;
     var rows = SNAP.mapPins;
     if (!rows.length) { note.textContent = "표시할 가맹점이 없습니다."; return; }

@@ -65,6 +65,7 @@ API 응답과 프론트 소비 코드를 **동시에 열고** 의미를 비교�
 | bounds(37.49~37.51, 127.02~127.07) | 571 |
 | 전국(region 생략) brand GS25 | 335 |
 | facets 키 | cat, brand, mtype |
+| clusters 정합성 | sum(cluster.count) == /merchants total (서울·부산 편의점·GS25 전국 3조합) |
 
 로컬 개발 DB는 `data/merchants/*.json` 재수집 후 **반드시 재적재**(load_merchants.py 멱등) — 로컬 DB가 낡으면 auto 모드 검증에서 프로덕션과 다른 수치가 나와 가짜 버그를 쫓게 된다.
 
