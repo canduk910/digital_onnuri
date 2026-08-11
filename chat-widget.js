@@ -103,7 +103,7 @@
   }
 
   // ---- DOM 구성 ----
-  var fab, panel, body, input, sendBtn;
+  var fab, panel, body, input, sendBtn, fabLabel;
   function build() {
     fab = document.createElement("button");
     fab.className = "cw-fab"; fab.type = "button";
@@ -114,6 +114,7 @@
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-label", "온누리 가이드 챗봇");
     panel.innerHTML =
+      '<div class="cw-resize" title="드래그로 크기 조절 · 더블클릭 초기화"></div>' +
       '<div class="cw-head"><span class="cw-head-dot"></span>' +
       '<span class="cw-head-tit">온누리 가이드 챗</span>' +
       '<span class="cw-head-sub">공식 출처 기반 안내<br>AI 답변 — 결제 전 확인 권장</span>' +
@@ -126,6 +127,14 @@
       '<div class="cw-disclaim">AI가 생성한 답변으로 오류가 있을 수 있습니다 · 개인정보를 입력하지 마세요</div>';
     document.body.appendChild(fab);
     document.body.appendChild(panel);
+    // 닫힘 상태 라벨(2026-08-12) — 챗봇 존재 안내. 클릭 시 열기.
+    fabLabel = document.createElement("button");
+    fabLabel.type = "button";
+    fabLabel.className = "cw-fab-label";
+    fabLabel.textContent = "온누리 AI 챗봇";
+    fabLabel.addEventListener("click", toggle);
+    document.body.appendChild(fabLabel);
+    initResize();
     body = panel.querySelector(".cw-body");
     input = panel.querySelector("textarea");
     sendBtn = panel.querySelector(".cw-send");
@@ -151,9 +160,48 @@
     restore();
   }
 
+  // 패널 크기 조절(2026-08-12) — 좌상단 모서리 드래그. 우하단 고정이라 좌·상으로 끌면 커진다.
+  var SIZE_KEY = "onnuri_chat_size";
+  function applySize(w, h) {
+    panel.style.width = w + "px";
+    panel.style.height = h + "px";
+  }
+  function initResize() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(SIZE_KEY) || "null");
+      if (saved && window.innerWidth > 600) applySize(saved.w, saved.h);
+    } catch (e) {}
+    var grip = panel.querySelector(".cw-resize");
+    grip.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      var r = panel.getBoundingClientRect();
+      var startX = e.clientX, startY = e.clientY, startW = r.width, startH = r.height;
+      try { grip.setPointerCapture(e.pointerId); } catch (err) {}
+      function onMove(ev) {
+        var w = Math.min(Math.max(startW + (startX - ev.clientX), 320), Math.min(720, window.innerWidth - 40));
+        var h = Math.min(Math.max(startH + (startY - ev.clientY), 420), window.innerHeight - 110);
+        applySize(Math.round(w), Math.round(h));
+      }
+      function onUp(ev) {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        try { grip.releasePointerCapture(ev.pointerId); } catch (err) {}
+        var rr = panel.getBoundingClientRect();
+        try { localStorage.setItem(SIZE_KEY, JSON.stringify({ w: Math.round(rr.width), h: Math.round(rr.height) })); } catch (err) {}
+      }
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+    });
+    grip.addEventListener("dblclick", function () {   // 초기화
+      panel.style.width = ""; panel.style.height = "";
+      try { localStorage.removeItem(SIZE_KEY); } catch (e) {}
+    });
+  }
+
   function toggle() {
     var open = panel.classList.toggle("open");
     fab.classList.toggle("open", open);
+    if (fabLabel) fabLabel.hidden = open;
     fab.setAttribute("aria-label", open ? "챗봇 닫기" : "온누리 가이드 챗봇 열기");
     if (open) { ensureLibs().then(rerenderAll); input.focus(); scrollEnd(); }
   }
