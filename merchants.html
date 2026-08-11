@@ -1200,7 +1200,7 @@
       return { lat: c.latSum / c.count, lng: c.lngSum / c.count, count: c.count };
     });
   }
-  function renderClusters() {
+  function renderClusters(fit) {
     CLUSTER_MODE = true;
     var seq = ++clusterSeq, g = gridForZoom();
     var done = function (cells) {
@@ -1220,7 +1220,8 @@
         });
         clusterMarkers.push(mk); bounds.extend(pos);
       });
-      if (cells.length && !MAP_BOUNDS) mapObj.fitBounds(bounds);
+      // fit은 필터 변경 직후 1회만 — 줌 재클러스터에서 fit하면 사용자의 줌이 되돌아간다
+      if (fit && cells.length && !MAP_BOUNDS) mapObj.fitBounds(bounds);
     };
     if (MODE === "json") {
       done(localClusters(SNAP.mapClusterRows || [], g));
@@ -1263,7 +1264,7 @@
       if (trunc) trunc.hidden = true;
       note.innerHTML = "현재 <b>" + nf(SNAP.mapTotal) + "곳</b> — 지도에는 <b>묶음(클러스터)</b>으로 표시 중입니다. "
         + "숫자를 누르면 확대되고, " + nf(MAP_MAX) + "곳 이하로 좁히면 개별 마커로 전환됩니다.";
-      renderClusters();
+      renderClusters(true);
       return;
     }
     CLUSTER_MODE = false; clearClusterMarkers();
