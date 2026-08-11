@@ -33,6 +33,14 @@
 적재: `python3 _workspace/dev_scripts/build_rag_corpus.py` (전체 교체·멱등, `--dry-run`/`--selftest` 지원).
 2026-08-11 기준 130청크. V2__rag_chunk.sql(HNSW cosine) 선행 필요 — db 이미지 `pgvector/pgvector:pg16`.
 
+## 인텐트 사전필터 (2026-08-11)
+
+본 호출 전에 `OpenAiClient.isOnTopic(질문, 직전답변)` 경량 분류(luna, reasoning_effort none,
+structured output {on_topic}, ~200tok)로 범위 밖 질문을 차단한다 — 표준 거절(`ChatService.OFF_TOPIC_REPLY`)을
+본 루프 없이 즉시 스트림(실측 ~2초). 설계 원칙: **애매하면 통과**(정상 질문 오탐 방지 — 최종 방어선은
+시스템 프롬프트 거절), **분류 실패는 fail-open**(분류기 장애가 챗을 죽이면 안 됨). 후속 질문 오탐 방지를
+위해 직전 답변 300자를 맥락으로 동봉. 계약: IntentGateTest(범위밖=본호출 0회·거절문구, 범위내=통과, 맥락 전달).
+
 ## 원칙 (기존 프로젝트 원칙의 챗 확장)
 
 1. **숫자는 도구만**: 가맹점 수·존재 여부는 search_merchants 결과만 인용(코퍼스에 숫자 없음).
