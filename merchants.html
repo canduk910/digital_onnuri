@@ -79,6 +79,9 @@
   /* min-width는 결과 표(.table-scroll 안)에만 — 맨 table 셀렉터로 두면 챗 위젯 등
      다른 표까지 오염된다(2026-08-11 결함: 위젯 말풍선 표가 880px로 삐져나감). */
   .table-scroll table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:880px; }
+  /* 컬럼 구분선 상시 표시(2026-08-11 사용자 요청) — hover 전에도 열 경계가 보이게.
+     은은한 톤(--border)으로 행 경계보다 약하게, 마지막 열은 제외. */
+  .table-scroll th:not(:last-child), .table-scroll td:not(:last-child) { border-right:1px solid var(--border); }
   th { position:relative; padding:11px 16px; text-align:left; font-size:10.5px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); background:var(--surface); border-bottom:1px solid var(--border); white-space:nowrap; }
   /* 컬럼 폭 드래그 그립 — 헤더 우측 경계 */
   .col-grip { position:absolute; top:0; right:-5px; bottom:0; width:10px; cursor:col-resize; z-index:3; touch-action:none; }
