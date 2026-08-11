@@ -180,7 +180,7 @@
   </main>
 
 <script src="shell.js?v=1"></script>
-<script src="chat-widget.js?v=2" defer></script>
+<script src="chat-widget.js?v=3" defer></script>
 <script src="config.js"></script>
 <script>
 (function () {
@@ -426,20 +426,33 @@
     });
   }
 
-  // 챗봇 이동 카드 등 외부 진입: ?kind=shopping|delivery&cat=대분류id|라벨&brand=브랜드&q=검색어
+  // 챗봇 이동 카드 등 외부 진입. 1순위 sessionStorage(주소창 비노출·읽는 즉시 삭제),
+  // 2순위 URL 파라미터(직접 링크 호환): ?kind=shopping|delivery&cat=대분류id|라벨&brand=브랜드&q=검색어
   function applyUrlParams() {
-    var p; try { p = new URLSearchParams(location.search); } catch (e) { return; }
-    var kind = p.get("kind");
-    if (kind === "shopping" || kind === "delivery") state.kind = kind;
-    var cat = p.get("cat");
-    if (cat) {
+    var o = null;
+    try {
+      var raw = sessionStorage.getItem("onnuri_nav_filter");
+      if (raw) {
+        sessionStorage.removeItem("onnuri_nav_filter");
+        var d = JSON.parse(raw);
+        if (d && d.page === "online" && d.params) o = d.params;
+      }
+    } catch (e) {}
+    if (!o) {
+      try {
+        var p = new URLSearchParams(location.search);
+        o = { kind: p.get("kind"), cat: p.get("cat"), brand: p.get("brand"), q: p.get("q") };
+      } catch (e) { return; }
+    }
+    if (o.kind === "shopping" || o.kind === "delivery") state.kind = o.kind;
+    if (o.cat) {
       TAXONOMY.forEach(function (t) {
-        if (t.id === cat || t.label === cat) state.cat = t.id;
-        (t.subs || []).forEach(function (s2) { if (s2.id === cat || s2.label === cat) { state.cat = t.id; state.sub = s2.id; } });
+        if (t.id === o.cat || t.label === o.cat) state.cat = t.id;
+        (t.subs || []).forEach(function (s2) { if (s2.id === o.cat || s2.label === o.cat) { state.cat = t.id; state.sub = s2.id; } });
       });
     }
-    if (p.get("brand")) state.brand = p.get("brand");
-    if (p.get("q")) { state.q = p.get("q"); var qi = el("q"); if (qi) qi.value = state.q; }
+    if (o.brand) state.brand = o.brand;
+    if (o.q) { state.q = o.q; var qi = el("q"); if (qi) qi.value = state.q; }
   }
 
   // ---- 이벤트 ----

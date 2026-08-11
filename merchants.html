@@ -395,7 +395,7 @@
 <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=x79smqla3u"></script>
 <script src="lib/MarkerClustering.js"></script>
 <script src="shell.js?v=1"></script>
-<script src="chat-widget.js?v=2" defer></script>
+<script src="chat-widget.js?v=3" defer></script>
 <script src="config.js"></script>
 <script>
 (function () {
@@ -517,13 +517,19 @@
   // 브랜드 순위: 서버 facet(base 컨텍스트) 그대로 [[brand,count],...] (건수순, 서버 정렬).
 
   // ---- API ----
+  // 2026-08-11 GET→POST 전환: 검색 필터값이 URL 쿼리스트링(히스토리·프록시·서버 로그)에
+  // 남지 않도록 JSON 본문으로 보낸다. 서버는 GET·POST 병행(계약: SearchBodyTest).
   function apiGet(path, params) {
-    var u = new URL(API_BASE + path);
+    var body = {};
     Object.keys(params || {}).forEach(function (k) {
       var v = params[k];
-      if (v !== undefined && v !== null && v !== "") u.searchParams.set(k, v);
+      if (v !== undefined && v !== null && v !== "") body[k] = v;
     });
-    return fetch(u.toString()).then(function (r) {
+    return fetch(API_BASE + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
     });
@@ -1370,21 +1376,35 @@
     }).catch(function () { loadingSido = null; renderSidoTabs(); renderLoadError(sido); });
   }
 
-  // ---- URL 파라미터 진입 (챗봇 이동 카드 등 외부 링크) ----
-  // ?region=서울&si=수원시&gu=동작구&dong=노량진동&cat=편의점&brand=GS25&q=검색어
-  var URL_PARAMS = (function () {
-    try { var p = new URLSearchParams(location.search); return p.keys().next().done ? null : p; }
-    catch (e) { return null; }
+  // ---- 외부 진입 필터 (챗봇 이동 카드 등) ----
+  // 1순위: sessionStorage onnuri_nav_filter (주소창 비노출 — 읽는 즉시 삭제, 2026-08-11)
+  // 2순위: URL 파라미터 ?region=…&gu=…&brand=… (직접 링크 공유용 호환)
+  var NAV_FILTER = (function () {
+    try {
+      var raw = sessionStorage.getItem("onnuri_nav_filter");
+      if (raw) {
+        sessionStorage.removeItem("onnuri_nav_filter");
+        var d = JSON.parse(raw);
+        if (d && d.page === "merchants" && d.params) return d.params;
+      }
+    } catch (e) {}
+    try {
+      var p = new URLSearchParams(location.search);
+      if (p.keys().next().done) return null;
+      var o = {};
+      ["region", "si", "gu", "dong", "cat", "brand", "q"].forEach(function (k) { if (p.get(k)) o[k] = p.get(k); });
+      return Object.keys(o).length ? o : null;
+    } catch (e) { return null; }
   })();
-  function applyUrlParams() {
-    var p = URL_PARAMS; if (!p) return;
+  function applyNavFilter() {
+    var p = NAV_FILTER; if (!p) return;
     var chain = Promise.resolve();
-    if (p.get("si")) chain = chain.then(function () { state.si = p.get("si"); return loadRegionOptions(); });
-    if (p.get("gu")) chain = chain.then(function () { state.gu = p.get("gu"); return loadRegionOptions(); });
-    if (p.get("dong")) chain = chain.then(function () { state.dong = p.get("dong"); });
-    if (p.get("cat")) state.cat = p.get("cat");
-    if (p.get("brand")) state.brand = p.get("brand");
-    if (p.get("q")) { state.q = p.get("q"); var qi = el("q"); if (qi) qi.value = state.q; }
+    if (p.si) chain = chain.then(function () { state.si = p.si; return loadRegionOptions(); });
+    if (p.gu) chain = chain.then(function () { state.gu = p.gu; return loadRegionOptions(); });
+    if (p.dong) chain = chain.then(function () { state.dong = p.dong; });
+    if (p.cat) state.cat = p.cat;
+    if (p.brand) state.brand = p.brand;
+    if (p.q) { state.q = p.q; var qi = el("q"); if (qi) qi.value = state.q; }
     return chain.then(function () { state.page = 1; renderRegionSelects(); return refresh("all"); });
   }
 
@@ -1435,10 +1455,10 @@
     resolveMode().then(function () {
       // 탭 배지 프리페치는 API 모드에서만(각 시도 size=1 카운트). JSON 모드는 파일 전체를 받게 되므로 생략.
       if (MODE === "api") SIDO.forEach(function (s) { loadSidoTotal(s.key).then(renderSidoTabs).catch(function () {}); });
-      var rg = URL_PARAMS && URL_PARAMS.get("region");
+      var rg = NAV_FILTER && NAV_FILTER.region;
       if (rg && SIDO.some(function (s) { return s.key === rg; })) state.sido = rg;
       var pr = selectSido(state.sido);
-      if (URL_PARAMS && pr && pr.then) pr.then(applyUrlParams);
+      if (NAV_FILTER && pr && pr.then) pr.then(applyNavFilter);
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

@@ -73,3 +73,9 @@
 - 결정: ①RAG — pgvector(HNSW)·text-embedding-3-small, 코퍼스=검증된 내부 자산+공식 채록(onnuri.gift FAQ 69건·voucher·공지, semas 4페이지). 파인튜닝 기각(날짜 종속 정보·재학습 비용·출처 인용 불가). ②서버(Spring gift.onnuri.chat)가 gpt-5.6-luna 도구 루프 소유(최대 3왕복): search_policy/search_online(RAG), search_merchants(기존 MerchantService 재사용), navigate(SSE action→위젯 확인 카드, 임의 이동 금지). 도구 결과는 대화 재주입("결과 재-RAG"). ③POST /api/chat SSE, stateless(이력은 프론트 sessionStorage→요청 동봉). 위젯=chat-widget.js/css, marked+DOMPurify+mermaid 첫 오픈 시 CDN 지연 로드, mermaid base 테마+오렌지 themeVariables. 최종 답변은 서버가 비스트리밍 수신 후 청크 SSE(OpenAI 스트림 파싱 복잡도 회피 — 응답 짧아 지연 허용).
 - 근거: 키 보호(서버만)·폴백 대칭 원칙 유지. 비용 통제는 IP rate limit(분10·일200, 인메모리 — 단일 인스턴스 ADR-5). LLM 출력은 DOMPurify 필수(신뢰 불가 입력). 숫자는 도구 실시간 조회만(데이터 신선도 원칙).
 - 결과·롤백: config.js chatEnabled=false로 위젯 즉시 제거 가능. db 이미지 pgvector/pgvector:pg16(pgdata 유지). 적재는 build_rag_corpus.py(멱등 전체 교체). OPENAI_API_KEY 미설정 시 챗만 비활성(다른 API 무영향). 갱신: 코퍼스 재수집 후 스크립트 재실행.
+
+## ADR-13: 검색 API GET→POST + 착지 URL 파라미터 비노출 (2026-08-11)
+- 맥락: 사용자 요청 — 검색 필터값(지역·브랜드·검색어)이 ①API GET 쿼리스트링(브라우저 히스토리·프록시·서버 액세스 로그) ②챗 이동 카드 착지 주소창에 노출.
+- 결정: ①검색 5종(merchants·facets·map·regions·brands)에 POST(JSON body, SearchBody) 병행 추가 — 프론트는 POST만 사용, GET은 운영 curl·회귀 스크립트 호환용 유지. 프로브(size=1, 필터 없음)만 GET 잔존. ②챗 착지는 sessionStorage(onnuri_nav_filter) 핸드오프 — 페이지가 읽는 즉시 삭제, 주소창은 클린 URL. URL 파라미터 진입은 직접 링크 호환용 2순위로 유지.
+- 근거: 필터값은 민감정보는 아니나 위치·관심사 이력이 로그에 남는 것 자체를 차단. GET 제거 대신 병행: 회귀 기준값 curl·외부 스크립트 비파괴. 계약은 SearchBodyTest가 고정.
+- 결과·롤백: 프론트 apiGet 구현만 되돌리면 GET 복귀. 회귀 기준값 검증 명령(dev-testing)은 GET 그대로 유효.
