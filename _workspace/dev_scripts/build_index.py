@@ -378,7 +378,7 @@ SHELL = (
     "    <div class=\"sb-group\">사용 가이드</div>\n"
     "    <a class=\"sb-item active\" href=\"#offline\" aria-current=\"page\">오프라인 사용처</a>\n"
     "    <a class=\"sb-item\" href=\"#online\">온라인 가맹 플랫폼</a>\n"
-    "    <a class=\"sb-item\" href=\"#payment\">결제 방법</a>\n"
+    "    <a class=\"sb-item\" href=\"payment.html\">결제 방법</a>\n"
     "    <a class=\"sb-item\" href=\"#terms\">용어·유의사항</a>\n"
     "    <div class=\"sb-group\">가맹점 검색</div>\n"
     "    <a class=\"sb-item\" href=\"merchants.html#sidoTabs\">가맹점 찾기</a>\n"

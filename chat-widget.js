@@ -243,6 +243,7 @@
     if (a.page === "guide") {
       return "index.html" + (params.hash ? "#" + params.hash : "");
     }
+    if (a.page === "payment") return "payment.html";
     // 검색 조건을 주소창에 노출하지 않는다(2026-08-11) — sessionStorage 핸드오프.
     // 착지 페이지가 onnuri_nav_filter를 읽고 즉시 삭제한다(같은 탭 1회성).
     var page = a.page === "online" ? "online.html" : "merchants.html";

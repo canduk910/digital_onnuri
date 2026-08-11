@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 방법 — 코스콤 디지털온누리 가이드</title>
+<link rel="stylesheet" href="shell.css?v=1">
+<link rel="stylesheet" href="chat-widget.css?v=5">
+<style>
+  /* 결제 방법 상세 페이지 전용 스타일 — 공통 셸은 shell.css (ADR-9) */
+  .page-head { position:relative; margin-bottom:26px; padding-top:6px; }
+  .page-head::after { content:"온"; position:absolute; right:-8px; top:-46px; font-size:190px; font-weight:900;
+    color:var(--accent); opacity:.045; line-height:1; pointer-events:none; user-select:none; z-index:-1; }
+  h1 { font-family:var(--font-display); font-size:clamp(32px, 4.4vw, 50px); font-weight:700; letter-spacing:-0.035em; line-height:1.08; margin-bottom:10px; }
+  .subtitle { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent-press); margin-bottom:8px; }
+  .meta-line { font-size:13px; color:var(--text-sub); }
+
+  /* 방식 비교 카드 2장 */
+  .method-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; margin:20px 0 30px; }
+  .method-card { background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); padding:20px 22px; }
+  .method-card .m-badge { display:inline-flex; padding:3px 10px; border-radius:var(--r-sm); font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px; }
+  .method-card.card-type .m-badge { background:var(--accent); color:#fff; }
+  .method-card.qr-type .m-badge { background:var(--text); color:#fff; }
+  .method-card h3 { font-family:var(--font-display); font-size:19px; font-weight:700; margin-bottom:6px; }
+  .method-card p { font-size:13.5px; color:var(--text-sub); line-height:1.65; }
+  .method-card .m-for { margin-top:10px; font-size:12.5px; color:var(--text); }
+  .method-card .m-for b { color:var(--accent-press); }
+
+  /* 섹션 */
+  .sec { margin:34px 0 8px; }
+  .sec h2 { font-family:var(--font-display); font-size:clamp(22px, 2.6vw, 30px); font-weight:700; letter-spacing:-0.03em; margin-bottom:4px; }
+  .sec .sec-sub { font-size:13px; color:var(--text-faint); margin-bottom:16px; }
+
+  /* 단계 타임라인 */
+  .steps { display:flex; flex-direction:column; gap:0; margin:14px 0; }
+  .step { display:flex; gap:14px; padding:13px 4px; border-bottom:1px dashed var(--border); }
+  .step:last-child { border-bottom:none; }
+  .step .no { flex:none; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .step.alt .no { background:var(--text); }
+  .step .st-tit { font-size:14.5px; font-weight:800; margin-bottom:2px; }
+  .step .st-tit .tag { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:var(--r-sm); background:var(--accent-soft); color:var(--accent-press); font-size:11px; font-weight:800; vertical-align:2px; }
+  .step p { font-size:13.5px; color:var(--text-sub); line-height:1.6; }
+
+  /* 핵심 포인트 박스 — 폰트 확대·오렌지 강조 */
+  .point { background:var(--accent-soft); border:1px solid var(--accent-line); border-left:4px solid var(--accent); border-radius:var(--r-md); padding:18px 20px; margin:18px 0; }
+  .point .p-label { font-size:11px; font-weight:900; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent-press); margin-bottom:6px; }
+  .point .p-main { font-size:17px; font-weight:800; line-height:1.55; letter-spacing:-0.015em; color:var(--text); }
+  .point .p-main .hl { color:var(--accent-press); }
+  .point .p-sub { margin-top:8px; font-size:13px; color:var(--text-sub); line-height:1.65; }
+  .point .p-sub b { color:var(--text); }
+  .point.warn { background:var(--warn-soft); border-color:#EAD9B8; border-left-color:var(--warn); }
+  .point.warn .p-label { color:var(--warn); }
+  .point.warn .p-main .hl { color:var(--warn); }
+
+  /* 예시 계산 박스 */
+  .example { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-top:12px; }
+  .ex-case { background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:12px 14px; font-size:13px; line-height:1.6; }
+  .ex-case .ex-amt { font-family:var(--font-display); font-size:20px; font-weight:700; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
+  .ex-case .ok { color:var(--ok); font-weight:800; }
+  .ex-case .no2 { color:var(--warn); font-weight:800; }
+
+  /* 카드사 목록 */
+  .issuers { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+  .issuers span { padding:5px 12px; border:1px solid var(--border-2); border-radius:999px; font-size:12.5px; font-weight:600; color:var(--text-sub); background:var(--bg); }
+
+  /* 공통 규정 표 */
+  table.rules { width:100%; border-collapse:collapse; font-size:13.5px; margin:12px 0; }
+  .rules th { background:var(--surface); text-align:left; font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-faint); padding:10px 14px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .rules td { padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:top; line-height:1.6; }
+  .rules td:first-child { font-weight:700; white-space:nowrap; }
+  .rules td .hl { color:var(--accent-press); font-weight:800; }
+
+  .foot-note { margin-top:34px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-faint); line-height:1.7; }
+  .foot-note strong { color:var(--text-sub); }
+
+  @media (max-width:959px){ .page-head::after { display:none; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="hamburger" id="navToggle" aria-label="메뉴 열기" aria-expanded="false">☰</button>
+  <span class="topbar-brand"><img class="ci-img ci-img-sm" src="assets/koscom_ci.png" alt="koscom"> 코스콤 디지털온누리 가이드</span>
+</header>
+<div class="overlay" id="navOverlay" hidden></div>
+
+<aside class="sidebar" id="sidebar">
+  <a class="sb-logo" href="index.html">
+    <img class="ci-img" src="assets/koscom_ci.png" alt="koscom">
+    <span class="sb-logo-txt">코스콤 디지털온누리 가이드</span>
+  </a>
+  <nav class="sb-nav" aria-label="사이트 메뉴">
+    <div class="sb-group">사용 가이드</div>
+    <a class="sb-item" href="index.html#offline">오프라인 사용처</a>
+    <a class="sb-item" href="index.html#online">온라인 가맹 플랫폼</a>
+    <a class="sb-item active" href="payment.html" aria-current="page">결제 방법</a>
+    <a class="sb-item" href="index.html#terms">용어·유의사항</a>
+    <div class="sb-group">가맹점 검색</div>
+    <a class="sb-item" href="merchants.html">가맹점 찾기</a>
+    <a class="sb-item" href="online.html">온라인 사용처 찾기</a>
+  </nav>
+  <div class="sb-width" role="group" aria-label="화면 폭 조절">
+    <span class="sb-width-label">화면 폭</span>
+    <button type="button" data-pw="narrow">좁게</button>
+    <button type="button" data-pw="">표준</button>
+    <button type="button" data-pw="wide">넓게</button>
+  </div>
+  <a class="sb-ext" href="https://www.onnuri.gift/place" target="_blank" rel="noopener">공식 가맹점 지도 ↗</a>
+</aside>
+
+<main class="content">
+  <div class="content-inner">
+    <div class="page-head">
+      <div class="subtitle">Payment Guide</div>
+      <h1>결제 방법 — 카드형 · 앱(QR)형</h1>
+      <p class="meta-line">디지털온누리상품권으로 실제 계산대·온라인에서 결제하는 방법을 단계별로 정리했습니다.</p>
+    </div>
+
+    <div class="method-grid">
+      <div class="method-card card-type">
+        <span class="m-badge">카드형</span>
+        <h3>쓰던 카드 그대로, 잔액이 먼저 빠진다</h3>
+        <p>디지털온누리 앱에 <b>본인 명의 카드를 등록</b>하고 충전하면, 가맹점에서 그 카드로 결제할 때 상품권 잔액이 먼저 차감됩니다. 결제 순간 앱을 열 필요가 없습니다.</p>
+        <p class="m-for">이런 분께: <b>평소 카드 결제가 익숙하고, 지갑에서 카드만 꺼내고 싶은 분</b></p>
+      </div>
+      <div class="method-card qr-type">
+        <span class="m-badge">앱(QR)형</span>
+        <h3>실물 카드 없이, 폰의 QR로</h3>
+        <p>앱의 <b>QR 결제</b>로 가맹점 QR을 스캔하거나 내 QR을 점주에게 보여줘 결제합니다. 카드 등록 없이도 계좌 충전만으로 사용할 수 있습니다.</p>
+        <p class="m-for">이런 분께: <b>카드 없이 폰만 들고 다니거나, 시장 QR 결제가 익숙한 분</b></p>
+      </div>
+    </div>
+
+    <!-- ═══════════ 카드형 ═══════════ -->
+    <section class="sec" id="card">
+      <h2>카드형 — 등록 카드로 결제하면 충전 잔액 선차감</h2>
+      <div class="sec-sub">별도 카드 발급 없음 · 결제 순간 앱 실행 불필요</div>
+
+      <div class="steps">
+        <div class="step"><span class="no">1</span><div>
+          <div class="st-tit">카드 등록</div>
+          <p>디지털온누리 앱 → 카드형 상품권 → <b>본인 명의</b> 신용·체크카드 등록 (참여 카드사 기준)</p>
+        </div></div>
+        <div class="step"><span class="no">2</span><div>
+          <div class="st-tit">충전</div>
+          <p>계좌 연결 후 충전 — 할인 적용, 월 한도 내 · 충전액이 곧 상품권 잔액</p>
+        </div></div>
+        <div class="step"><span class="no">3</span><div>
+          <div class="st-tit">결제</div>
+          <p>가맹점에서 등록해 둔 카드를 <b>그대로 제시·결제</b> — 앱 실행·QR 필요 없음</p>
+        </div></div>
+        <div class="step"><span class="no">4</span><div>
+          <div class="st-tit">선차감 <span class="tag">핵심</span></div>
+          <p>가맹점이면 상품권 잔액에서 우선 차감 · 미가맹 점포면 차감 없이 전액 일반 카드 결제</p>
+        </div></div>
+        <div class="step"><span class="no">5</span><div>
+          <div class="st-tit">확인</div>
+          <p>앱 알림·거래내역에서 차감액 확인 — 차감이 없으면 미가맹 점포라는 뜻</p>
+        </div></div>
+      </div>
+
+      <div class="point">
+        <div class="p-label">Point 1 — 결제는 카드로, 대금은 상품권에서</div>
+        <div class="p-main">결제 승인은 <span class="hl">등록한 카드로 정상 진행</span>되고, 대금은 <span class="hl">상품권 충전 잔액에서 차감</span>됩니다.</div>
+        <div class="p-sub">공식 안내 표현으로 "보유 카드를 등록해 <b>카드결제 방식과 동일하게</b> 사용"하는 구조입니다. 계산대에서 점주도 일반 카드 결제와 똑같이 처리합니다 — 온누리 가맹점이면 잔액이 먼저 빠지고, 아니면 그냥 카드 결제가 됩니다.</div>
+      </div>
+
+      <div class="point">
+        <div class="p-label">Point 2 — 카드 실적 인정 여부</div>
+        <div class="p-main">카드 승인이 정상 발생하므로 <span class="hl">전월 실적에 포함될 수 있습니다</span> — 단, <span class="hl">카드사별로 정책이 다릅니다.</span></div>
+        <div class="p-sub"><b>롯데카드는 공식 공지로 확인됨</b>: 개인 신용·체크카드의 온누리상품권 결제 시 <b>전월실적 포함, 카드서비스(할인 등 혜택)는 미적용</b>. 다른 카드사는 공식 공지를 확인하지 못했습니다 — 실적·적립 인정 여부는 <b>이용 중인 카드사 앱·고객센터에서 직접 확인</b>하세요. (확인된 것만 적는다는 원칙에 따라, 타사도 된다고 단정하지 않습니다)</div>
+      </div>
+
+      <div class="point warn">
+        <div class="p-label">Point 3 — 잔액보다 큰 금액을 결제하면</div>
+        <div class="p-main">충전 잔액이 부족하면 <span class="hl">부족분만이 아니라 전액이 일반 카드로 결제</span>됩니다.</div>
+        <div class="p-sub">공식몰 안내 기준 — 잔액보다 큰 금액을 결제하기 전에는 <b>앱에서 잔액을 먼저 확인</b>하세요. (앱의 '부족액 자동충전' 기능을 켜면 부족분을 자동 충전해 결제할 수도 있습니다 — 2026-03 배포)</div>
+        <div class="example">
+          <div class="ex-case">충전 잔액 50,000원 · <span class="ex-amt">49,000원</span> 결제<br>→ <span class="ok">상품권 잔액에서 49,000원 차감</span></div>
+          <div class="ex-case">충전 잔액 50,000원 · <span class="ex-amt">51,000원</span> 결제<br>→ <span class="no2">전액 51,000원 일반 카드 결제</span> (차감 0원)</div>
+        </div>
+      </div>
+
+      <div class="sec-sub" style="margin-top:18px">등록 가능 카드사 (공식 온라인 전통시장관 안내 기준)</div>
+      <div class="issuers">
+        <span>신한</span><span>현대</span><span>삼성</span><span>KB국민·전북</span><span>농협</span><span>롯데</span>
+        <span>BC 계열 14곳 (기업·우리·대구·부산·경남·새마을금고·케이뱅크·수협·제주·신협·광주·우체국 등)</span>
+      </div>
+    </section>
+
+    <!-- ═══════════ 앱(QR)형 ═══════════ -->
+    <section class="sec" id="qr">
+      <h2>앱(QR)형 — 실물 카드 없이 폰으로</h2>
+      <div class="sec-sub">QR을 찍거나 보여주고 충전 잔액에서 바로 차감</div>
+
+      <div class="steps">
+        <div class="step alt"><span class="no">1</span><div>
+          <div class="st-tit">앱 설치·가입</div>
+          <p>'디지털온누리' 통합앱 설치 후 본인 명의 휴대폰으로 가입 (2025.3.1부터 카드형·모바일형이 이 앱 하나로 통합 — 한국조폐공사 운영)</p>
+        </div></div>
+        <div class="step alt"><span class="no">2</span><div>
+          <div class="st-tit">충전</div>
+          <p>앱에서 충전하면 곧 상품권 잔액 — 할인 적용, 월 한도 내 (카드형과 동일)</p>
+        </div></div>
+        <div class="step alt"><span class="no">3</span><div>
+          <div class="st-tit">QR 결제</div>
+          <p>앱의 'QR 결제'에서 <b>가맹점 QR을 스캔</b>해 금액을 입력하거나, <b>내 QR을 만들어 점주에게 제시</b></p>
+        </div></div>
+        <div class="step alt"><span class="no">4</span><div>
+          <div class="st-tit">인증·차감</div>
+          <p>간편비밀번호·지문 등으로 인증하면 충전 잔액에서 차감</p>
+        </div></div>
+        <div class="step alt"><span class="no">5</span><div>
+          <div class="st-tit">확인</div>
+          <p>앱 알림·잔액에서 차감 확인 — 카드형과 마찬가지로 차감이 없으면 미가맹 점포라는 뜻</p>
+        </div></div>
+      </div>
+
+      <div class="point">
+        <div class="p-label">Point — 두 방식의 차이는 "결제 순간"뿐</div>
+        <div class="p-main">카드형은 <span class="hl">실물 카드만 내밀면</span> 되고, 앱(QR)형은 <span class="hl">결제할 때 앱을 열어 QR</span>을 씁니다.</div>
+        <div class="p-sub">충전·할인·한도·잔액은 하나의 상품권으로 공유됩니다. 결제 취소는 <b>결제일로부터 7일 이내 가맹점주에게 요청</b> — 카드결제는 카드사 취소 절차, QR결제는 점주가 실시간 취소합니다(공식 FAQ).</div>
+      </div>
+    </section>
+
+    <!-- ═══════════ 공통 규정 ═══════════ -->
+    <section class="sec" id="rules">
+      <h2>공통 규정 — 할인·한도·환불·소득공제</h2>
+      <div class="sec-sub">두 방식 모두 동일하게 적용</div>
+      <table class="rules">
+        <tbody>
+        <tr><td>할인율</td><td><span class="hl">7%</span> (2026-03-01 시행 공식 공지 기준 · 법인구매는 할인 없음)</td></tr>
+        <tr><td>충전 한도</td><td>월 최대 <span class="hl">200만 원</span> (공식 FAQ 기준 — 예산에 따라 변동 가능)</td></tr>
+        <tr><td>충전 취소</td><td>충전 후 <span class="hl">7일 이내·미사용</span> 시 앱에서 취소 가능</td></tr>
+        <tr><td>잔액 환불</td><td>7일 경과 또는 일부 사용 시, <span class="hl">60% 이상 사용</span>해야 잔액 환불 가능</td></tr>
+        <tr><td>결제 취소</td><td>결제일로부터 <span class="hl">7일 이내</span> 가맹점주에게 요청</td></tr>
+        <tr><td>소득공제</td><td>전통시장 사용분 소득공제 대상 — 디지털 상품권은 앱에서 <b>연말정산 정보 제공 동의</b> 시 자동 반영 (전통시장 사용분은 추가 100만 원 한도 공제 적용, 국세청 등록 전통시장 기준)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="foot-note">
+      <strong>출처</strong> — 온누리상품권 공식 홈페이지(onnuri.gift) 이용방법·FAQ·공지(2026-08-11 수집), 소상공인시장진흥공단 안내, 공식 온라인 전통시장관 '온누리시장' 카드형 안내(잔액 부족 예시·카드사 목록), 롯데카드 공지(실적 포함·서비스 미적용). 카드 실적·혜택은 카드사 정책 변경 시 달라질 수 있습니다.<br>
+      ※ 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong>정확하지 않을 수 있습니다</strong> — 내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.
+    </div>
+  </div>
+</main>
+
+<script src="shell.js?v=1"></script>
+<script src="chat-widget.js?v=6" defer></script>
+<script src="config.js?v=1"></script>
+</body>
+</html>

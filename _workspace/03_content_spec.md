@@ -229,3 +229,13 @@ merchants.html 진입 링크("수도권 가맹점 검색 ↗")가 지금 오프�
 | 배너·각주 실측일 | min(surveyed_on) |
 
 **데이터:** data/online_catalog.json (meta+taxonomy+items; id는 online_platforms.json 조인 키). 갱신 시 config.js dataVersion 올림.
+
+## S17. 결제 방법 상세 페이지 (payment.html) — 2026-08-11 신설
+
+사용자 요청: 결제 방법을 index 오프라인 탭 하위 아코디언에서 별도 페이지로 분리, 카드·앱별 상세 + 포인트 강조(폰트·색상).
+
+- 구성: 방식 비교 카드 2장 → 카드형 5단계 + POINT 3개(결제·차감 구조 / 카드 실적 / 잔액 부족) → 앱(QR)형 5단계 + POINT 1개 → 공통 규정 표(할인 7%·한도 200만·취소 7일·환불 60%·소득공제) → 출처·AI 면책.
+- 단정 강도: 카드 실적은 **롯데카드만 공식 공지 확인** — 타사는 "각 사 확인" 서술(단정 금지). 잔액 부족 전액 카드결제는 공식몰('온누리시장') 예시(49,000/51,000) 그대로 인용.
+- 출처: onnuri.gift FAQ·공지, semas, 온누리시장 카드형 안내(카드사 목록 포함), 롯데카드 공지. 코퍼스 card_payment_details.md와 1:1 — 페이지·챗봇 답변이 같은 사실을 말해야 한다.
+- 내비: 3페이지+index 사이드바 '결제 방법' → payment.html. index 내 기존 결제 흐름 아코디언(S9·S10)과 해시 라우터(#payment)는 요약용으로 유지. 챗 navigate에 payment 페이지 추가.
+- 갱신: 할인율·한도·실적 정책 변경 시 이 페이지와 card_payment_details.md를 함께 수정 후 build_rag_corpus.py 재적재.
