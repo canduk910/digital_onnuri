@@ -1204,7 +1204,7 @@
     CLUSTER_MODE = true;
     var seq = ++clusterSeq, g = gridForZoom();
     var done = function (cells) {
-      if (seq !== clusterSeq) return;   // 최신 요청만 반영
+      if (seq !== clusterSeq || !CLUSTER_MODE) return;   // 최신 요청 + 클러스터 모드일 때만 반영
       clearMarkers(); clearClusterMarkers();
       var bounds = new naver.maps.LatLngBounds();
       cells.forEach(function (c) {
@@ -1267,7 +1267,7 @@
       renderClusters(true);
       return;
     }
-    CLUSTER_MODE = false; clearClusterMarkers();
+    CLUSTER_MODE = false; clusterSeq++; clearClusterMarkers();   // seq 증가 = 늦게 도착하는 클러스터 응답 무효화
     if (trunc) trunc.hidden = true;
     var rows = SNAP.mapPins;
     if (!rows.length) { note.textContent = "표시할 가맹점이 없습니다."; return; }
