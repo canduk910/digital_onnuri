@@ -9,3 +9,6 @@ _workspace/raw/
 
 # 백엔드는 feat/backend-scaffold 전용 — main 작업트리의 빌드 잔여물 오커밋 방지 (2026-08-11)
 backend/
+
+# 맥 드래그 클리핑 파일 (실수 커밋 방지)
+*.textClipping
