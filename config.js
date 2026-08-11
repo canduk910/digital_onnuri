@@ -19,8 +19,8 @@ window.ONNURI_CONFIG = {
   dataVersion: "2026-08-10",
 
   // 챗봇 위젯(ADR-12) 표시 여부 — 장애·비용 이슈 시 false로 배포하면 즉시 숨김(다른 기능 무영향).
-  // 서버 .env에 OPENAI_API_KEY 등록·검증 전까지 false 유지(미등록 상태로 켜면 사용자에게 오류 안내만 보임).
-  chatEnabled: false
+  // 2026-08-11 서버 키 등록·적재·라이브 검증 완료 → 활성화.
+  chatEnabled: true
 };
 
 // 화면 폭 토글 로직은 shell.js로 이관 (ADR-9) — 이 파일은 데이터 소스 설정만 담는다.
