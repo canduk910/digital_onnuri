@@ -55,3 +55,29 @@
     }
   }, 300);
 })();
+
+/* ── 모바일 PC 최적화 안내 (2026-08-11) ──
+   지도·표·스플리터 등은 넓은 화면 기준 설계라, 모바일 첫 방문 시 한 번만 알린다.
+   닫으면 localStorage(onnuri_pc_notice)로 전 페이지에서 재노출하지 않는다. */
+(function () {
+  "use strict";
+  var KEY = "onnuri_pc_notice";
+  function boot() {
+    try {
+      if (localStorage.getItem(KEY)) return;
+      if (!window.matchMedia("(max-width:959px)").matches) return;
+      var d = document.createElement("div");
+      d.className = "pc-notice show";
+      d.setAttribute("role", "status");
+      d.innerHTML = '이 가이드는 <b>PC 화면에 최적화</b>되어 있습니다 — 모바일에서도 이용은 가능하지만, 지도·표 검색은 PC에서 더 편합니다.'
+        + '<button type="button" class="pcn-close" aria-label="안내 닫기">×</button>';
+      d.querySelector(".pcn-close").addEventListener("click", function () {
+        d.remove();
+        try { localStorage.setItem(KEY, "1"); } catch (e) {}
+      });
+      document.body.appendChild(d);
+    } catch (e) {}
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
