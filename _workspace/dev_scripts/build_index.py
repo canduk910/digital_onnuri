@@ -361,8 +361,8 @@ tpl = replace_once(
 # 가이드 항목=현재 페이지 인페이지 앵커(#offline/#online/#payment/#terms, 해시 라우터가 탭 전환).
 # 검색 항목=merchants.html#앵커(크로스 페이지). 기본 활성=오프라인 사용처.
 SHELL = (
-    "<link rel=\"stylesheet\" href=\"shell.css?v=2\">\n"
-    "<script src=\"shell.js?v=2\"></script>\n"
+    "<link rel=\"stylesheet\" href=\"shell.css?v=3\">\n"
+    "<script src=\"shell.js?v=3\"></script>\n"
     "<link rel=\"stylesheet\" href=\"chat-widget.css?v=5\">\n"
     "<script src=\"config.js?v=1\"></script>\n"
     "<script src=\"chat-widget.js?v=6\" defer></script>\n"

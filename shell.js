@@ -81,3 +81,35 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
+
+/* ── 방문자 카운트 (2026-08-11) ──
+   브라우저 세션당 1회 POST /api/visit(개인정보 미저장 — 일자 카운트만), 이후엔 GET.
+   API 미응답 시 표기 자체를 생략(가이드 기능에 무영향). 계약: VisitContractTest(today/total). */
+(function () {
+  "use strict";
+  var API = (function () {
+    var c = window.ONNURI_CONFIG || {};
+    if (c.apiBase) return c.apiBase.replace(/\/$/, "");
+    var h = location.hostname;
+    if (h === "localhost" || h === "127.0.0.1") return "http://localhost:8080/api";
+    return "https://api.koscomlabor.cloud/api";
+  })();
+  function boot() {
+    var first = !sessionStorage.getItem("onnuri_visited");
+    fetch(API + "/visit", first ? { method: "POST" } : undefined)
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (d) {
+        try { sessionStorage.setItem("onnuri_visited", "1"); } catch (e) {}
+        var sb = document.querySelector(".sidebar .sb-width");
+        if (!sb) return;
+        var el = document.createElement("div");
+        el.className = "sb-visits";
+        var nf = function (n) { return Number(n).toLocaleString("ko-KR"); };
+        el.innerHTML = "방문 오늘 <b>" + nf(d.today) + "</b> · 누적 <b>" + nf(d.total) + "</b>";
+        sb.parentNode.insertBefore(el, sb);
+      })
+      .catch(function () {});
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else setTimeout(boot, 0);
+})();
