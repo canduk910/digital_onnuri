@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="gift.onnuri.chat.ChatContractTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-11T00:07:33" hostname="canduk-MacBook-Pro.local" time="0.008">
-  <properties/>
-  <testcase name="NavigateAction_은_page_params_label_을_노출한다()" classname="gift.onnuri.chat.ChatContractTest" time="0.005"/>
-  <testcase name="SSE_이벤트명은_위젯이_소비하는_문자열과_일치한다()" classname="gift.onnuri.chat.ChatContractTest" time="0.0"/>
-  <testcase name="ChatRequest_는_role_content_메시지_배열을_받는다()" classname="gift.onnuri.chat.ChatContractTest" time="0.001"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
