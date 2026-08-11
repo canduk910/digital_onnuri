@@ -532,6 +532,16 @@ print(f"[OK] 24.radius: pill 999px -> 6px ({_pill_n}개)")
 encoded = json.dumps(tpl, ensure_ascii=False).replace("</", "<\\u002F")
 assert encoded.count("</") == 0, "재인코딩 후에도 리터럴 </ 가 남아 있음 — 스크립트 조기종료 위험"
 bundle_lines[TEMPLATE_LINE_IDX] = encoded
+
+# ---------- 8. 브라우저 탭 제목 (외곽 <title> — 템플릿 밖 정적 라인) ----------
+# 사용자 요청(2026-08-11): 탭 제목을 "코스콤 디지털온누리 가이드"로.
+TITLE_OLD = "  <title>디지털온누리상품권 가이드</title>"
+TITLE_NEW = "  <title>코스콤 디지털온누리 가이드</title>"
+n_title = sum(1 for ln in bundle_lines if ln == TITLE_OLD)
+if n_title != 1:
+    raise SystemExit(f"[FAIL] 외곽 <title> 라인: 기대 1회, 실제 {n_title}회")
+bundle_lines = [TITLE_NEW if ln == TITLE_OLD else ln for ln in bundle_lines]
+
 with open(OUT_BUNDLE, "w", encoding="utf-8") as f:
     f.write("\n".join(bundle_lines))
 
