@@ -1178,6 +1178,9 @@
      격자 크기는 줌에서 계산(셀 ≈ 80px). API 모드는 /merchants/clusters,
      JSON 폴백은 동일 floor 격자 집계를 클라이언트에서 수행(폴백 대칭 원칙). */
   var CLUSTER_MODE = false, clusterMarkers = [], clusterSeq = 0;
+  // 지도범위 검색 해제 직후 1회 — 결과 전체로 fit하지 않고 사용자가 보던 뷰를 유지한다(2026-08-12 제보)
+  var KEEP_VIEW_ONCE = false;
+  function consumeKeepView() { if (KEEP_VIEW_ONCE) { KEEP_VIEW_ONCE = false; return true; } return false; }
   function gridForZoom() {
     var z = mapObj ? mapObj.getZoom() : 10;
     return Math.min(Math.max(112.5 / Math.pow(2, z), 0.001), 2);
@@ -1221,7 +1224,7 @@
         clusterMarkers.push(mk); bounds.extend(pos);
       });
       // fit은 필터 변경 직후 1회만 — 줌 재클러스터에서 fit하면 사용자의 줌이 되돌아간다
-      if (fit && cells.length && !MAP_BOUNDS) mapObj.fitBounds(bounds);
+      if (fit && cells.length && !MAP_BOUNDS && !consumeKeepView()) mapObj.fitBounds(bounds);
     };
     if (MODE === "json") {
       done(localClusters(SNAP.mapClusterRows || [], g));
@@ -1292,7 +1295,7 @@
         if (box) box.textContent = count;
       }
     });
-    if (n && !MAP_BOUNDS) mapObj.fitBounds(bounds); // 지도범위 검색 중엔 사용자가 잡은 뷰 유지
+    if (n && !MAP_BOUNDS && !consumeKeepView()) mapObj.fitBounds(bounds); // 범위검색 중·해제 직후엔 뷰 유지
   }
 
   /* ── 지도범위 검색: 현재 보이는 지도 영역으로 가맹점 필터 ── */
@@ -1308,7 +1311,7 @@
     return true;
   }
   function toggleBoundsSearch() {
-    if (clearBoundsSearch()) { refresh("all"); return; }
+    if (clearBoundsSearch()) { KEEP_VIEW_ONCE = true; refresh("all"); return; }   // 해제 시 현재 뷰 유지
     if (!initMap()) { var note = el("mapNote"); if (note) note.textContent = "지도를 사용할 수 없어 영역 검색을 할 수 없습니다."; return; }
     var bd = mapObj.getBounds(), sw = bd.getSW(), ne = bd.getNE();
     MAP_BOUNDS = { minLat: sw.lat(), maxLat: ne.lat(), minLng: sw.lng(), maxLng: ne.lng() };
