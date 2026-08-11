@@ -16,7 +16,11 @@ window.ONNURI_CONFIG = {
 
   // 데이터(JSON) 캐시 무력화용 버전 — data/merchants/*.json 갱신 때마다 올린다(수집일 사용 권장).
   // 파일명이 동일해 브라우저가 옛 데이터를 캐시하는 것을 방지.
-  dataVersion: "2026-08-10"
+  dataVersion: "2026-08-10",
+
+  // 챗봇 위젯(ADR-12) 표시 여부 — 장애·비용 이슈 시 false로 배포하면 즉시 숨김(다른 기능 무영향).
+  // 서버 .env에 OPENAI_API_KEY 등록·검증 전까지 false 유지(미등록 상태로 켜면 사용자에게 오류 안내만 보임).
+  chatEnabled: false
 };
 
 // 화면 폭 토글 로직은 shell.js로 이관 (ADR-9) — 이 파일은 데이터 소스 설정만 담는다.

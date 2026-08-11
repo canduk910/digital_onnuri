@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>디지털온누리상품권 가맹점 검색</title>
 <link rel="stylesheet" href="shell.css?v=1">
+<link rel="stylesheet" href="chat-widget.css?v=2">
 <style>
   /* 공통 셸(토큰·사이드바·상단바·폭토글)은 shell.css — 이 블록은 가맹점 검색 페이지 전용 스타일만 (ADR-9) */
 
@@ -394,6 +395,7 @@
 <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=x79smqla3u"></script>
 <script src="lib/MarkerClustering.js"></script>
 <script src="shell.js?v=1"></script>
+<script src="chat-widget.js?v=2" defer></script>
 <script src="config.js"></script>
 <script>
 (function () {
@@ -1360,12 +1362,30 @@
     state.sido = sido; state.si = "전체"; state.gu = "전체"; state.dong = "전체";
     state.cat = "전체"; state.brand = "전체"; state.mtype = "전체"; state.page = 1;
     loadingSido = sido; renderSidoTabs(); showLoading(sido + " 가맹점 목록을 불러오는 중입니다…");
-    Promise.all([loadRegionOptions(), loadSidoTotal(sido), loadBrandRank(sido)]).then(function () {
+    return Promise.all([loadRegionOptions(), loadSidoTotal(sido), loadBrandRank(sido)]).then(function () {
       loadingSido = null;
       SNAP.sidoTotal = SIDO_TOTAL[sido];
       renderMeta(); renderSidoTabs(); renderRegionSelects();
       return refresh();
     }).catch(function () { loadingSido = null; renderSidoTabs(); renderLoadError(sido); });
+  }
+
+  // ---- URL 파라미터 진입 (챗봇 이동 카드 등 외부 링크) ----
+  // ?region=서울&si=수원시&gu=동작구&dong=노량진동&cat=편의점&brand=GS25&q=검색어
+  var URL_PARAMS = (function () {
+    try { var p = new URLSearchParams(location.search); return p.keys().next().done ? null : p; }
+    catch (e) { return null; }
+  })();
+  function applyUrlParams() {
+    var p = URL_PARAMS; if (!p) return;
+    var chain = Promise.resolve();
+    if (p.get("si")) chain = chain.then(function () { state.si = p.get("si"); return loadRegionOptions(); });
+    if (p.get("gu")) chain = chain.then(function () { state.gu = p.get("gu"); return loadRegionOptions(); });
+    if (p.get("dong")) chain = chain.then(function () { state.dong = p.get("dong"); });
+    if (p.get("cat")) state.cat = p.get("cat");
+    if (p.get("brand")) state.brand = p.get("brand");
+    if (p.get("q")) { state.q = p.get("q"); var qi = el("q"); if (qi) qi.value = state.q; }
+    return chain.then(function () { state.page = 1; renderRegionSelects(); return refresh("all"); });
   }
 
   var qTimer = null;
@@ -1415,7 +1435,10 @@
     resolveMode().then(function () {
       // 탭 배지 프리페치는 API 모드에서만(각 시도 size=1 카운트). JSON 모드는 파일 전체를 받게 되므로 생략.
       if (MODE === "api") SIDO.forEach(function (s) { loadSidoTotal(s.key).then(renderSidoTabs).catch(function () {}); });
-      selectSido(state.sido);
+      var rg = URL_PARAMS && URL_PARAMS.get("region");
+      if (rg && SIDO.some(function (s) { return s.key === rg; })) state.sido = rg;
+      var pr = selectSido(state.sido);
+      if (URL_PARAMS && pr && pr.then) pr.then(applyUrlParams);
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

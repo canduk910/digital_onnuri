@@ -1,0 +1,98 @@
+/* ============================================================
+   chat-widget.css — 온누리 가이드 챗봇 위젯 (ADR-12)
+   3페이지 공통. shell.css 토큰(--accent·--text·--border 등)을 그대로 사용한다.
+   ============================================================ */
+
+/* ── 플로팅 버튼 ── */
+.cw-fab { position:fixed; right:20px; bottom:20px; z-index:70; width:52px; height:52px; border-radius:50%;
+  border:none; cursor:pointer; background:var(--accent, #F26B1D); color:#fff; box-shadow:0 6px 20px rgba(11,12,14,.22);
+  display:flex; align-items:center; justify-content:center; transition:transform .15s ease, background .15s ease; }
+.cw-fab:hover { background:var(--accent-hover, #DD5E12); transform:translateY(-2px); }
+.cw-fab svg { width:24px; height:24px; }
+.cw-fab .cw-fab-x { display:none; font-size:22px; font-weight:700; line-height:1; }
+.cw-fab.open svg { display:none; }
+.cw-fab.open .cw-fab-x { display:block; }
+
+/* ── 패널 ── */
+.cw-panel { position:fixed; right:20px; bottom:84px; z-index:70; width:min(400px, calc(100vw - 40px));
+  height:min(600px, calc(100vh - 120px)); display:none; flex-direction:column; overflow:hidden;
+  background:var(--bg, #fff); border:1px solid var(--border, #E5E6E8); border-radius:var(--r-lg, 14px);
+  box-shadow:0 18px 60px rgba(11,12,14,.18); }
+.cw-panel.open { display:flex; }
+
+.cw-head { flex:none; display:flex; align-items:center; gap:10px; padding:14px 16px;
+  border-bottom:1px solid var(--border, #E5E6E8); background:var(--pat-stripe, none), var(--bg, #fff); }
+.cw-head-dot { width:8px; height:8px; border-radius:50%; background:var(--accent, #F26B1D); flex:none; }
+.cw-head-tit { font-family:var(--font-display, inherit); font-size:14px; font-weight:700; color:var(--text, #0B0C0E); }
+.cw-head-sub { font-size:10.5px; color:var(--text-faint, #989DA5); margin-left:auto; text-align:right; line-height:1.35; }
+
+/* ── 메시지 영역 ── */
+.cw-body { flex:1; overflow-y:auto; padding:16px 14px; display:flex; flex-direction:column; gap:12px;
+  background:var(--pat-dot, none), var(--bg, #fff); }
+.cw-msg { max-width:88%; font-size:13px; line-height:1.65; }
+.cw-msg.user { align-self:flex-end; background:var(--text, #0B0C0E); color:#fff;
+  padding:9px 13px; border-radius:14px 14px 3px 14px; white-space:pre-wrap; word-break:break-word; }
+.cw-msg.bot { align-self:flex-start; background:var(--surface, #F6F6F7); color:var(--text, #0B0C0E);
+  padding:11px 14px; border-radius:14px 14px 14px 3px; border:1px solid var(--border, #E5E6E8);
+  overflow-x:auto; max-width:95%; }
+.cw-msg.bot.cw-typing::after { content:"▍"; color:var(--accent, #F26B1D); animation:cwBlink 1s step-end infinite; }
+@keyframes cwBlink { 50% { opacity:0; } }
+
+/* 마크다운 렌더 — 강조는 오렌지, 표·코드는 프로젝트 토큰 */
+.cw-md strong { color:var(--accent-press, #C4510F); font-weight:800; }
+.cw-md h1, .cw-md h2, .cw-md h3 { font-size:13.5px; font-weight:800; margin:10px 0 4px; color:var(--text, #0B0C0E); }
+.cw-md p { margin:6px 0; }
+.cw-md ul, .cw-md ol { margin:6px 0 6px 18px; }
+.cw-md li { margin:2px 0; }
+.cw-md table { border-collapse:collapse; margin:8px 0; font-size:12px; width:100%; }
+.cw-md th { background:var(--surface-2, #EFF0F2); font-weight:700; text-align:left; }
+.cw-md th, .cw-md td { border:1px solid var(--border-2, #D3D5D9); padding:5px 8px; }
+.cw-md code { background:var(--surface-2, #EFF0F2); border-radius:4px; padding:1px 5px; font-size:12px; }
+.cw-md pre { background:var(--surface-2, #EFF0F2); border-radius:8px; padding:10px; overflow-x:auto; margin:8px 0; }
+.cw-md pre code { background:none; padding:0; }
+.cw-md a { color:var(--accent-press, #C4510F); text-decoration:underline; }
+.cw-md .cw-mermaid { background:#fff; border:1px solid var(--border, #E5E6E8); border-radius:8px;
+  padding:8px; margin:8px 0; overflow-x:auto; text-align:center; }
+.cw-md .cw-mermaid svg { max-width:100%; height:auto; }
+
+/* ── 이동 액션 카드 ── */
+.cw-action { align-self:flex-start; max-width:88%; border:1px solid var(--accent-line, #F6C9A8);
+  background:var(--accent-soft, #FEF3EC); border-radius:10px; padding:10px 12px; font-size:12.5px; }
+.cw-action-label { font-weight:700; color:var(--text, #0B0C0E); margin-bottom:6px; }
+.cw-action button { font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; border:none;
+  background:var(--accent, #F26B1D); color:#fff; border-radius:6px; padding:6px 12px; }
+.cw-action button:hover { background:var(--accent-hover, #DD5E12); }
+
+/* ── 시작 제안 칩 ── */
+.cw-hints { display:flex; flex-wrap:wrap; gap:6px; }
+.cw-hints button { font-family:inherit; font-size:12px; cursor:pointer; padding:6px 11px;
+  background:var(--bg, #fff); border:1px solid var(--border-2, #D3D5D9); border-radius:999px; color:var(--text-sub, #585D64); }
+.cw-hints button:hover { border-color:var(--accent, #F26B1D); color:var(--accent-press, #C4510F); }
+
+/* ── 오류·안내 ── */
+.cw-note { align-self:center; font-size:11.5px; color:var(--text-faint, #989DA5); text-align:center; }
+.cw-note.err { color:#B3261E; }
+
+/* ── 입력줄 ── */
+.cw-input { flex:none; display:flex; gap:8px; padding:12px 14px; border-top:1px solid var(--border, #E5E6E8); background:var(--bg, #fff); }
+.cw-input textarea { flex:1; resize:none; font-family:inherit; font-size:13px; line-height:1.5; max-height:96px;
+  border:1px solid var(--border-2, #D3D5D9); border-radius:8px; padding:8px 11px; color:var(--text, #0B0C0E); outline:none; }
+.cw-input textarea:focus { border-color:var(--accent, #F26B1D); }
+.cw-send { flex:none; align-self:flex-end; width:38px; height:38px; border:none; border-radius:8px; cursor:pointer;
+  background:var(--accent, #F26B1D); color:#fff; display:flex; align-items:center; justify-content:center; }
+.cw-send:hover { background:var(--accent-hover, #DD5E12); }
+.cw-send:disabled { background:var(--border-2, #D3D5D9); cursor:default; }
+.cw-send svg { width:17px; height:17px; }
+.cw-disclaim { flex:none; padding:0 14px 10px; font-size:10px; color:var(--text-faint, #989DA5); background:var(--bg, #fff); }
+
+/* ── 모바일: 풀스크린 ── */
+.cw-head .cw-close { display:none; margin-left:8px; width:30px; height:30px; align-items:center; justify-content:center;
+  border:1px solid var(--border, #E5E6E8); background:var(--bg, #fff); border-radius:6px; font-size:15px; cursor:pointer; color:var(--text, #0B0C0E); }
+@media (max-width:600px){
+  .cw-panel { right:0; bottom:0; width:100vw; height:100dvh; border-radius:0; border:none; }
+  .cw-fab { right:14px; bottom:14px; }
+  .cw-fab.open { display:none; }           /* 풀스크린일 땐 헤더 닫기 버튼 사용 */
+  .cw-head .cw-close { display:flex; }     /* 베이스 display:none은 위(모바일 규칙보다 앞)에 있어야 한다 */
+}
+
+@media (prefers-reduced-motion:reduce){ .cw-fab, .cw-msg.bot.cw-typing::after { transition:none; animation:none; } }

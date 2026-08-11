@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>온라인 사용처 찾기 — 코스콤 디지털온누리 가이드</title>
 <link rel="stylesheet" href="shell.css?v=1">
+<link rel="stylesheet" href="chat-widget.css?v=2">
 <style>
   /* ===== 디자인 시스템 (merchants.html과 동일 토큰) ===== */
   /* 공통 셸(토큰·사이드바·상단바·폭토글)은 shell.css — 이 블록은 온라인 검색 페이지 전용 스타일만 (ADR-9) */
@@ -179,6 +180,7 @@
   </main>
 
 <script src="shell.js?v=1"></script>
+<script src="chat-widget.js?v=2" defer></script>
 <script src="config.js"></script>
 <script>
 (function () {
@@ -416,11 +418,28 @@
         + "에 플랫폼 단위로 확인해 태그한 목록입니다.</strong> 상품 재고·전체 브랜드 목록이 아니며, 온누리 결제 가능 범위는 각 몰의 전용관·기획전 기준입니다 — 결제 전 해당 몰에서 확인하세요.";
       el("footMethod").innerHTML = "※ 취급 품목·브랜드 태그는 각 몰의 카테고리 메뉴·기획전·브랜드관을 " + esc(META.survey)
         + "에 실측해 기록한 것입니다(조사 로그: 저장소 _workspace/15_online_catalog_report.md). 이후 각 몰의 취급 변화는 반영되지 않을 수 있습니다.";
+      applyUrlParams();
       renderAll();
     }).catch(function (e) {
       el("resultArea").innerHTML = '<div class="state"><span class="lead">플랫폼 목록을 불러오지 못했습니다.</span>'
         + '네트워크 상태를 확인하고 새로고침해 주세요.</div>';
     });
+  }
+
+  // 챗봇 이동 카드 등 외부 진입: ?kind=shopping|delivery&cat=대분류id|라벨&brand=브랜드&q=검색어
+  function applyUrlParams() {
+    var p; try { p = new URLSearchParams(location.search); } catch (e) { return; }
+    var kind = p.get("kind");
+    if (kind === "shopping" || kind === "delivery") state.kind = kind;
+    var cat = p.get("cat");
+    if (cat) {
+      TAXONOMY.forEach(function (t) {
+        if (t.id === cat || t.label === cat) state.cat = t.id;
+        (t.subs || []).forEach(function (s2) { if (s2.id === cat || s2.label === cat) { state.cat = t.id; state.sub = s2.id; } });
+      });
+    }
+    if (p.get("brand")) state.brand = p.get("brand");
+    if (p.get("q")) { state.q = p.get("q"); var qi = el("q"); if (qi) qi.value = state.q; }
   }
 
   // ---- 이벤트 ----

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="gift.onnuri.merchant.dto.SearchQueryTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-11T00:07:33" hostname="canduk-MacBook-Pro.local" time="0.001">
+  <properties/>
+  <testcase name="동미상_센티넬은_프론트_표기와_일치한다()" classname="gift.onnuri.merchant.dto.SearchQueryTest" time="0.001"/>
+  <testcase name="hasBounds_는_하나라도_빠지면_거짓()" classname="gift.onnuri.merchant.dto.SearchQueryTest" time="0.0"/>
+  <testcase name="hasBounds_는_네_좌표가_모두_있을_때만_참()" classname="gift.onnuri.merchant.dto.SearchQueryTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

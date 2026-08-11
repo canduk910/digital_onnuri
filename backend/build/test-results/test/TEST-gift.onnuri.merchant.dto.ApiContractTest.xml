@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="gift.onnuri.merchant.dto.ApiContractTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-08-11T00:07:33" hostname="canduk-MacBook-Pro.local" time="0.003">
+  <properties/>
+  <testcase name="MerchantView_는_프론트가_소비하는_필드를_모두_노출한다()" classname="gift.onnuri.merchant.dto.ApiContractTest" time="0.001"/>
+  <testcase name="MapPin_은_지도_정보창_필드를_모두_노출한다()" classname="gift.onnuri.merchant.dto.ApiContractTest" time="0.0"/>
+  <testcase name="SearchQuery_는_프론트가_보내는_파라미터를_모두_받는다()" classname="gift.onnuri.merchant.dto.ApiContractTest" time="0.0"/>
+  <testcase name="PageResult_와_CountItem_shape()" classname="gift.onnuri.merchant.dto.ApiContractTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

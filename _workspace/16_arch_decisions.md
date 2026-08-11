@@ -67,3 +67,9 @@
 - 결정: CI = feat 푸시·backend/** 변경 시 gradlew test(JDK 21). CD = CI 통과 후 SSH로 NCP에 git pull+compose 재빌드 — GitHub Secrets(NCP_SSH_KEY 등) 등록 시에만 활성(미등록 시 스킵).
 - 근거: 셀프호스티드 러너·레지스트리 푸시 대안은 이 규모에 과함. SSH 키는 사용자만 등록(비밀 취급 원칙).
 - 결과·롤백: 워크플로 파일 삭제로 즉시 원복. 서버 수동 절차(DEPLOY.md)는 병행 유지.
+
+## ADR-12: 챗봇 — RAG(pgvector) + 서버 도구 루프 + 플로팅 위젯 (2026-08-11)
+- 맥락: 정책·사용처 질문을 대화로 해결하는 챗봇 요구. (1) RAG vs 파인튜닝 (2) 페이지 이동·검색 실행 툴킷 (3) 모노톤+오렌지 대화 UI(마크다운·mermaid).
+- 결정: ①RAG — pgvector(HNSW)·text-embedding-3-small, 코퍼스=검증된 내부 자산+공식 채록(onnuri.gift FAQ 69건·voucher·공지, semas 4페이지). 파인튜닝 기각(날짜 종속 정보·재학습 비용·출처 인용 불가). ②서버(Spring gift.onnuri.chat)가 gpt-5.6-luna 도구 루프 소유(최대 3왕복): search_policy/search_online(RAG), search_merchants(기존 MerchantService 재사용), navigate(SSE action→위젯 확인 카드, 임의 이동 금지). 도구 결과는 대화 재주입("결과 재-RAG"). ③POST /api/chat SSE, stateless(이력은 프론트 sessionStorage→요청 동봉). 위젯=chat-widget.js/css, marked+DOMPurify+mermaid 첫 오픈 시 CDN 지연 로드, mermaid base 테마+오렌지 themeVariables. 최종 답변은 서버가 비스트리밍 수신 후 청크 SSE(OpenAI 스트림 파싱 복잡도 회피 — 응답 짧아 지연 허용).
+- 근거: 키 보호(서버만)·폴백 대칭 원칙 유지. 비용 통제는 IP rate limit(분10·일200, 인메모리 — 단일 인스턴스 ADR-5). LLM 출력은 DOMPurify 필수(신뢰 불가 입력). 숫자는 도구 실시간 조회만(데이터 신선도 원칙).
+- 결과·롤백: config.js chatEnabled=false로 위젯 즉시 제거 가능. db 이미지 pgvector/pgvector:pg16(pgdata 유지). 적재는 build_rag_corpus.py(멱등 전체 교체). OPENAI_API_KEY 미설정 시 챗만 비활성(다른 API 무영향). 갱신: 코퍼스 재수집 후 스크립트 재실행.
