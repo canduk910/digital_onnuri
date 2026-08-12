@@ -1251,6 +1251,7 @@
 
   /* ── 네이버 지도 ── */
   var mapObj = null, clusterObj = null, mapMarkers = [], infoWin = null, mapReady = false;
+  var KEEP_INFO_ONCE = false;   // 리스트 행 클릭 팝업이 morph 직후 재렌더에 닫히지 않게 하는 1회 플래그
   var locMarker = null, locCircle = null; // 현재 위치(결과 마커와 분리 — clearMarkers 영향 없음)
   // 뷰포트 자동 지도(2026-08-12): 지도는 항상 "필터 ∩ 현재 화면"을 스스로 판단해
   // 3,000곳 이하면 개별 도트, 초과면 클러스터를 그린다. 별도 모드·버튼 없음.
@@ -1365,7 +1366,9 @@
     if (clusterObj) { clusterObj.setMap(null); clusterObj = null; }
     for (var i = 0; i < mapMarkers.length; i++) mapMarkers[i].setMap(null);
     mapMarkers = [];
-    if (infoWin) infoWin.close();
+    // 리스트 행 클릭은 지도를 이동(morph)시키고, 그 idle이 마커를 다시 그리며 여기서 InfoWindow를 닫아
+    // 방금 연 팝업이 사라졌다. KEEP_INFO_ONCE면 그 1회(=morph 직후 재렌더)만 팝업을 유지한다.
+    if (infoWin) { if (KEEP_INFO_ONCE) { KEEP_INFO_ONCE = false; } else infoWin.close(); }
   }
 
   function cIcon(cls) {
@@ -1581,6 +1584,7 @@
       if (!lat || !lng) return;
       function focus() {
         if (!mapReady && !initMap()) return;
+        KEEP_INFO_ONCE = true;   // 이동(morph) 직후 재렌더에서 이 팝업을 닫지 않는다
         mapObj.morph(new naver.maps.LatLng(lat, lng), 16);
         var name = tr.querySelector(".name") ? tr.querySelector(".name").textContent : "";
         openInfo(null, { lat: lat, lng: lng, name: name, cat: "", addr: tr.querySelector(".addr") ? tr.querySelector(".addr").textContent.replace(/·.*$/, "").trim() : "", market: "" });
