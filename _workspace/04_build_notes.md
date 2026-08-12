@@ -102,3 +102,53 @@
   - 설명 문구 명세대로, 동적 숫자·날짜 0.
 - **제거/유지(정정)**: 구 M7 '수도권 가맹점 검색 ↗' 진입 박스만 제거(이전 M7-add 스텝 삭제 → .bak 원본에 없으므로 미추가). 요건 ② **지도 검색 안내 문장**(onnuri.gift/place 가맹점 지도 검색 ↗ — '가맹 시 가능' 매장 점포 단위 확인법)은 **유지**. 요건 ② 본문도 유지. (앞선 초안의 지도 박스 전체 제거는 writer 정정으로 되돌림 — 안내 문장은 요건 설명이지 검색 진입이 아니다.)
 - 정적 섹션, DC state 불요. build_index.py 치환 + `</` 불변식 통과·완전 마운트·머스태시 0 확인. 브라우저: S15가 사용 요건 박스 앞 배치·지도 문장 유지·M7 제거·aria-label 실측 확인.
+
+## 델타 — 온라인 플랫폼 목록 이중소스 (API 우선 + JSON 폴백, 2026-08-12)
+
+플랫폼 목록(online_platforms.json items)이 백엔드 DB로 이관·매일 배치 갱신됨에 따라, online.html·terms.html을 가맹점과 동일한 **API 우선 + JSON 폴백**으로 전환. 취급품목 태깅(online_catalog.json)은 수동 큐레이션이라 이관 대상 아님 — 그대로 JSON.
+
+### 공유 어댑터 `online-source.js` (신규)
+online.html·terms.html 두 곳이 **동일 정규화**를 쓰도록 어댑터를 한 파일에 둔다(경계면 원칙: 정규화가 두 곳에 흩어지면 한쪽만 바뀌어 조용히 다른 결과가 난다). `window.OnnuriOnlineSource.load()` → 정규화된 `{meta, items}` Promise 반환.
+
+- **API_BASE**: merchants.html과 동일 규칙 — 로컬(localhost/127.0.0.1/빈 호스트)은 `http://localhost:8080/api`, 그 외 `https://api.koscomlabor.cloud/api`. `CFG.apiBase`로 오버라이드.
+- **소스 결정(dataMode)**:
+  - `json` : 항상 JSON (프로브 지연 없음).
+  - `api`  : 항상 API. 실패 시 reject → 소비 페이지가 오류 표시(폴백 안 함, merchants "api"와 동일 정책).
+  - `auto`(기본) : `GET /online/platforms`를 시도, `probeTimeoutMs`(기본 2500ms) 내 성공하면 API·아니면 JSON 폴백. 목록이 작아 별도 헤드 프로브 없이 본 호출을 프로브 겸용.
+- **엔드포인트**: `GET {API_BASE}/online/platforms` (필터 없는 단순 목록이라 merchants의 POST 프라이버시 규칙 불필요 — 계약대로 GET). JSON은 `data/online_platforms.json` + dataVersion 버스트(`?v=`).
+
+### 스네이크/카멜 정규화 규칙 (어댑터 핵심)
+API 응답은 키가 camelCase일 수 있고 JSON 폴백은 snake_case. **내부 형태는 snake_case로 통일**(기존 소비 코드가 쓰던 형태 — 소비부 무변경). `pick(o, snake, camel)`이 snake 우선으로 있는 값을 집는다.
+
+| 내부 형태(snake) | API(camel) 수용 | JSON(snake) 수용 |
+|---|---|---|
+| `region_limited` | `regionLimited` | `region_limited` |
+| `source_url` | `sourceUrl` | `source_url` |
+| `collected_on` | `collectedOn` | `collected_on` |
+| `id·kind·name·summary·note·url·no·status` | 동일 | 동일 |
+| `regions` | (계약에 없음 → `[]`) | `regions` |
+| meta `collected_on` | `collectedOn` 또는 snake | `collected_on` |
+| meta `source_url` | `sourceUrl` | `source_url` |
+
+- **removed 처리**: 어댑터는 removed 항목을 **그대로 통과**시킨다. `status==='active'` 필터는 소비부 담당 — online.html boot `PLATFORMS = items.filter(status==='active')`, terms.html regionApps `filter(status==='active' && region_limited)`. 둘 다 이미 필터하고 있어 추가 조치 불필요(검증에서 removed 항목이 목록에 새지 않음 확인).
+
+### 동적 문구 매핑 (변경분)
+| 자리 | 소스 | 계산 |
+|---|---|---|
+| online meta-line "공식 목록 N 수집" | 어댑터 `meta.collected_on` | API=active min(collected_on), JSON=파일 meta.collected_on |
+| online 카드 그리드·구분 탭·칩 카운트 | 어댑터 `items`(active 필터 후) | 기존과 동일(소스만 이중화) |
+| terms.html `#regionApps` | 어댑터 `items` | `status==='active' && region_limited`인 name 나열. 실패 시 catch 무시 → 기본 문구 "지역 한정 앱" 유지 |
+| index S16 카드 최신성 안내 | (정적) | "이 안내 페이지의 목록은 갱신 시점에 고정됩니다 — 최신 플랫폼 목록은 위 '온라인 사용처 찾기'에서 확인하세요." build_index.py S16, 동적 숫자 없음 |
+
+### 검증 (2026-08-12, 로컬 정적 서버 8655 + 백엔드 미기동)
+- **auto 폴백 렌더**: online.html 30 카드(쇼핑 22·배달 8), meta-line "공식 목록 2026-08-06 수집 · … 30곳", 구분 탭 카운트 일치. uncaught JS 에러 없음(콘솔 에러 2건 모두 백엔드 미기동 리소스 실패 — `/api/visit`=shell.js 방문카운터, `/api/online/platforms`=프로브 → JSON 폴백).
+- **dataMode="json" 강제**: load() 3ms 즉시 반환, 30건 전부 active, 지역한정 5곳(전주맛배달·배달특급·먹깨비·배달의 명수·대구로), 내부 키 snake_case 일관.
+- **camelCase 정규화(fetch 모킹)**: `regionLimited/sourceUrl/collectedOn` → snake 변환 확인, camel 잔재 없음(`hasCamelLeftover:false`), meta.collected_on·source_url 정규화, removed 항목은 어댑터 통과.
+- **terms.html 폴백**: `#regionApps` = "전주맛배달, 배달특급, 먹깨비, 배달의 명수, 대구로"(기본 문구에서 갱신됨).
+- **문법**: online-source.js `node --check` OK, online.html·terms.html 마지막 인라인 script `new Function` OK.
+- **index D-F1**: build_index.py 재빌드 "리터럴 </ = 0" 통과.
+- **미검증**: 실제 로컬 백엔드가 없어 **API 경로(dataMode=api/auto 성공)는 실서버로 미검증** — 어댑터 정규화는 모킹으로만 확인. 계약 필드가 실제 응답과 일치하는지는 dev-qa 경계면 검증 몫.
+
+### 제약 / 전달
+- 신규 자산 `online-source.js`는 online.html·terms.html에 `?v=1`로 참조. 이후 이 파일 수정 시 버전 범프 필요(HTML 자체는 버스트 불요).
+- config.js는 무변경(dataMode·probeTimeoutMs·apiBase·dataVersion 기존 값 재사용). 라이브 dataMode=auto면 백엔드 배포 후 자동으로 API 우선.

@@ -441,6 +441,7 @@ tpl = replace_once(
     "<a href=\"online.html\" style=\"display:flex;flex-direction:column;gap:6px;background:#FAFAF9;border:1.5px solid #E7E5E1;border-radius:12px;padding:13px 15px;margin-bottom:14px;text-decoration:none;color:inherit\" style-hover=\"border-color:#F26B1D;background:#FFFFFF\" style-focus=\"border-color:#F26B1D;box-shadow:0 0 0 3px #FBD8BC\">\n"
     "          <span style=\"display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#171512\">온라인 사용처 찾기 <span style=\"font-size:11px;font-weight:700;color:#C4510F;background:#FDEEE3;border-radius:999px;padding:2px 8px\">내부</span></span>\n"
     "          <span style=\"font-size:12.5px;color:#6E6A64;line-height:1.55\">쇼핑몰·배달앱을 물품종류(농·수·축산물, 가전, 의류 등)와 브랜드로 골라 찾습니다. 각 몰 실측 태그 기준.</span>\n"
+    "          <span style=\"font-size:11.5px;color:#9A968F;line-height:1.5\">이 안내 페이지의 목록은 갱신 시점에 고정됩니다 — 최신 플랫폼 목록은 위 '온라인 사용처 찾기'에서 확인하세요.</span>\n"
     "        </a>\n<div id=\"online\" style=\"background:#FDF3EA;",
     "S16.online-search-entry",
 )

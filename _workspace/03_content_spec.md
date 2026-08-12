@@ -237,6 +237,10 @@ merchants.html 진입 링크("수도권 가맹점 검색 ↗")가 지금 오프�
 
 **데이터:** data/online_catalog.json (meta+taxonomy+items; id는 online_platforms.json 조인 키). 갱신 시 config.js dataVersion 올림.
 
+**플랫폼 목록 소스 (2026-08-12 이중소스 전환):** 온라인 플랫폼 목록(online_platforms.json의 items)은 백엔드 DB로 이관되어 매일 00:30 배치로 갱신된다. 프론트는 가맹점과 동일한 **API 우선 + JSON 폴백**으로 읽는다(`GET /api/online/platforms`, dataMode auto/api/json). 취급품목 태깅(online_catalog.json)은 수동 큐레이션이라 이관 대상 아님 — 계속 JSON. meta-line "공식 목록 N 수집" 스탬프는 API meta.collected_on(active min collected_on)을 쓴다. 상세는 04_build_notes '온라인 플랫폼 목록 이중소스'.
+
+**index 온라인 탭 진입 카드(S16 카드) 최신성 안내:** index는 빌드 시점 주입이라 배치 갱신이 즉시 반영되지 않는다 → 카드에 "이 안내 페이지의 목록은 갱신 시점에 고정됩니다 — 최신 플랫폼 목록은 위 '온라인 사용처 찾기'에서 확인하세요." 한 줄 추가(부분노출 안내 원칙). build_index.py S16 스텝, 동적 숫자 없음.
+
 ## S17. 결제 방법 상세 페이지 (payment.html) — 2026-08-11 신설
 
 사용자 요청: 결제 방법을 index 오프라인 탭 하위 아코디언에서 별도 페이지로 분리, 카드·앱별 상세 + 포인트 강조(폰트·색상).

@@ -125,12 +125,13 @@
 <script src="shell.js?v=4"></script>
 <script src="chat-widget.js?v=8" defer></script>
 <script src="config.js?v=1"></script>
+<script src="online-source.js?v=1"></script>
 <script>
-// 지역 한정 배달앱 목록 — SSOT(data/online_platforms.json)에서 동적 계산(숫자·이름 수기 금지 원칙)
+// 지역 한정 배달앱 목록 — SSOT(온라인 플랫폼 목록)에서 동적 계산(숫자·이름 수기 금지 원칙).
+// 목록은 백엔드로 이관됨 → API 우선 + JSON 폴백(어댑터 online-source.js). 실패 시 catch 무시로
+// 기본 문구("지역 한정 앱") 유지.
 (function () {
-  var CFG = window.ONNURI_CONFIG || {};
-  var bust = CFG.dataVersion ? "?v=" + encodeURIComponent(CFG.dataVersion) : "";
-  fetch("data/online_platforms.json" + bust).then(function (r) { return r.json(); }).then(function (d) {
+  window.OnnuriOnlineSource.load().then(function (d) {
     var names = (d.items || []).filter(function (it) { return it.status === "active" && it.region_limited; })
       .map(function (it) { return it.name; });
     if (names.length) document.getElementById("regionApps").textContent = names.join(", ");

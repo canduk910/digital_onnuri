@@ -184,6 +184,7 @@
 <script src="shell.js?v=4"></script>
 <script src="chat-widget.js?v=8" defer></script>
 <script src="config.js"></script>
+<script src="online-source.js?v=1"></script>
 <script>
 (function () {
   "use strict";
@@ -440,8 +441,10 @@
   // ---- 부팅 ----
   function boot() {
     var bust = CFG.dataVersion ? "?v=" + encodeURIComponent(CFG.dataVersion) : "";
+    // 플랫폼 목록: 백엔드 이관됨 → API 우선 + JSON 폴백(어댑터 online-source.js가 소스 정규화).
+    // 취급품목 태깅(online_catalog.json)은 수동 큐레이션이라 이관 대상 아님 — 그대로 JSON.
     Promise.all([
-      fetch("data/online_platforms.json" + bust).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }),
+      window.OnnuriOnlineSource.load(),
       fetch("data/online_catalog.json" + bust).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     ]).then(function (res) {
       var plat = res[0], cat = res[1];
