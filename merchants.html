@@ -72,7 +72,7 @@
   /* PC: 리스트는 지도와 같은 높이의 자체 스크롤 — 페이지 스크롤과 분리 */
   @media (min-width:901px){
     /* 직계(>) 필수 — 하위에 span.pay.card(결제 '카드' 태그)가 있어 후손 선택 시 태그가 420px로 커진다 */
-    .result-list > .card { max-height:calc(100vh - 120px); min-height:420px; overflow-y:auto; }
+    .result-list > .card { max-height:var(--panel-h, calc(100vh - 120px)); min-height:0; overflow-y:auto; }
     thead th { position:sticky; top:0; z-index:2; box-shadow:0 1px 0 var(--border); }
   }
   /* 서버 사이드 클러스터 마커(2026-08-12) — 상한 초과 뷰의 밀도 표시 */
@@ -153,17 +153,24 @@
   /* 지도 폭: 드래그 스플리터가 --map-w를 갱신(기본 clamp). */
   .result-map{ flex:0 0 var(--map-w, clamp(360px,34vw,460px)); position:sticky; top:16px; min-width:0; }
   /* 드래그 핸들 — PC 전용(모바일 세로 스택에선 숨김) */
-  .split-handle{ flex:0 0 12px; align-self:stretch; position:sticky; top:16px; height:calc(100vh - 120px); min-height:420px;
+  .split-handle{ flex:0 0 12px; align-self:stretch; position:sticky; top:16px; height:var(--panel-h, calc(100vh - 120px)); min-height:260px;
     display:flex; align-items:center; justify-content:center; cursor:col-resize; border-radius:6px; touch-action:none; user-select:none; }
   .split-handle span{ width:4px; height:44px; border-radius:999px; background:var(--border-2); transition:background .15s ease, height .15s ease; }
   .split-handle:hover span, .split-handle.dragging span{ background:var(--accent); height:64px; }
   .split-handle:focus-visible{ outline:2px solid var(--accent); outline-offset:0; }
+  /* 수직 높이 조절 핸들(2026-08-12) — 지도·리스트 높이를 드래그로 조절해
+     필터·지도·리스트를 한 화면에 담을 수 있게 한다. */
+  .vsplit-handle{ display:flex; align-items:center; justify-content:center; height:14px; margin:6px 0 0;
+    cursor:row-resize; touch-action:none; border-radius:var(--r-sm); }
+  .vsplit-handle span{ height:4px; width:44px; border-radius:999px; background:var(--border-2); transition:background .15s ease, width .15s ease; }
+  .vsplit-handle:hover span, .vsplit-handle.dragging span{ background:var(--accent); width:64px; }
+  .vsplit-handle:focus-visible{ outline:2px solid var(--accent); outline-offset:0; }
   body.split-dragging{ cursor:col-resize; user-select:none; }
   body.split-dragging iframe, body.split-dragging #map{ pointer-events:none; } /* 드래그 중 지도가 이벤트 삼키지 않게 */
   .map-wrap{ position:relative; }
   /* isolation+z-index:0 — 네이버 지도 내부 컨트롤(NAVER 로고 등)의 높은 z-index가
      사이드바(z-50)·챗 패널(z-70)을 뚫지 않도록 지도 레이어 안에 가둔다(2026-08-12 제보). */
-  #map{ width:100%; height:calc(100vh - 120px); min-height:420px; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; background:var(--surface); position:relative; z-index:0; isolation:isolate; }
+  #map{ width:100%; height:var(--panel-h, calc(100vh - 120px)); min-height:260px; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; background:var(--surface); position:relative; z-index:0; isolation:isolate; }
   .bounds-btn{ position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:5;
     padding:8px 14px; font-size:12.5px; font-weight:700; color:var(--text); background:#fff;
     border:1px solid var(--border); border-radius:999px; box-shadow:0 1px 4px rgba(0,0,0,.14); cursor:pointer; white-space:nowrap; }
@@ -242,7 +249,7 @@
   @media (max-width:900px){
     .result-split{ flex-direction:column; }
     .result-map{ position:static; width:100%; flex-basis:auto; order:-1; }
-    .split-handle{ display:none; } /* 세로 스택에선 드래그 조절 미제공 */
+    .split-handle, .vsplit-handle{ display:none; } /* 세로 스택에선 드래그 조절 미제공 */
     #map{ height:300px; min-height:0; }
     /* 세로 스택 시 표(넓은 폭)가 뷰포트를 밀지 않도록 리스트 패널을 뷰포트에 clamp
        — 표는 .table-scroll 안에서 가로 스크롤 */
@@ -364,6 +371,8 @@
         <div class="map-note" id="mapNote"></div>
       </div>
     </div>
+    <div class="vsplit-handle" id="vsplitHandle" role="separator" aria-orientation="horizontal"
+         aria-label="지도·리스트 높이 조절 (드래그, 더블클릭 시 초기화)" tabindex="0" title="드래그로 높이 조절 · 더블클릭 초기화"><span></span></div>
 
     <!-- 각주 -->
     <div class="footnotes">
@@ -430,6 +439,55 @@
   function splitMaxW(split) { return Math.max(SPLIT_MIN, Math.round(split.getBoundingClientRect().width * 0.65)); }
   // 화면 폭 토글(config.js 위젯) 변경 시 지도 크기 재계산
   window.addEventListener("pagewidthchange", function () { setTimeout(notifyMapResize, 60); });
+
+  // 수직 높이 조절(2026-08-12): --panel-h 갱신 — 지도·리스트·좌우핸들이 함께 줄어
+  // 필터+지도+리스트가 한 화면에 들어오게 한다. 저장·더블클릭 초기화·↑/↓ 키.
+  var VSPLIT_KEY = "onnuri_panel_h", VSPLIT_MIN = 260;
+  function applyPanelH(px) { document.documentElement.style.setProperty("--panel-h", px + "px"); }
+  function clearPanelH() { document.documentElement.style.removeProperty("--panel-h"); }
+  function vsplitMax() { return Math.max(VSPLIT_MIN, window.innerHeight - 160); }
+  function initVSplit() {
+    var handle = el("vsplitHandle"); if (!handle) return;
+    var saved = parseInt(localStorage.getItem(VSPLIT_KEY), 10);
+    if (saved && saved >= VSPLIT_MIN) applyPanelH(Math.min(saved, vsplitMax()));
+    var raf = null, curH = null;
+    function rowTop() {
+      var row = document.querySelector(".result-split");
+      return row ? row.getBoundingClientRect().top : 0;
+    }
+    function setH(px) {
+      curH = Math.max(VSPLIT_MIN, Math.min(px, vsplitMax()));
+      if (raf) return;
+      raf = requestAnimationFrame(function () { raf = null; applyPanelH(curH); notifyMapResize(); });
+    }
+    handle.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+      handle.classList.add("dragging"); document.body.classList.add("split-dragging");
+      function onMove(ev) { setH(ev.clientY - rowTop() - 10); }   // 10 = 핸들 여백 보정
+      function onUp(ev) {
+        try { handle.releasePointerCapture(ev.pointerId); } catch (err) {}
+        handle.classList.remove("dragging"); document.body.classList.remove("split-dragging");
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        if (curH) localStorage.setItem(VSPLIT_KEY, String(Math.round(curH)));
+        notifyMapResize();
+      }
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+    });
+    handle.addEventListener("dblclick", function () {
+      clearPanelH(); localStorage.removeItem(VSPLIT_KEY); curH = null; notifyMapResize();
+    });
+    handle.addEventListener("keydown", function (e) {   // 접근성: ↑/↓로 20px 조절
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      e.preventDefault();
+      var row = document.querySelector(".result-split");
+      var cur = row ? row.getBoundingClientRect().height : 600;
+      setH(cur + (e.key === "ArrowDown" ? 20 : -20));
+      if (curH) localStorage.setItem(VSPLIT_KEY, String(Math.round(curH)));
+    });
+  }
 
   function initSplit() {
     var handle = el("splitHandle"); if (!handle) return;
@@ -1557,7 +1615,7 @@
   }
 
   function boot() {
-    initSplit(); renderSidoTabs(); bindControls();
+    initSplit(); initVSplit(); renderSidoTabs(); bindControls();
     resolveMode().then(function () {
       // 탭 배지 프리페치는 API 모드에서만(각 시도 size=1 카운트). JSON 모드는 파일 전체를 받게 되므로 생략.
       if (MODE === "api") SIDO.forEach(function (s) { loadSidoTotal(s.key).then(renderSidoTabs).catch(function () {}); });
