@@ -75,6 +75,7 @@ html[data-pw="wide"]   { --page-w:1640px; }
 /* ===== 셸 반응형 ===== */
 @media (max-width:959px){
   .sidebar { transform:translateX(-100%); box-shadow:var(--shadow-md); }
+  .sb-width { display:none; }   /* 화면 폭 슬라이더는 PC 전용 — 모바일 드로어에선 무의미(2026-08-12) */
   .sidebar.open { transform:translateX(0); }
   .topbar { display:flex !important; }  /* index FOUC 방지용 인라인 display:none을 이겨야 함 */
   .content { margin-left:0; padding-top:52px; }
