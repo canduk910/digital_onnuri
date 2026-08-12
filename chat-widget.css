@@ -110,9 +110,9 @@
 .cw-head .cw-close { display:none; margin-left:8px; width:30px; height:30px; align-items:center; justify-content:center;
   border:1px solid var(--border, #E5E6E8); background:var(--bg, #fff); border-radius:6px; font-size:15px; cursor:pointer; color:var(--text, #0B0C0E); }
 @media (max-width:600px){
-  /* 모바일(2026-08-12): 풀스크린 대신 좌측하단 기준 80% 팝업 — 과한 확대감 해소, 뒤 페이지가 보임.
-     !important: 데스크톱에서 크기 조절한 인라인 스타일보다 우선해야 한다 */
-  .cw-panel { left:12px; right:auto; bottom:12px; width:min(80vw, 480px) !important; height:80dvh !important;
+  /* 모바일(2026-08-12): 우측하단 기준 80% 팝업 — PC와 같은 앵커. 드래그 크기 조절도 지원하므로
+     !important 없이 기본값만(인라인 크기가 이긴다 — 저장값은 JS가 뷰포트에 맞게 클램프). */
+  .cw-panel { right:12px; bottom:12px; width:min(80vw, 480px); height:80dvh;
     border-radius:var(--r-lg, 14px); border:1px solid var(--border, #E5E6E8); }
   .cw-fab { right:14px; bottom:14px; }
   .cw-fab.open { display:none; }           /* 열림 중엔 헤더 닫기 버튼 사용 */
@@ -132,9 +132,9 @@
 @media (max-width:600px){ .cw-fab-label { right:76px; bottom:23px; font-size:11.5px; padding:7px 12px; } }
 
 /* ── 패널 크기 조절 핸들 (2026-08-12) — 좌상단 모서리 드래그, 데스크톱 전용 ── */
-.cw-resize { position:absolute; left:0; top:0; width:22px; height:22px; cursor:nwse-resize; z-index:2;
-  border-radius:14px 0 0 0; }
+.cw-resize { position:absolute; left:0; top:0; width:26px; height:26px; cursor:nwse-resize; z-index:2;
+  border-radius:14px 0 0 0; touch-action:none; }   /* touch-action — 드래그 중 페이지 스크롤 방지 */
 .cw-resize::after { content:""; position:absolute; left:6px; top:6px; width:9px; height:9px;
   border-left:2px solid var(--border-2, #D3D5D9); border-top:2px solid var(--border-2, #D3D5D9); border-radius:2px 0 0 0; }
 .cw-resize:hover::after { border-color:var(--accent, #F26B1D); }
-@media (max-width:600px){ .cw-resize { display:none; } }
+/* 모바일에서도 그립 표시(2026-08-12) — 크기 조절 지원 */

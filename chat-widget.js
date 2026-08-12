@@ -169,7 +169,9 @@
   function initResize() {
     try {
       var saved = JSON.parse(localStorage.getItem(SIZE_KEY) || "null");
-      if (saved && window.innerWidth > 600) applySize(saved.w, saved.h);
+      if (saved) {   // 기기 무관 복원 — 뷰포트보다 크면 맞춰 줄인다(데스크톱 저장값의 모바일 침범 방지)
+        applySize(Math.min(saved.w, window.innerWidth - 24), Math.min(saved.h, window.innerHeight - 24));
+      }
     } catch (e) {}
     var grip = panel.querySelector(".cw-resize");
     grip.addEventListener("pointerdown", function (e) {
@@ -178,7 +180,7 @@
       var startX = e.clientX, startY = e.clientY, startW = r.width, startH = r.height;
       try { grip.setPointerCapture(e.pointerId); } catch (err) {}
       function onMove(ev) {
-        var w = Math.min(Math.max(startW + (startX - ev.clientX), 320), Math.min(720, window.innerWidth - 40));
+        var w = Math.min(Math.max(startW + (startX - ev.clientX), 280), Math.min(720, window.innerWidth - 24));
         var h = Math.min(Math.max(startH + (startY - ev.clientY), 420), window.innerHeight - 110);
         applySize(Math.round(w), Math.round(h));
       }

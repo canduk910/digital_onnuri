@@ -363,9 +363,9 @@ tpl = replace_once(
 SHELL = (
     "<link rel=\"stylesheet\" href=\"shell.css?v=4\">\n"
     "<script src=\"shell.js?v=3\"></script>\n"
-    "<link rel=\"stylesheet\" href=\"chat-widget.css?v=7\">\n"
+    "<link rel=\"stylesheet\" href=\"chat-widget.css?v=8\">\n"
     "<script src=\"config.js?v=1\"></script>\n"
-    "<script src=\"chat-widget.js?v=7\" defer></script>\n"
+    "<script src=\"chat-widget.js?v=8\" defer></script>\n"
     # 크리티컬 인라인 스타일: 번들(4MB) 마운트 직후 셸 CSS 적용 전 한 프레임에
     # topbar CI+사이드바 CI가 세로로 겹쳐 보이는 FOUC 방지. img는 width/height 명시(시프트 방지).
     "<header class=\"topbar\" style=\"display:none\">\n"
