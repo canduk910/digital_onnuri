@@ -1,0 +1,9 @@
+# 복사해서 terraform.tfvars 로 저장하고 값 입력 (terraform.tfvars 는 커밋 금지)
+ncloud_access_key = "__NCP_ACCESS_KEY__"
+ncloud_secret_key = "__NCP_SECRET_KEY__"
+region            = "KR"
+zone              = "KR-2"
+name_prefix       = "onnuri"
+admin_cidr        = "1.2.3.4/32"     # 본인 접속 IP/32
+server_spec_code  = "__SPEC_CODE__"  # terraform console: data.ncloud_server_specs 로 후보 확인(2vCPU/4GB 이상)
+# DB 사용자/비밀번호는 여기가 아니라 서버의 backend/deploy/.env 에서 설정(컨테이너 DB).

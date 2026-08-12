@@ -1,0 +1,10 @@
+.gradle
+build
+!build.gradle
+.idea
+*.iml
+tools
+deploy
+*.md
+.env
+.env.*

@@ -1,0 +1,13 @@
+# {$API_DOMAIN} 로 들어오는 요청을 앱 컨테이너(8080)로 프록시.
+# Caddy가 Let's Encrypt로 자동 발급·갱신(HTTP→HTTPS 리다이렉트 포함).
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8080
+	tls {$TLS_EMAIL}
+
+	# 접속 로그(컨테이너 stdout)
+	log {
+		output stdout
+		format console
+	}
+}

@@ -52,7 +52,7 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./gradl
 
 ## 브랜치·커밋
 
-backend/는 **feat/backend-scaffold 전용**(main 금지). 커밋·푸시는 doc-commit 절차(문서 갱신→비밀 스캔→푸시). 프론트 계약을 함께 바꾼 경우 main 쪽 프론트 변경과 상호 참조를 커밋 메시지에 남긴다.
+backend/는 **main 브랜치**(프론트·백엔드 단일 브랜치). 커밋·푸시는 doc-commit 절차(문서 갱신→비밀 스캔→푸시). 프론트 계약을 함께 바꾼 경우 프론트 변경과 백엔드를 **한 커밋**에 담아 경계면이 갈라지지 않게 한다.
 
 ## 계약 변경 체크리스트 (하나라도 해당하면 frontend·dev-qa 사전 통지)
 

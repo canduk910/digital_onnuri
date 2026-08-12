@@ -1,0 +1,71 @@
+# NCP Server(VM) 프로덕션 구성: Postgres + Spring 앱 + Caddy(자동 HTTPS).
+# 단일 VM에 DB까지 함께 운영(관리형 DB 미사용). 데이터는 pgdata 볼륨에 영속.
+# 사용: 이 디렉토리에서  docker compose -f docker-compose.prod.yml up -d --build
+services:
+  db:
+    # 챗봇 RAG(ADR-12): pgvector 확장 포함 이미지. pgdata 볼륨은 그대로 유지된다.
+    image: pgvector/pgvector:pg16
+    container_name: onnuri-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"   # 데이터 적재용(호스트 로컬만). 외부 미노출.
+    networks: [web]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: onnuri-backend:latest
+    container_name: onnuri-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env            # DB_URL(=jdbc:postgresql://db:5432/...) / DB_USER / DB_PASSWORD
+    expose:
+      - "8080"                # 외부 미공개. Caddy만 접근.
+    networks: [web]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
+
+  caddy:
+    image: caddy:2
+    container_name: onnuri-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"            # ACME(HTTP-01) 챌린지 + HTTPS 리다이렉트
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}   # 예: api.koscomlabor.cloud
+      TLS_EMAIL: ${TLS_EMAIL}     # Let's Encrypt 알림 이메일
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data          # 발급된 인증서 영속(재기동 시 재발급 방지)
+      - caddy_config:/config
+    networks: [web]
+
+networks:
+  web:
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

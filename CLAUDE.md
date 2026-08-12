@@ -17,6 +17,7 @@
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
 | 2026-08-06 | 초기 구성 (에이전트 5 + 스킬 6) | 전체 | - |
+| 2026-08-12 | 단일 브랜치 통합 (feat/backend-scaffold → main 흡수) | .gitignore, backend/(main으로), .github/workflows/backend-ci.yml, backend/DEPLOY.md, README.md | 사용자 결정("Spring 소스가 main에 안 보이고 트리 나눌 이유 없음"). 분리 명분이던 config.js dataMode 차이가 이미 소멸(양쪽 auto). backend/ ignore→build/·.gradle/·.env 산출물만 정밀 차단, 자바 소스 73개 추적. CI 트리거·서버 배포·배치 클론 모두 main 기준. GitHub Pages는 backend/ 있어도 무영향(정적 파일만 서빙). feat 브랜치 폐기 |
 | 2026-08-12 | README.md 신설 | README.md(신규) | 사용자 요청. 프로젝트 소개·기능·아키텍처(main 프론트/feat 백엔드 분리)·데이터 갱신·빌드(index 재생성·D-F1)·문서 포인터. 서버 IP·키 비노출, 도메인만 |
 | 2026-08-12 | 파비콘 추가 (코스콤 CI 오렌지 셰브론) | favicon.svg(신규), 6페이지 head, build_index.py(8단계) | 사용자 요청. 브라우저 탭 아이콘이 기본 지구본(favicon.ico 404)으로 나오던 것을 오렌지(#F26B1D) 라운드 사각형+흰 셰브론 ❯ SVG로. 전 페이지 `<link rel=icon>` 주입, index는 빌더 title 스텝에 병합(D-F1 통과). ?v=1 캐시버스트 |
 | 2026-08-12 | 야간 배치(00:30) 데이터 자동 갱신 + 온라인 사용처 백엔드 이관 | backend(V5 online_platform·/api/online/platforms·nightly_update.py·load_online_platforms.py), online-source.js(신규), online.html, terms.html, build_index.py, DEPLOY.md | 사용자 요청. 가맹점=stage-swap 무중단 갱신(전일 대비 ±20%·총계 5만 가드, 위반 시 기존 유지), 온라인 목록=공식 e-commerce/platform API 수집·upsert(큐레이션 note·region_limited 보존, 사라짐=status removed·삭제 금지), RAG 재적재. DB=라이브 SSOT·data/*.json=폴백(ADR-14 — 폴백 스탬프가 과거일 수 있음은 의도). 프론트는 online-source.js 어댑터(snake/camel 흡수)로 API 우선+JSON 폴백. 배치는 서버 전용 클론 ~/onnuri_batch/repo + crontab 00:30(KST)+flock. 검증: dev-qa 6항목 통과(테스트 29 녹색·경계면 삼자 대조·회귀 기준값·D-F1) |

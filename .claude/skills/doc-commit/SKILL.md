@@ -10,7 +10,7 @@ description: "수정 내역을 커밋·푸시하기 전에 프로젝트 문서(C
 ## 1. 변경 파악
 
 ```bash
-git branch --show-current   # main = 라이브(GitHub Pages) / feat/backend-scaffold = 백엔드 포함
+git branch --show-current   # main 단일 브랜치 — 프론트(Pages) + 백엔드(CI/CD) 통합
 git status --short
 git diff --stat
 ```
@@ -45,10 +45,10 @@ git diff --cached | grep -iE 'ncp_iam_[A-Za-z0-9]|secret[_-]?key\s*[:=]\s*"[A-Za
 ```
 비밀값이 걸리면 커밋을 멈추고 사용자에게 알린다. `.env`/`tfvars`/`.pem`은 예외 없이 커밋 금지.
 
-**브랜치 규칙**:
-- `main` = 라이브. `backend/`는 main에서 미추적(스테이징 목록에 나타나면 안 됨).
-- `config.js`의 `dataMode`는 브랜치별로 다르게 유지한다 — main=`"json"`(백엔드 미배포), feat=`"auto"`. 동기화 시 이 값을 덮어쓰지 않는다.
-- 데이터(`data/merchants/*.json`) 갱신 커밋에는 `config.js`의 `dataVersion`을 수집일로 올렸는지 확인(브라우저 캐시 무력화).
+**브랜치 규칙** (2026-08-12 단일 브랜치 통합 — 프론트·백엔드 모두 `main`):
+- `main` = 라이브(프론트 GitHub Pages + 백엔드 CI/CD). `feat/backend-scaffold`는 폐기됐다. 브랜치 간 동기화는 더 이상 필요 없다.
+- `backend/`는 소스만 추적한다. `backend/build/`·`backend/.gradle/`·`.env`·`*.tfvars`·`*.tfstate`는 `.gitignore`로 차단된다 — 스테이징 목록에 나타나면 안 된다.
+- `config.js`의 `dataMode`는 `"auto"`(API 우선·JSON 폴백)로 단일하다. 데이터(`data/merchants/*.json`) 갱신 커밋에는 `dataVersion`을 수집일로 올렸는지 확인(브라우저 캐시 무력화).
 
 ## 4. 커밋
 
@@ -60,16 +60,13 @@ Co-Authored-By: Claude <사용 모델명> <noreply@anthropic.com>
 Claude-Session: <세션 링크>
 ```
 
-## 5. 푸시 + 브랜치 동기화
+## 5. 푸시
 
 ```bash
-git push origin <현재 브랜치>
+git push origin main
 ```
 
-**main에 커밋한 변경이 공용 파일이면 feat에도 동기화한다** (반대 방향도 동일):
-- 공용: `merchants.html`, `index.html`, `data/`, `_workspace/dev_scripts/`, `CLAUDE.md`, `.claude/`
-- 브랜치 전용: `backend/`(feat), `config.js`의 `dataMode` 값
-- 동기화 절차: `git checkout <다른 브랜치>` → `git checkout <원 브랜치> -- <공용 파일들>` → (feat이면 백엔드 대응 수정: 프론트가 새 API 파라미터를 쓰면 `SearchQuery`/`MerchantSpecs`도 함께) → 커밋·푸시 → **원 브랜치로 복귀**.
+단일 브랜치라 브랜치 간 동기화는 없다. 대신 **프론트 계약과 백엔드를 한 커밋에 함께** 담는다 — 프론트가 새 API 파라미터·필터 규칙을 쓰면 `SearchQuery`/`MerchantSpecs`(및 JSON 폴백)도 같은 커밋에 넣어 경계면이 갈라지지 않게 한다. `backend/**`를 건드린 푸시는 backend-ci(CD)를 발동시키므로, 서버 반영이 의도된 것인지 확인한다.
 
 ## 6. 마무리 보고
 

@@ -36,17 +36,12 @@
 ```
 
 - **프론트엔드**: 빌드리스 정적 HTML/CSS/JS. GitHub Pages로 서빙.
-- **백엔드**: Spring Boot + Postgres. 가맹점·온라인 검색 API, 챗봇(RAG), 방문자 카운트, 버그 제보를 제공. `feat/backend-scaffold` 브랜치에만 포함된다.
-- **이중 데이터 소스**: 프론트는 백엔드 API를 우선 사용하되, 장애 시 저장소의 `data/*.json`으로 자동 폴백한다(`config.js`의 `dataMode`). 백엔드가 없어도 페이지는 정상 동작한다.
+- **백엔드**: Spring Boot + Postgres. 가맹점·온라인 검색 API, 챗봇(RAG), 방문자 카운트, 버그 제보를 제공. 소스는 `backend/`에 있다.
+- **이중 데이터 소스**: 프론트는 백엔드 API를 우선 사용하되, 장애 시 저장소의 `data/*.json`으로 자동 폴백한다(`config.js`의 `dataMode: "auto"`). 백엔드가 없어도 페이지는 정상 동작한다.
 
-### 브랜치 구성
+### 단일 브랜치
 
-| 브랜치 | 역할 |
-|--------|------|
-| `main` | **라이브 프론트엔드**. GitHub Pages가 여기서 배포된다. 백엔드 코드는 포함하지 않는다(`dataMode: "json"` 폴백 안전). |
-| `feat/backend-scaffold` | **백엔드 포함 전체**(`backend/`). NCP 배포·CI/CD 대상. 프론트는 `dataMode: "auto"`로 API 우선. |
-
-공용 파일(`*.html`, `data/`, `_workspace/dev_scripts/`, `CLAUDE.md` 등)을 한쪽에서 고치면 다른 브랜치에도 동기화한다. 자세한 규칙은 `.claude/skills/doc-commit`.
+프론트·백엔드가 모두 **`main` 한 브랜치**에 있다. GitHub Pages는 정적 파일을, GitHub Actions는 `backend/**` 변경 시 백엔드 CI/CD를 각각 처리한다(같은 브랜치에서 path 필터로 분리). `.env`·빌드 산출물은 `.gitignore`로 제외된다.
 
 ---
 
@@ -69,7 +64,7 @@
 │   ├── dev_scripts/          # 데이터 수집·빌드 스크립트
 │   ├── 16_arch_decisions.md  # ADR(아키텍처 결정 기록)
 │   └── NN_*.md               # 정책 분석·데이터 리포트·설계 문서
-├── backend/                  # (feat 브랜치) Spring Boot + 배포 자산
+├── backend/                  # Spring Boot + 배포 자산(build/·.gradle/·.env 제외)
 └── CLAUDE.md                 # 프로젝트 지침 + 상세 변경 이력
 ```
 
@@ -112,7 +107,7 @@ cd backend
 JAVA_HOME=<JDK21> ./gradlew test    # 계약 테스트
 ```
 
-배포는 `feat/backend-scaffold`에 `backend/**` 푸시 시 GitHub Actions가 자동 수행한다. 절차·운영 메모는 `backend/DEPLOY.md`.
+배포는 `main`에 `backend/**` 푸시 시 GitHub Actions가 자동 수행한다. 절차·운영 메모는 `backend/DEPLOY.md`.
 
 ---
 

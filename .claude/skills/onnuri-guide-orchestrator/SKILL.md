@@ -87,7 +87,7 @@ ToolSearch("select:SendMessage,TaskCreate,TaskUpdate,TaskGet,TaskList")
 3. **Green** — 최소 구현. 계약 변경(필드·센티넬·필터 규칙)은 서버와 프론트 JSON 폴백을 **하나의 변경 단위**로 묶는다 — 한쪽만 바꾸면 에러 없이 다른 숫자가 나온다(이 시스템 최악의 결함 유형).
 4. **Refactor** — 테스트 녹색을 유지하며 정리. 구조 정리는 architect 주도 + dev-qa 사전/사후 스냅샷.
 5. **검증 게이트** — dev-qa가 `./gradlew test`·Playwright·경계면 교차 비교·회귀 기준값 대조(dev-testing 스킬) — TDD 게이트 2. "미검증"을 "통과"로 쓰지 않는다.
-6. **반영** — doc-commit 절차(문서→비밀 스캔→커밋·푸시→main↔feat 동기화). 프로덕션 반영 시 backend가 DEPLOY.md 절차 수행 + dev-qa가 프로덕션 기준값 대조.
+6. **반영** — doc-commit 절차(문서→비밀 스캔→커밋·푸시. 프론트 계약+백엔드는 한 커밋). 프로덕션 반영 시 backend가 DEPLOY.md 절차 수행 + dev-qa가 프로덕션 기준값 대조.
 
 ## 워크플로 C: 혼성 (두 팀에 걸친 변경)
 

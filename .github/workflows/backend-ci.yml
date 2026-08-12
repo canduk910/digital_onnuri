@@ -1,5 +1,5 @@
-# 백엔드 CI/CD (ADR-11)
-# CI : feat/backend-scaffold에 backend/** 푸시 → JDK 21로 ./gradlew test (계약 테스트 포함)
+# 백엔드 CI/CD (ADR-11, 2026-08-12 단일 브랜치 통합으로 main 기준 전환)
+# CI : main에 backend/** 푸시 → JDK 21로 ./gradlew test (계약 테스트 포함)
 # CD : 테스트 통과 후, GitHub Secrets에 NCP_SSH_KEY가 등록된 경우에만 NCP VM에 SSH 배포.
 #      미등록이면 배포 잡은 자동 스킵된다(포크·시크릿 없는 환경에서도 CI는 안전하게 동작).
 #
@@ -12,7 +12,7 @@ name: backend-ci
 
 on:
   push:
-    branches: [feat/backend-scaffold]
+    branches: [main]
     paths:
       - "backend/**"
       - ".github/workflows/backend-ci.yml"
@@ -77,9 +77,9 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "$SSH_USER@$HOST" '
             set -e
             cd "$HOME/digital_onnuri"
-            git fetch origin feat/backend-scaffold
-            git checkout feat/backend-scaffold
-            git reset --hard origin/feat/backend-scaffold
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
             cd backend/deploy
             # db·caddy는 유지하고 앱만 재빌드 — pgdata·TLS 인증서 보존
             docker compose -f docker-compose.prod.yml up -d --build app

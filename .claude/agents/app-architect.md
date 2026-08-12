@@ -15,7 +15,7 @@ GitHub Pages(main) ── index.html(4MB 자가해제 번들, build_index.py 재
                    ── merchants.html / online.html (정적, 직접 편집)
                    ── config.js: dataMode auto → API 우선, 장애 시 JSON 폴백
                         │
-                   api.koscomlabor.cloud (NCP · feat/backend-scaffold)
+                   api.koscomlabor.cloud (NCP · main 배포)
                         └─ Caddy → Spring(SearchQuery→Specs→Service) → Postgres 78,734건
 데이터 SSOT: data/*.json (수집: build_region_full.py) → 프론트 폴백 + 백엔드 적재 양쪽의 원천
 ```

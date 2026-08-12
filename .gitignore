@@ -7,8 +7,14 @@ _workspace/raw/
 # 저장소 자산은 예외(라이브에서 서빙됨)
 !assets/*.png
 
-# 백엔드는 feat/backend-scaffold 전용 — main 작업트리의 빌드 잔여물 오커밋 방지 (2026-08-11)
-backend/
+# 백엔드 빌드 산출물만 차단 — 소스는 추적한다(2026-08-12 단일 브랜치 통합).
+# 과거 main에 build/ 산출물 ~80MB 오커밋 사고가 있어 산출물만 정밀 차단한다.
+backend/build/
+backend/.gradle/
+backend/deploy/terraform/.terraform/
+backend/deploy/terraform/*.tfstate*
+backend/**/.env
+backend/**/*.tfvars
 
 # 맥 드래그 클리핑 파일 (실수 커밋 방지)
 *.textClipping

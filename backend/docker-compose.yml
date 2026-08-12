@@ -1,0 +1,22 @@
+services:
+  db:
+    # 이번 단계(관계형)는 postgres로 충분. RAG(pgvector) 단계 진입 전
+    # pgvector/pgvector:pg16 으로 교체한다(스키마에 CREATE EXTENSION vector 추가 시점).
+    image: postgres:16-alpine
+    container_name: onnuri-db
+    environment:
+      POSTGRES_DB: onnuri
+      POSTGRES_USER: onnuri
+      POSTGRES_PASSWORD: onnuri
+    ports:
+      - "5432:5432"
+    volumes:
+      - onnuri-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onnuri -d onnuri"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  onnuri-pgdata:

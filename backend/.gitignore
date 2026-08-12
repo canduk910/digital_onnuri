@@ -1,0 +1,15 @@
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# 배포 비밀값 — 서버에만 두고 커밋 금지(.env.example만 커밋)
+deploy/.env
+.env
+
+# Terraform (상태·비밀값 커밋 금지, *.example만 커밋)
+deploy/terraform/.terraform/
+deploy/terraform/*.tfstate
+deploy/terraform/*.tfstate.*
+deploy/terraform/terraform.tfvars
+deploy/terraform/*.pem
+deploy/terraform/.terraform.lock.hcl
