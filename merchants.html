@@ -72,7 +72,11 @@
   /* PC: 리스트는 지도와 같은 높이의 자체 스크롤 — 페이지 스크롤과 분리 */
   @media (min-width:901px){
     /* 직계(>) 필수 — 하위에 span.pay.card(결제 '카드' 태그)가 있어 후손 선택 시 태그가 420px로 커진다 */
-    .result-list > .card { max-height:var(--panel-h, calc(100vh - 120px)); min-height:0; overflow-y:auto; }
+    /* 헤더·페이저 고정(2026-08-12): 카드=플렉스 컬럼, 스크롤은 표 본문(.table-scroll)만 */
+    .result-list > .card { height:var(--panel-h, calc(100vh - 120px)); min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+    .result-list > .card > #resultArea { display:flex; flex-direction:column; min-height:0; flex:1; }
+    .result-list #resultArea > .table-scroll { flex:1; min-height:0; overflow:auto; }
+    .result-list #resultArea > .pager { flex:none; background:var(--bg); }
     thead th { position:sticky; top:0; z-index:2; box-shadow:0 1px 0 var(--border); }
   }
   /* 서버 사이드 클러스터 마커(2026-08-12) — 상한 초과 뷰의 밀도 표시 */
@@ -350,15 +354,6 @@
     </div>
 
     <div class="result-split">
-      <div class="result-list">
-        <div class="card">
-          <div id="resultArea">
-            <div class="state"><span class="lead">가맹점 목록을 불러오는 중입니다…</span></div>
-          </div>
-        </div>
-      </div>
-      <div class="split-handle" id="splitHandle" role="separator" aria-orientation="vertical"
-           aria-label="리스트·지도 크기 조절 (드래그, 더블클릭 시 초기화)" tabindex="0" title="드래그로 크기 조절 · 더블클릭 초기화"><span></span></div>
       <div class="result-map">
         <div class="map-wrap">
           <div id="map"></div>
@@ -369,6 +364,15 @@
           </button>
         </div>
         <div class="map-note" id="mapNote"></div>
+      </div>
+      <div class="split-handle" id="splitHandle" role="separator" aria-orientation="vertical"
+           aria-label="리스트·지도 크기 조절 (드래그, 더블클릭 시 초기화)" tabindex="0" title="드래그로 크기 조절 · 더블클릭 초기화"><span></span></div>
+      <div class="result-list">
+        <div class="card">
+          <div id="resultArea">
+            <div class="state"><span class="lead">가맹점 목록을 불러오는 중입니다…</span></div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="vsplit-handle" id="vsplitHandle" role="separator" aria-orientation="horizontal"
@@ -502,19 +506,19 @@
     }
     handle.addEventListener("pointerdown", function (e) {
       e.preventDefault();
-      handle.setPointerCapture(e.pointerId);
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}   // 합성 포인터에서도 계속
       handle.classList.add("dragging"); document.body.classList.add("split-dragging");
-      function onMove(ev) { setW(split.getBoundingClientRect().right - ev.clientX - 8); } // 8 = 핸들 절반+갭 보정
+      function onMove(ev) { setW(ev.clientX - split.getBoundingClientRect().left - 8); } // 지도가 좌측 — 좌변 기준(8=핸들 절반+갭)
       function onUp(ev) {
-        handle.releasePointerCapture(ev.pointerId);
+        try { handle.releasePointerCapture(ev.pointerId); } catch (err) {}
         handle.classList.remove("dragging"); document.body.classList.remove("split-dragging");
-        handle.removeEventListener("pointermove", onMove);
-        handle.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
         if (curW) localStorage.setItem(SPLIT_KEY, String(curW));
         notifyMapResize();
       }
-      handle.addEventListener("pointermove", onMove);
-      handle.addEventListener("pointerup", onUp);
+      document.addEventListener("pointermove", onMove);   // 캡처 실패 환경에서도 추적
+      document.addEventListener("pointerup", onUp);
     });
     handle.addEventListener("dblclick", function () { // 기본 폭으로 초기화
       clearMapW(); localStorage.removeItem(SPLIT_KEY); curW = null; notifyMapResize();
@@ -523,7 +527,7 @@
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
       e.preventDefault();
       var w = curW || parseInt(getComputedStyle(document.querySelector(".result-map")).width, 10) || 420;
-      setW(w + (e.key === "ArrowLeft" ? 20 : -20)); // ←: 지도 넓게, →: 리스트 넓게
+      setW(w + (e.key === "ArrowRight" ? 20 : -20)); // →: 지도 넓게, ←: 리스트 넓게 (지도가 좌측)
       localStorage.setItem(SPLIT_KEY, String(curW));
     });
   }
@@ -1459,7 +1463,8 @@
         else if (pg === "last") state.page = pages;
         refresh("page");
         var card = el("resultArea").closest(".card");
-        if (card && getComputedStyle(card).overflowY === "auto") card.scrollTop = 0; // PC: 리스트 내부 스크롤만 리셋
+        var ts = card && card.querySelector(".table-scroll");
+        if (ts && getComputedStyle(ts).overflowY === "auto") ts.scrollTop = 0; // PC: 표 본문 스크롤만 리셋
         else window.scrollTo({ top: el("resultArea").getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" });
       };
     });
