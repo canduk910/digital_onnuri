@@ -1114,8 +1114,13 @@
     });
   }
   function jumpToInitial(k) {
-    var hd = el("bmList").querySelector('.bm-head[data-init="' + k + '"]');
-    if (hd) hd.scrollIntoView({ block: "start", behavior: "smooth" });
+    var list = el("bmList");
+    var hd = list.querySelector('.bm-head[data-init="' + k + '"]');
+    if (!hd) return;
+    // .bm-head는 sticky(top:0)라 scrollIntoView가 위로 올라가는 방향에서 "이미 상단"으로 보고 스크롤하지 않는다.
+    // 컨테이너 기준 오프셋을 직접 계산해 양방향 모두 정확히 이동한다.
+    var target = list.scrollTop + (hd.getBoundingClientRect().top - list.getBoundingClientRect().top);
+    list.scrollTo({ top: target, behavior: "smooth" });
   }
   function pickBrand(key) {
     state.brand = multiToggle(state.brand, key);   // 팝업에서도 다중 토글(2026-08-12)
@@ -1274,6 +1279,7 @@
       if (SKIP_IDLE_ONCE) { SKIP_IDLE_ONCE = false; return; }   // 프로그램적 fit 직후 1회 생략
       clearTimeout(viewportTimer);
       viewportTimer = setTimeout(viewportRender, 400);
+      schedulePatchCounts();   // lib이 idle마다 클러스터를 멤버 수로 다시 그리므로, 그 뒤 가맹점 수로 재정정
       // 지도 범위로 목록 보기가 켜져 있으면, 지도를 움직일 때 리스트도 그 범위로 재검색(리스트만 — 지도 재유발 없음).
       if (LIST_BY_MAP && MODE === "api") {
         clearTimeout(listByMapTimer);
@@ -1425,6 +1431,7 @@
       var content = cnt > 1 ? '<div class="pin-multi">' + cnt + '</div>' : '<div class="pin"></div>';
       var a = cnt > 1 ? 11 : 9;
       var mk = new naver.maps.Marker({ position: pos, icon: { content: content, anchor: new naver.maps.Point(a, a) } });
+      mk.__cnt = cnt;   // 이 마커가 대표하는 가맹점 수(동일좌표 그룹) — 클러스터 숫자 보정에 쓴다.
       (function (marker, group) {
         naver.maps.Event.addListener(marker, "click", function () {
           if (group.length === 1) openInfo(marker, group[0]);
@@ -1439,10 +1446,27 @@
       icons: [cIcon("s1"), cIcon("s2"), cIcon("s3"), cIcon("s4")],
       stylingFunction: function (clusterMarker, count) {
         var box = clusterMarker.getElement().querySelector("div div");
-        if (box) box.textContent = count;
+        if (box) box.textContent = count;   // 초기값(멤버 마커 수) — patchClusterCounts가 가맹점 수로 정정
       }
     });
+    schedulePatchCounts();
     if (fit && n) { SKIP_IDLE_ONCE = true; mapObj.fitBounds(bounds); }
+  }
+
+  // 클러스터 숫자를 "가맹점 수"로 정정한다. MarkerClustering은 멤버 '마커' 수만 세는데(동일좌표를
+  // 하나로 묶은 그룹 마커라 건물 수가 된다), 각 그룹 마커의 __cnt(가맹점 수)를 합산해 온누리와 같은
+  // 가맹점 수를 표시한다. lib 내부(_clusters/_clusterMember/_clusterMarker)에 의존 — lib 교체 시 점검.
+  var patchTimer = null;
+  function schedulePatchCounts() { clearTimeout(patchTimer); patchTimer = setTimeout(patchClusterCounts, 60); }
+  function patchClusterCounts() {
+    if (!clusterObj || !clusterObj._clusters) return;
+    clusterObj._clusters.forEach(function (cl) {
+      if (!cl._clusterMarker || !cl._clusterMember || cl._clusterMember.length < 2) return;
+      var sum = 0;
+      for (var i = 0; i < cl._clusterMember.length; i++) sum += (cl._clusterMember[i].__cnt || 1);
+      var em = cl._clusterMarker.getElement && cl._clusterMarker.getElement();
+      if (em) { var box = em.querySelector("div div"); if (box) box.textContent = nf(sum); }
+    });
   }
 
   /* 뷰포트 자동 렌더(2026-08-12): 지도 이동·줌마다 "필터 ∩ 현재 화면"을 판단 —
