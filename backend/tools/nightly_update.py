@@ -128,7 +128,13 @@ def stage_a_merchants(conn, today, no_collect):
     with conn.cursor() as cur:
         cur.execute("ANALYZE merchant")
     conn.commit()
-    log(f"A5 정리 완료(old drop·인덱스명 정규화·ANALYZE) — 소요 {time.time()-t0:.1f}s")
+    # 수집일 스탬프 기록 — 프론트가 API 모드에서 이 값으로 "○○ 수집"을 표시한다.
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO app_meta(k, v) VALUES('merchants_collected_on', %s) "
+            "ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v", (today,))
+    conn.commit()
+    log(f"A5 정리 완료(old drop·인덱스명 정규화·ANALYZE·수집일 {today} 기록) — 소요 {time.time()-t0:.1f}s")
     log("A 판정: OK")
     return True
 

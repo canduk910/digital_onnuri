@@ -543,7 +543,7 @@
   })();
   // 데이터 소스 모드: config.js의 dataMode("auto"|"api"|"json"). 최종값은 resolveMode()에서 확정.
   var MODE = "api";
-  var COLLECTED = "2026-08-08";   // 데이터 수집일(API 모드 기본값. JSON 모드는 meta.collected_on로 대체).
+  var COLLECTED = "";   // 수집일은 런타임에 채운다 — API 모드는 /api/meta, JSON 폴백은 파일 meta.collected_on. 하드코딩 금지(배치 갱신을 따라가야 함).
   var SIDO = [{ key: "서울" }, { key: "인천" }, { key: "경기" }, { key: "부산" }];
   var SIDO_FILE = { "서울": "seoul.json", "인천": "incheon.json", "경기": "gyeonggi.json", "부산": "busan.json" }; // JSON 폴백 경로
   // 업종(cat) 표시명·순서 (M10-3 ①). data cat 키 → 화면명.
@@ -882,6 +882,14 @@
     });
   }
   function catCount(k) { return k === "전체" ? SNAP.catTotal : (SNAP.facetCat[k] || 0); }
+
+  // API 모드 수집일 스탬프 — /api/meta의 merchantsCollectedOn(배치가 갱신). 실패 시 조용히 무시.
+  function fetchApiMeta() {
+    if (MODE !== "api") return;
+    fetch(API_BASE + "/meta").then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) { if (m && m.merchantsCollectedOn) { META.collected = m.merchantsCollectedOn; renderMeta(); } })
+      .catch(function () {});
+  }
 
   // ---- 렌더 ----
   function renderMeta() {
@@ -1630,6 +1638,7 @@
   function boot() {
     initSplit(); initVSplit(); renderSidoTabs(); bindControls();
     resolveMode().then(function () {
+      fetchApiMeta();   // API 모드면 실제 수집일을 받아 "○○ 수집" 스탬프를 갱신
       // 탭 배지 프리페치는 API 모드에서만(각 시도 size=1 카운트). JSON 모드는 파일 전체를 받게 되므로 생략.
       if (MODE === "api") SIDO.forEach(function (s) { loadSidoTotal(s.key).then(renderSidoTabs).catch(function () {}); });
       var rg = NAV_FILTER && NAV_FILTER.region;

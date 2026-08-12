@@ -37,6 +37,13 @@ def rows_from(region, path):
             it.get("card"), it.get("qr"), it.get("lat"), it.get("lng"),
         )
 
+def collected_on_of(path):
+    """파일 meta.collected_on — 없으면 None."""
+    try:
+        return (json.loads(path.read_text(encoding="utf-8")).get("meta") or {}).get("collected_on")
+    except Exception:
+        return None
+
 def main():
     with psycopg.connect(DSN) as conn, conn.cursor() as cur:
         cur.execute("TRUNCATE merchant")
@@ -49,6 +56,13 @@ def main():
             cur.executemany(sql, batch)
             print(f"  {region}: {len(batch)}건")
             total += len(batch)
+        # 수집일 스탬프 — 확인 안 한 항목 날짜를 올리지 않도록 min(collected_on).
+        dates = [d for d in (collected_on_of(p) for p in FILES.values()) if d]
+        if dates:
+            cur.execute(
+                "INSERT INTO app_meta(k, v) VALUES('merchants_collected_on', %s) "
+                "ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v", (min(dates),))
+            print(f"  merchants_collected_on = {min(dates)}")
         conn.commit()
         cur.execute("SELECT region, count(*) FROM merchant GROUP BY region ORDER BY region")
         print("적재 검증:", dict(cur.fetchall()), "| 총", total)
