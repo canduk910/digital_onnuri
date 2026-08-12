@@ -1117,10 +1117,12 @@
     var list = el("bmList");
     var hd = list.querySelector('.bm-head[data-init="' + k + '"]');
     if (!hd) return;
-    // .bm-head는 sticky(top:0)라 scrollIntoView/getBoundingClientRect는 위로 올라가는 방향에서
-    // 헤더의 '고정된' 렌더 위치를 반환해 어긋난다. 정적 레이아웃 위치인 offsetTop을 쓰면
-    // (컨테이너가 position:relative라 offsetParent=list) sticky와 무관하게 양방향 정확히 이동한다.
-    list.scrollTo({ top: hd.offsetTop, behavior: "smooth" });
+    // 함정: .bm-head는 sticky(top:0)라 offsetTop·getBoundingClientRect 모두 '고정된 렌더 위치'를
+    // 반환해(스크롤에 따라 값이 변함) 위로 올라가는 방향에서 어긋난다. 헤더 바로 다음 아이템은
+    // non-sticky라 offsetTop이 정확하므로, 그 값에서 헤더 높이를 빼 헤더 상단으로 이동한다.
+    var item = hd.nextElementSibling;
+    var top = item ? Math.max(0, item.offsetTop - hd.offsetHeight) : hd.offsetTop;
+    list.scrollTo({ top: top, behavior: "smooth" });
   }
   function pickBrand(key) {
     state.brand = multiToggle(state.brand, key);   // 팝업에서도 다중 토글(2026-08-12)
