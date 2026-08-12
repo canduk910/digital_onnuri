@@ -1203,6 +1203,10 @@
   // 뷰포트 자동 지도(2026-08-12): 지도는 항상 "필터 ∩ 현재 화면"을 스스로 판단해
   // 3,000곳 이하면 개별 도트, 초과면 클러스터를 그린다. 별도 모드·버튼 없음.
   var viewportTimer = null, viewportSeq = 0, SKIP_IDLE_ONCE = false;
+  // fit(결과 전체로 지도 맞춤)은 시도 버튼·챗 이동 착지에서만 — 업종·브랜드 등 필터 변경은
+  // 사용자가 잡은 뷰를 유지하고 현재 화면 기준으로만 다시 그린다(2026-08-12).
+  var MAP_FIT_NEXT = false;
+  function consumeMapFit() { if (MAP_FIT_NEXT) { MAP_FIT_NEXT = false; return true; } return false; }
   var MAP_MAX = 3000;   // 개별 마커 상한(성능). 초과 시 안내 후 생략.
 
   function mapAvailable() { return !window.__naverAuthFail && window.naver && window.naver.maps; }
@@ -1314,6 +1318,7 @@
   function renderMap() {
     var note = el("mapNote"), trunc = el("mapTrunc");
     if (!initMap()) { return; }   // 인증 실패 등 — authFailure가 note 처리
+    if (!consumeMapFit()) { viewportRender(); return; }   // 필터 변경 = 뷰 유지, 화면 기준 재렌더
     clearMarkers();
     if (SNAP.mapTruncated) {       // 상한(3,000) 초과 — 서버 사이드 클러스터로 밀도 표시(2026-08-12)
       if (trunc) trunc.hidden = true;
@@ -1520,6 +1525,7 @@
 
   // ---- 상호작용 ----
   function selectSido(sido) {
+    MAP_FIT_NEXT = true;   // 지역 버튼 = 새 지역으로 지도 맞춤
     state.sido = sido; state.si = "전체"; state.gu = "전체"; state.dong = "전체";
     state.cat = "전체"; state.brand = "전체"; state.mtype = "전체"; state.page = 1;
     loadingSido = sido; renderSidoTabs(); showLoading(sido + " 가맹점 목록을 불러오는 중입니다…");
@@ -1553,6 +1559,7 @@
   })();
   function applyNavFilter(pIn) {
     var p = pIn || NAV_FILTER; if (!p) return;
+    MAP_FIT_NEXT = true;   // 챗 이동 카드·URL 착지 = 대상 지역으로 지도 맞춤
     var chain = Promise.resolve();
     if (p.si) chain = chain.then(function () { state.si = p.si; return loadRegionOptions(); });
     if (p.gu) chain = chain.then(function () { state.gu = p.gu; return loadRegionOptions(); });
