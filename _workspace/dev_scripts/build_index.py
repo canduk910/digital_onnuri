@@ -559,7 +559,8 @@ bundle_lines[TEMPLATE_LINE_IDX] = encoded
 # ---------- 8. 브라우저 탭 제목 (외곽 <title> — 템플릿 밖 정적 라인) ----------
 # 사용자 요청(2026-08-11): 탭 제목을 "코스콤 디지털온누리 가이드"로.
 TITLE_OLD = "  <title>디지털온누리상품권 가이드</title>"
-TITLE_NEW = "  <title>코스콤 디지털온누리 가이드</title>"
+TITLE_NEW = ("  <title>코스콤 디지털온누리 가이드</title>\n"
+             '  <link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">')
 n_title = sum(1 for ln in bundle_lines if ln == TITLE_OLD)
 if n_title != 1:
     raise SystemExit(f"[FAIL] 외곽 <title> 라인: 기대 1회, 실제 {n_title}회")
