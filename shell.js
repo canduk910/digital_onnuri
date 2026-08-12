@@ -28,31 +28,63 @@
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeNav(); });
   window.addEventListener("resize", function () { if (!mq()) closeNav(); });
 
-  /* ── 화면 폭 토글 (위임) ── */
-  var PW_KEY = "onnuri_pw";
-  function applyPw(v) {
-    if (v) document.documentElement.setAttribute("data-pw", v);
-    else document.documentElement.removeAttribute("data-pw");
-    Array.prototype.forEach.call(document.querySelectorAll(".sb-width button"), function (b) {
-      b.classList.toggle("active", (b.getAttribute("data-pw") || "") === (v || ""));
-    });
+  /* ── 화면 폭 슬라이더 (2026-08-12) ──
+     3단 토글(좁게/표준/넓게) → 연속 슬라이더. 범위 760px ~ 사이드바 제외 가용 폭(최대=100%).
+     저장: onnuri_pw_px(px). 구 키 onnuri_pw(narrow/wide)는 최초 1회 픽셀로 이전.
+     UI는 여기서 .sb-width 안에 주입 — 6개 페이지 마크업 공통(index DC 마운트 대비 재시도). */
+  var PW_PX_KEY = "onnuri_pw_px", PW_MIN = 760, PW_DEFAULT = 1080;
+  function pwAvail() {
+    var sb = window.matchMedia("(min-width:960px)").matches ? 248 : 0;
+    return Math.max(PW_MIN + 40, window.innerWidth - sb - 64);
+  }
+  function applyPw(px) {
+    var avail = pwAvail();
+    var v = Math.min(Math.max(px, PW_MIN), avail);
+    // 최대치면 100%로 — 창을 더 키워도 항상 가득 차게
+    document.documentElement.style.setProperty("--page-w", v >= avail - 10 ? "100%" : v + "px");
+    var out = document.querySelector(".sb-width-val");
+    if (out) out.textContent = v >= avail - 10 ? "최대" : v + "px";
+    var r = document.querySelector("#pwRange");
+    if (r && Math.abs(parseInt(r.value, 10) - v) > 4) r.value = v;
     try { window.dispatchEvent(new Event("pagewidthchange")); } catch (e) {}
   }
-  document.addEventListener("click", function (e) {
-    var b = e.target && e.target.closest ? e.target.closest(".sb-width button") : null;
-    if (!b) return;
-    var v = b.getAttribute("data-pw") || "";
-    if (v) localStorage.setItem(PW_KEY, v); else localStorage.removeItem(PW_KEY);
-    applyPw(v);
+  function savedPw() {
+    var px = parseInt(localStorage.getItem(PW_PX_KEY), 10);
+    if (px) return px;
+    var legacy = localStorage.getItem("onnuri_pw");   // 구 3단 값 이전
+    if (legacy === "narrow") return 880;
+    if (legacy === "wide") return 1640;
+    return PW_DEFAULT;
+  }
+  function mountSlider() {
+    var box = document.querySelector(".sidebar .sb-width");
+    if (!box || box.querySelector("#pwRange")) return !!box;
+    var avail = pwAvail(), cur = Math.min(savedPw(), avail);
+    box.innerHTML = '<span class="sb-width-label">화면 폭</span>'
+      + '<input type="range" id="pwRange" min="' + PW_MIN + '" max="' + Math.round(avail) + '" step="20" value="' + Math.round(cur) + '"'
+      + ' aria-label="본문 폭 조절" title="드래그로 본문 폭 조절 · 더블클릭 초기화">'
+      + '<span class="sb-width-val"></span>';
+    var r = box.querySelector("#pwRange");
+    r.addEventListener("input", function () {
+      var v = parseInt(r.value, 10);
+      localStorage.setItem(PW_PX_KEY, String(v));
+      applyPw(v);
+    });
+    r.addEventListener("dblclick", function () {   // 초기화 = 표준 1080
+      localStorage.removeItem(PW_PX_KEY); localStorage.removeItem("onnuri_pw");
+      r.value = PW_DEFAULT; applyPw(PW_DEFAULT);
+    });
+    applyPw(cur);
+    return true;
+  }
+  window.addEventListener("resize", function () {   // 창 크기 변화 → 가용 폭 갱신
+    var r = document.querySelector("#pwRange");
+    if (r) { r.max = Math.round(pwAvail()); applyPw(parseInt(r.value, 10)); }
   });
-  // 초기 적용: data-pw는 즉시(루트 속성이라 마운트 무관), 버튼 active는 로드/마운트 후 재시도
-  applyPw(localStorage.getItem(PW_KEY) || "");
-  var tries = 10;
-  var t = setInterval(function () {
-    if (document.querySelector(".sb-width button") || --tries <= 0) {
-      applyPw(localStorage.getItem(PW_KEY) || "");
-      clearInterval(t);
-    }
+  applyPw(savedPw());          // 슬라이더 마운트 전에도 폭은 즉시 적용(FOUC 방지)
+  var pwTries = 12;
+  var pwTimer = setInterval(function () {
+    if (mountSlider() || --pwTries <= 0) clearInterval(pwTimer);
   }, 300);
 })();
 

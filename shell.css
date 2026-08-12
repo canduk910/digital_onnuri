@@ -63,7 +63,10 @@ input::placeholder { color:var(--text-faint); }
 .content-inner { max-width:var(--page-w, 1080px); margin:0 auto; padding:40px 32px 72px; }
 html[data-pw="narrow"] { --page-w:880px; }
 html[data-pw="wide"]   { --page-w:1640px; }
-.sb-width { display:flex; align-items:center; gap:6px; margin-top:10px; padding:10px 12px 0; border-top:1px solid var(--border); }
+.sb-width { display:flex; align-items:center; gap:8px; margin-top:10px; padding:10px 12px 0; border-top:1px solid var(--border); }
+/* 화면 폭 슬라이더(2026-08-12) — 760px~가용 최대. 오렌지 썸. */
+.sb-width input[type="range"] { flex:1; min-width:0; accent-color:var(--accent); cursor:pointer; height:18px; }
+.sb-width-val { flex:none; font-size:10.5px; font-weight:700; color:var(--text-sub); font-variant-numeric:tabular-nums; min-width:44px; text-align:right; }
 .sb-width-label { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); margin-right:2px; }
 .sb-width button { flex:1; font-family:inherit; font-size:11.5px; font-weight:600; cursor:pointer; padding:5px 0; color:var(--text-sub); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); transition:.15s ease; }
 .sb-width button:hover { border-color:var(--border-2); background:var(--surface); }
