@@ -240,6 +240,16 @@
   .iw .iw-pay span{ display:inline-block; font-size:11px; padding:1px 6px; border-radius:4px; margin-right:3px; }
   .iw .iw-pay .card{ background:var(--accent-soft); color:var(--accent-press); }
   .iw .iw-pay .qr{ background:#EEF6EF; color:#1F7A47; }
+  /* 이 위치 가맹점 목록 팝업(동일좌표 여러 곳) */
+  .iw.iwg{ max-width:280px; }
+  .iwg-head{ font-size:12px; font-weight:800; color:var(--text); }
+  .iwg-head b{ color:var(--accent-press); }
+  .iwg-addr{ font-size:11.5px; color:var(--text-sub); margin:2px 0 8px; line-height:1.4; }
+  .iwg-list{ max-height:230px; overflow-y:auto; display:flex; flex-direction:column; }
+  .iwg-item{ padding:7px 0; border-top:1px solid var(--border); }
+  .iwg-item:first-child{ border-top:none; }
+  .iwg-item .iwg-name{ font-size:13px; font-weight:700; color:var(--text); }
+  .iwg-item .iwg-cat{ font-size:11px; color:var(--accent-press); font-weight:600; margin-top:1px; }
   /* 클러스터 마커 (모노톤+오렌지) */
   .cluster{ display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:12px; border-radius:999px; box-shadow:0 2px 6px rgba(20,22,26,.28); border:2px solid #fff; }
   .cluster.s1{ width:34px; height:34px; background:#F6A66B; }
@@ -248,6 +258,10 @@
   .cluster.s4{ width:56px; height:56px; background:#C4510F; }
   .pin{ width:14px; height:14px; border-radius:999px; background:var(--accent); border:2px solid #fff; box-shadow:0 1px 3px rgba(20,22,26,.4); cursor:pointer; }
   .pin.active{ width:18px; height:18px; background:var(--accent-press); z-index:10; }
+  /* 동일좌표(같은 건물) 여러 가맹점을 묶은 마커 — 개수 배지. 온누리 대표좌표가 건물 단위라 겹친다. */
+  .pin-multi{ min-width:22px; height:22px; padding:0 5px; border-radius:999px; background:var(--accent); border:2px solid #fff;
+    color:#fff; font-size:11px; font-weight:800; line-height:1; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 1px 4px rgba(20,22,26,.45); cursor:pointer; font-variant-numeric:tabular-nums; }
   tr.row-link{ cursor:pointer; }
   tr.row-link:hover{ background:var(--accent-soft); }
   tr.row-link:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
@@ -358,6 +372,7 @@
       <div class="result-map">
         <div class="map-wrap">
           <div id="map"></div>
+          <button id="boundsBtn" class="bounds-btn" type="button" hidden>이 지도 범위로 목록 보기</button>
           <div id="mapTrunc" class="map-trunc" hidden></div>
           <button id="locBtn" class="loc-btn" type="button" aria-label="현재 위치를 지도에 표시">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3a8.994 8.994 0 00-7.94-7.94V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19a7 7 0 110-14 7 7 0 010 14z"/></svg>
@@ -543,6 +558,7 @@
   })();
   // 데이터 소스 모드: config.js의 dataMode("auto"|"api"|"json"). 최종값은 resolveMode()에서 확정.
   var MODE = "api";
+  var LIST_BY_MAP = false;   // 지도 범위로 목록 보기 토글 — 켜지면 리스트가 현재 지도 화면 bounds로 스코프된다.
   var COLLECTED = "";   // 수집일은 런타임에 채운다 — API 모드는 /api/meta, JSON 폴백은 파일 meta.collected_on. 하드코딩 금지(배치 갱신을 따라가야 함).
   var SIDO = [{ key: "서울" }, { key: "인천" }, { key: "경기" }, { key: "부산" }];
   var SIDO_FILE = { "서울": "seoul.json", "인천": "incheon.json", "경기": "gyeonggi.json", "부산": "busan.json" }; // JSON 폴백 경로
@@ -634,7 +650,17 @@
     if (isGG() && state.si !== "전체") p.si = state.si;
     if (state.gu !== "전체") p.gu = state.gu;
     if (state.dong !== "전체") p.dong = state.dong;
+    // 지도 범위로 목록 보기(LIST_BY_MAP) — 현재 지도 화면 bounds를 지역 필터에 AND로 더한다.
+    // 서버 MerchantSpecs는 4개 좌표가 모두 있을 때만 bounds를 적용한다(추가 AND). API 모드만 지원.
+    if (LIST_BY_MAP && MODE === "api") { var b = currentBounds(); if (b) p = assign(p, b); }
     return p;
+  }
+  // 현재 지도 화면의 좌표 범위(bounds). 지도 미준비면 null.
+  function currentBounds() {
+    if (!mapObj) return null;
+    var bd = mapObj.getBounds(); if (!bd) return null;
+    var sw = bd.getSW(), ne = bd.getNE();
+    return { minLat: sw.lat(), maxLat: ne.lat(), minLng: sw.lng(), maxLng: ne.lng() };
   }
   // 칩 집계 컨텍스트 = 클라이언트 base()(지역 + 디지털). cat/brand/mtype/q는 제외해 칩 카운트를 고정.
   function baseParams() {
@@ -1101,7 +1127,9 @@
   }
 
   function render() {
-    el("mScope").textContent = state.sido + " " + nf(SNAP.sidoTotal || 0) + "곳";
+    el("mScope").textContent = LIST_BY_MAP
+      ? "지도 범위 " + nf(SNAP.total || 0) + "곳"
+      : state.sido + " " + nf(SNAP.sidoTotal || 0) + "곳";
     el("countText").textContent = nf(SNAP.regionTotal) + "곳 중 " + nf(SNAP.total) + "곳 표시";
 
     var area = el("resultArea");
@@ -1211,7 +1239,20 @@
   var locMarker = null, locCircle = null; // 현재 위치(결과 마커와 분리 — clearMarkers 영향 없음)
   // 뷰포트 자동 지도(2026-08-12): 지도는 항상 "필터 ∩ 현재 화면"을 스스로 판단해
   // 3,000곳 이하면 개별 도트, 초과면 클러스터를 그린다. 별도 모드·버튼 없음.
-  var viewportTimer = null, viewportSeq = 0, SKIP_IDLE_ONCE = false;
+  var viewportTimer = null, viewportSeq = 0, SKIP_IDLE_ONCE = false, listByMapTimer = null;
+  // '이 지도 범위로 목록 보기' 토글. 켜면 리스트가 현재 지도 화면 bounds로 스코프되고, 지도 이동 시 따라 갱신된다.
+  function toggleListByMap() {
+    LIST_BY_MAP = !LIST_BY_MAP;
+    updateBoundsBtn();
+    state.page = 1;
+    refresh("all");
+  }
+  function updateBoundsBtn() {
+    var b = el("boundsBtn"); if (!b) return;
+    b.hidden = (MODE !== "api");   // bounds 리스트는 API 모드만 지원(JSON 폴백은 지역 기준)
+    b.className = "bounds-btn" + (LIST_BY_MAP ? " on" : "");
+    b.textContent = LIST_BY_MAP ? "지도 범위로 보는 중 · 해제" : "이 지도 범위로 목록 보기";
+  }
   // fit(결과 전체로 지도 맞춤)은 시도 버튼·챗 이동 착지에서만 — 업종·브랜드 등 필터 변경은
   // 사용자가 잡은 뷰를 유지하고 현재 화면 기준으로만 다시 그린다(2026-08-12).
   var MAP_FIT_NEXT = false;
@@ -1233,6 +1274,11 @@
       if (SKIP_IDLE_ONCE) { SKIP_IDLE_ONCE = false; return; }   // 프로그램적 fit 직후 1회 생략
       clearTimeout(viewportTimer);
       viewportTimer = setTimeout(viewportRender, 400);
+      // 지도 범위로 목록 보기가 켜져 있으면, 지도를 움직일 때 리스트도 그 범위로 재검색(리스트만 — 지도 재유발 없음).
+      if (LIST_BY_MAP && MODE === "api") {
+        clearTimeout(listByMapTimer);
+        listByMapTimer = setTimeout(function () { state.page = 1; refresh("page"); }, 450);
+      }
     });
     mapReady = true;
     return true;
@@ -1324,6 +1370,23 @@
     else infoWin.open(mapObj, new naver.maps.LatLng(r.lat, r.lng));
   }
 
+  // 동일좌표(같은 건물) 여러 가맹점 — 그 위치의 전체 목록 팝업(온누리 '선택 위치 가맹점'과 동일 UX).
+  function openGroupInfo(anchor, group) {
+    var items = group.map(function (r) {
+      var pay = "";
+      if (r.card === "Y") pay += '<span class="card">카드</span>';
+      if (r.qr === "Y") pay += '<span class="qr">QR</span>';
+      return '<div class="iwg-item"><div class="iwg-name">' + esc(r.name) + '</div>'
+        + '<div class="iwg-cat">' + esc(catLabel(r.cat)) + (r.brand === SSM_BRAND ? " · SSM" : "") + '</div>'
+        + (pay ? '<div class="iw-pay">' + pay + '</div>' : "") + '</div>';
+    }).join("");
+    var html = '<div class="iw iwg"><div class="iwg-head">이 위치 가맹점 <b>' + group.length + '곳</b></div>'
+      + '<div class="iwg-addr">' + esc(group[0].addr || "") + '</div>'
+      + '<div class="iwg-list">' + items + '</div></div>';
+    infoWin.setContent(html);
+    infoWin.open(mapObj, anchor);
+  }
+
   function renderMap() {
     var note = el("mapNote"), trunc = el("mapTrunc");
     if (!initMap()) { return; }   // 인증 실패 등 — authFailure가 note 처리
@@ -1346,14 +1409,28 @@
 
   function drawPins(rows, fit) {
     var bounds = new naver.maps.LatLngBounds(), n = 0;
+    // 좌표 그룹핑 — 온누리 대표좌표가 건물(도로명주소) 단위라 같은 건물 가맹점이 동일 좌표로 겹친다.
+    // 겹친 마커를 하나로 묶고(개수 배지), 클릭 시 그 위치 전체 목록을 보여준다(온누리 '선택 위치 가맹점').
+    var groups = {}, order = [];
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
       if (!r.lat || !r.lng) continue;
-      var pos = new naver.maps.LatLng(r.lat, r.lng);
-      var mk = new naver.maps.Marker({ position: pos, icon: { content: '<div class="pin"></div>', anchor: new naver.maps.Point(9, 9) } });
-      (function (marker, row) {
-        naver.maps.Event.addListener(marker, "click", function () { openInfo(marker, row); });
-      })(mk, r);
+      var key = r.lat + "," + r.lng;
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(r);
+    }
+    for (var gi = 0; gi < order.length; gi++) {
+      var g = groups[order[gi]], r0 = g[0], cnt = g.length;
+      var pos = new naver.maps.LatLng(r0.lat, r0.lng);
+      var content = cnt > 1 ? '<div class="pin-multi">' + cnt + '</div>' : '<div class="pin"></div>';
+      var a = cnt > 1 ? 11 : 9;
+      var mk = new naver.maps.Marker({ position: pos, icon: { content: content, anchor: new naver.maps.Point(a, a) } });
+      (function (marker, group) {
+        naver.maps.Event.addListener(marker, "click", function () {
+          if (group.length === 1) openInfo(marker, group[0]);
+          else openGroupInfo(marker, group);
+        });
+      })(mk, g);
       mapMarkers.push(mk); bounds.extend(pos); n++;
     }
     clusterObj = new MarkerClustering({
@@ -1605,6 +1682,7 @@
     });
     el("qClear").addEventListener("click", function () { resetSearch(); });
     var locBtn = el("locBtn"); if (locBtn) locBtn.addEventListener("click", showMyLocation);
+    var bBtn = el("boundsBtn"); if (bBtn) bBtn.addEventListener("click", toggleListByMap);
     el("sort").addEventListener("change", function (e) { state.sort = e.target.value; state.page = 1; refresh("page"); });
     el("selMtype").addEventListener("change", function (e) { state.mtype = e.target.value; state.page = 1; refresh("filter"); });
     el("digitalOnly").addEventListener("change", function (e) { state.digitalOnly = e.target.checked; state.page = 1; refresh("all"); });
@@ -1639,6 +1717,7 @@
     initSplit(); initVSplit(); renderSidoTabs(); bindControls();
     resolveMode().then(function () {
       fetchApiMeta();   // API 모드면 실제 수집일을 받아 "○○ 수집" 스탬프를 갱신
+      updateBoundsBtn();   // '지도 범위로 목록 보기' 버튼은 API 모드에서만 노출
       // 탭 배지 프리페치는 API 모드에서만(각 시도 size=1 카운트). JSON 모드는 파일 전체를 받게 되므로 생략.
       if (MODE === "api") SIDO.forEach(function (s) { loadSidoTotal(s.key).then(renderSidoTabs).catch(function () {}); });
       var rg = NAV_FILTER && NAV_FILTER.region;
