@@ -17,6 +17,7 @@
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
 | 2026-08-06 | 초기 구성 (에이전트 5 + 스킬 6) | 전체 | - |
+| 2026-08-13 | 가맹점 상세 팝업에 네이버 지도 '장소보기·길찾기' 링크 | merchants.html | 사용자 요청(UX 개선 1순위). 마커·리스트 클릭 상세(openInfo/openGroupInfo)가 텍스트뿐이라 액션이 없던 것 → 장소보기(map.naver.com/p/search/이름+주소)·길찾기(p/directions/-/lng,lat,이름/-/transit) 2버튼. 좌표·주소는 기존 데이터. 그룹(동일좌표)은 상단 1세트. URL 형식 라이브 실측 확정. '앱' 단정 금지·터치타깃 38px |
 | 2026-08-12 | 챗 입력창 IME 마지막 글자 잔존 수정 | chat-widget.js(v9) | 사용자 결함 제보(맥북). 한글 조합 중 Enter로 전송 시 value 비운 뒤 compositionend가 마지막 글자를 재삽입 → 입력창에 한 글자 남음. keydown Enter에 !e.isComposing && keyCode!==229 가드(조합 확정 Enter는 전송 안 함). 캐시버스트 v8→v9(6곳) |
 | 2026-08-12 | 사이드바 메뉴 '가맹점 찾기' → '오프라인 가맹점 찾기' | 5 HTML(online·merchants·payment·terms·report)·build_index.py→index 재빌드 | 사용자 요청. 온라인 사용처 찾기와 대비 명확화. 사이드바 메뉴 텍스트만 변경(index 본문 진입 카드 제목·merchants h1은 유지). D-F1 통과 |
 | 2026-08-12 | 클러스터 숫자=가맹점 수 보정 + 브랜드 팝업 인덱스 상향 스크롤 수정 | merchants.html | 사용자 요청·결함 제보. ①그룹 마커 도입으로 클러스터가 '건물 수'를 세던 것을(당산동 10곳→"3") 각 그룹 마커 __cnt 합산으로 '가맹점 수' 표시(patchClusterCounts — lib _clusters/_clusterMember 내부 의존, idle마다 재정정). ②브랜드 검색 팝업 초성/알파벳 색인이 위로 올라가는 방향에서 미작동 — 원인은 .bm-head가 sticky(top:0)라 offsetTop·getBoundingClientRect·scrollIntoView가 모두 '고정된 렌더 위치'(스크롤 따라 변함)를 반환. 헤더 다음 아이템(non-sticky)의 offsetTop − 헤더높이로 스크롤(.bm-list position:relative)해 양방향 정확 이동. 로컬 검증: 5953→172 상향 정상 |

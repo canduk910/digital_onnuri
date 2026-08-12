@@ -240,6 +240,14 @@
   .iw .iw-pay span{ display:inline-block; font-size:11px; padding:1px 6px; border-radius:4px; margin-right:3px; }
   .iw .iw-pay .card{ background:var(--accent-soft); color:var(--accent-press); }
   .iw .iw-pay .qr{ background:#EEF6EF; color:#1F7A47; }
+  /* 상세 팝업 액션 — 네이버 지도 장소보기·길찾기 (터치 타깃 ≥38px) */
+  .iw-actions{ display:flex; gap:6px; margin-top:9px; }
+  .iw-act{ flex:1; min-height:38px; display:flex; align-items:center; justify-content:center; gap:3px;
+    font-size:12px; font-weight:700; border-radius:6px; text-decoration:none;
+    border:1px solid var(--border-2); color:var(--text); background:var(--bg); }
+  .iw-act:hover{ border-color:var(--accent); color:var(--accent-press); }
+  .iw-act.iw-act-dir{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .iw-act.iw-act-dir:hover{ background:var(--accent-hover); color:#fff; }
   /* 이 위치 가맹점 목록 팝업(동일좌표 여러 곳) */
   .iw.iwg{ max-width:280px; }
   .iwg-head{ font-size:12px; font-weight:800; color:var(--text); }
@@ -1365,6 +1373,25 @@
       size: new naver.maps.Size(40, 40), anchor: new naver.maps.Point(20, 20) };
   }
 
+  // 네이버 지도 링크 — 장소 보기(이름+주소 검색)·길찾기(목적지 좌표+이름). 좌표·주소는 데이터에 이미 있다.
+  // 앱 설치 시 앱으로, 아니면 웹으로 열린다(라벨엔 '앱' 단정 금지 — guide-content-style).
+  function naverPlaceUrl(r) {
+    var q = ((r.name || "") + " " + (r.addr || "")).trim();
+    return "https://map.naver.com/p/search/" + encodeURIComponent(q);
+  }
+  function naverDirUrl(r) {
+    if (!r.lat || !r.lng) return null;
+    return "https://map.naver.com/p/directions/-/" + r.lng + "," + r.lat + ","
+      + encodeURIComponent(r.name || "") + "/-/transit";
+  }
+  function mapActions(r) {
+    var html = '<div class="iw-actions">'
+      + '<a class="iw-act" href="' + naverPlaceUrl(r) + '" target="_blank" rel="noopener">네이버 지도에서 보기</a>';
+    var dir = naverDirUrl(r);
+    if (dir) html += '<a class="iw-act iw-act-dir" href="' + dir + '" target="_blank" rel="noopener">길찾기</a>';
+    return html + '</div>';
+  }
+
   function openInfo(anchor, r) {
     var pay = "";
     if (r.card === "Y") pay += '<span class="card">카드</span>';
@@ -1372,7 +1399,8 @@
     var html = '<div class="iw"><div class="iw-name">' + esc(r.name) + '</div>'
       + '<div class="iw-cat">' + esc(catLabel(r.cat)) + (r.brand === SSM_BRAND ? " · SSM" : "") + '</div>'
       + '<div class="iw-addr">' + esc(r.addr || "") + (r.market ? " · " + esc(r.market) : "") + '</div>'
-      + (pay ? '<div class="iw-pay">' + pay + '</div>' : "") + '</div>';
+      + (pay ? '<div class="iw-pay">' + pay + '</div>' : "")
+      + mapActions(r) + '</div>';
     infoWin.setContent(html);
     if (anchor instanceof naver.maps.Marker) infoWin.open(mapObj, anchor);
     else infoWin.open(mapObj, new naver.maps.LatLng(r.lat, r.lng));
@@ -1388,8 +1416,10 @@
         + '<div class="iwg-cat">' + esc(catLabel(r.cat)) + (r.brand === SSM_BRAND ? " · SSM" : "") + '</div>'
         + (pay ? '<div class="iw-pay">' + pay + '</div>' : "") + '</div>';
     }).join("");
+    // 그룹은 좌표·주소가 동일하므로 지도/길찾기 링크는 상단에 한 세트만(개별 항목엔 중복 안 함).
     var html = '<div class="iw iwg"><div class="iwg-head">이 위치 가맹점 <b>' + group.length + '곳</b></div>'
       + '<div class="iwg-addr">' + esc(group[0].addr || "") + '</div>'
+      + mapActions(group[0])
       + '<div class="iwg-list">' + items + '</div></div>';
     infoWin.setContent(html);
     infoWin.open(mapObj, anchor);
