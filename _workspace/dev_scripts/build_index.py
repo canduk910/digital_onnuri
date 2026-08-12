@@ -363,7 +363,7 @@ tpl = replace_once(
 SHELL = (
     "<link rel=\"stylesheet\" href=\"shell.css?v=4\">\n"
     "<script src=\"shell.js?v=3\"></script>\n"
-    "<link rel=\"stylesheet\" href=\"chat-widget.css?v=6\">\n"
+    "<link rel=\"stylesheet\" href=\"chat-widget.css?v=7\">\n"
     "<script src=\"config.js?v=1\"></script>\n"
     "<script src=\"chat-widget.js?v=7\" defer></script>\n"
     # 크리티컬 인라인 스타일: 번들(4MB) 마운트 직후 셸 CSS 적용 전 한 프레임에
