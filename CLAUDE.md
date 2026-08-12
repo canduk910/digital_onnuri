@@ -17,6 +17,7 @@
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
 | 2026-08-06 | 초기 구성 (에이전트 5 + 스킬 6) | 전체 | - |
+| 2026-08-12 | 챗 입력창 IME 마지막 글자 잔존 수정 | chat-widget.js(v9) | 사용자 결함 제보(맥북). 한글 조합 중 Enter로 전송 시 value 비운 뒤 compositionend가 마지막 글자를 재삽입 → 입력창에 한 글자 남음. keydown Enter에 !e.isComposing && keyCode!==229 가드(조합 확정 Enter는 전송 안 함). 캐시버스트 v8→v9(6곳) |
 | 2026-08-12 | 사이드바 메뉴 '가맹점 찾기' → '오프라인 가맹점 찾기' | 5 HTML(online·merchants·payment·terms·report)·build_index.py→index 재빌드 | 사용자 요청. 온라인 사용처 찾기와 대비 명확화. 사이드바 메뉴 텍스트만 변경(index 본문 진입 카드 제목·merchants h1은 유지). D-F1 통과 |
 | 2026-08-12 | 클러스터 숫자=가맹점 수 보정 + 브랜드 팝업 인덱스 상향 스크롤 수정 | merchants.html | 사용자 요청·결함 제보. ①그룹 마커 도입으로 클러스터가 '건물 수'를 세던 것을(당산동 10곳→"3") 각 그룹 마커 __cnt 합산으로 '가맹점 수' 표시(patchClusterCounts — lib _clusters/_clusterMember 내부 의존, idle마다 재정정). ②브랜드 검색 팝업 초성/알파벳 색인이 위로 올라가는 방향에서 미작동 — 원인은 .bm-head가 sticky(top:0)라 offsetTop·getBoundingClientRect·scrollIntoView가 모두 '고정된 렌더 위치'(스크롤 따라 변함)를 반환. 헤더 다음 아이템(non-sticky)의 offsetTop − 헤더높이로 스크롤(.bm-list position:relative)해 양방향 정확 이동. 로컬 검증: 5953→172 상향 정상 |
 | 2026-08-12 | 지도 동일좌표 그룹 마커 + 위치별 목록 팝업 + 지도 범위로 목록 보기 | merchants.html | 사용자 결함 제보(당산역 가맹점 수가 온누리와 달라 보임). 원인: 온누리 대표좌표가 건물 단위라 같은 건물 가맹점이 동일 lat/lng로 겹침(당산로45길 1에 7곳, 서울 29,462곳이 고유좌표 11,940개·최대 589곳 겹침) — 데이터는 동일한데 개별 마커가 포개져 1개로 보였음. 해결: drawPins에서 좌표 그룹핑→개수 배지(.pin-multi), 클릭 시 그 위치 전체 목록 팝업(openGroupInfo, 온누리 '선택 위치 가맹점'과 동일). 추가로 '이 지도 범위로 목록 보기' 토글(LIST_BY_MAP) — regionParams에 현재 bounds AND, 지도 이동 시 리스트 자동 재검색(refresh page, API 모드만·백엔드 bounds 기존 지원). 검증: 당산역 그룹배지 7·팝업·bounds 47곳 |

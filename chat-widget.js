@@ -148,7 +148,12 @@
     });
     sendBtn.addEventListener("click", submit);
     input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+      // 한글 등 IME 조합 중 Enter는 조합 확정용이다. 이때 전송하면 value를 비운 뒤
+      // compositionend가 마지막 글자를 다시 넣어 입력창에 한 글자가 남는다(특히 macOS).
+      // isComposing/keyCode 229로 조합 중을 걸러, 조합이 끝난 Enter에서만 전송한다.
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
+        e.preventDefault(); submit();
+      }
     });
     input.addEventListener("input", function () {
       input.style.height = "auto";
