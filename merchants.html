@@ -71,7 +71,7 @@
   /* ===== 결과 카드·표 ===== */
   .card { background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; }
   /* PC: 리스트는 지도와 같은 높이의 자체 스크롤 — 페이지 스크롤과 분리 */
-  @media (min-width:901px){
+  @media (min-width:960px){
     /* 직계(>) 필수 — 하위에 span.pay.card(결제 '카드' 태그)가 있어 후손 선택 시 태그가 420px로 커진다 */
     /* 헤더·페이저 고정(2026-08-12): 카드=플렉스 컬럼, 스크롤은 표 본문(.table-scroll)만 */
     .result-list > .card { height:var(--panel-h, calc(100vh - 120px)); min-height:0; display:flex; flex-direction:column; overflow:hidden; }
@@ -273,16 +273,31 @@
   tr.row-link{ cursor:pointer; }
   tr.row-link:hover{ background:var(--accent-soft); }
   tr.row-link:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
-  @media (max-width:900px){
+  /* 모바일(셸 드로어와 동일 브레이크포인트 959) — 세로 스택 + 결과 표를 카드형으로 재구성.
+     900↔959 불일치(셸=모바일/지도=데스크톱)로 생기던 태블릿 사각지대를 없앤다. */
+  @media (max-width:959px){
     .result-split{ flex-direction:column; }
     .result-map{ position:static; width:100%; flex-basis:auto; order:-1; }
     .split-handle, .vsplit-handle{ display:none; } /* 세로 스택에선 드래그 조절 미제공 */
-    #map{ height:300px; min-height:0; }
-    /* 세로 스택 시 표(넓은 폭)가 뷰포트를 밀지 않도록 리스트 패널을 뷰포트에 clamp
-       — 표는 .table-scroll 안에서 가로 스크롤 */
+    #map{ height:min(46dvh, 400px); min-height:240px; }   /* 300px 고정 → 뷰포트 비례(큰 폰에서도 충분) */
     .result-list, .result-list > .card, #resultArea{ min-width:0; max-width:100%; }
     #resultArea{ overflow-x:hidden; }
-    .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+    /* 표 → 카드: table/thead/tbody/tr/td를 블록으로. 가로 스크롤·컬럼 드래그 제거. */
+    #resultArea .table-scroll{ overflow-x:visible; }
+    #resultArea .table-scroll table{ min-width:0 !important; width:100%; display:block; }
+    #resultArea thead{ display:none; }
+    #resultArea colgroup{ display:none; }
+    #resultArea tbody{ display:block; }
+    #resultArea tr.row-link{ display:block; border:1px solid var(--border); border-radius:var(--r-md);
+      padding:12px 14px; margin:0 0 10px; background:var(--bg); }
+    #resultArea tr.row-link:last-child{ margin-bottom:0; }
+    #resultArea td{ display:block; border:none !important; padding:2px 0; white-space:normal; max-width:none; }
+    #resultArea td.name{ font-size:15px; font-weight:800; margin-bottom:5px; }
+    #resultArea td[data-label]::before{ content:attr(data-label); display:inline-block; min-width:66px;
+      font-size:11px; font-weight:700; color:var(--text-faint); }
+    #resultArea .col-grip{ display:none; }   /* 컬럼 폭 드래그는 데스크톱 전용 — 터치 스크롤과 경합 방지 */
+    #resultArea .pager{ padding-top:6px; }
   }
 </style>
 </head>
@@ -1179,10 +1194,10 @@
       if (!pay) pay = '<span class="pay none">앱 결제 미확인</span>';
       h += '<tr class="row-link" data-lat="' + (r.lat || "") + '" data-lng="' + (r.lng || "") + '" tabindex="0">'
         + '<td class="name">' + esc(r.name) + brandTag + '</td>'
-        + '<td><span class="' + badgeCls + '">' + esc(catLabel(r.cat)) + '</span></td>'
-        + '<td class="market">' + esc(r.market || "—") + mt + '</td>'
-        + '<td class="addr">' + esc(r.addr || "—") + ' <span class="dong">· ' + dong + '</span></td>'
-        + '<td>' + pay + '</td>'
+        + '<td data-label="업종"><span class="' + badgeCls + '">' + esc(catLabel(r.cat)) + '</span></td>'
+        + '<td class="market" data-label="시장·상점가">' + esc(r.market || "—") + mt + '</td>'
+        + '<td class="addr" data-label="주소">' + esc(r.addr || "—") + ' <span class="dong">· ' + dong + '</span></td>'
+        + '<td data-label="결제">' + pay + '</td>'
         + '</tr>';
     }
     h += '</tbody></table></div>' + pagerHTML(state.page, pages, SNAP.total);
