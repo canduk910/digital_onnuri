@@ -54,7 +54,7 @@ input::placeholder { color:var(--text-faint); }
 /* ===== 모바일 상단바 + 오버레이 ===== */
 .topbar { display:none; position:fixed; top:0; left:0; right:0; height:52px; align-items:center; gap:10px; padding:0 14px; background:var(--bg); border-bottom:1px solid var(--border); z-index:40; }
 .topbar-brand { display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-size:12.5px; font-weight:700; }
-.hamburger { flex:none; width:38px; height:38px; border:1px solid var(--border); background:var(--bg); border-radius:var(--r-sm); font-size:16px; color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.hamburger { flex:none; width:44px; height:44px; border:1px solid var(--border); background:var(--bg); border-radius:var(--r-sm); font-size:16px; color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; }  /* 터치 타깃 ≥44px */
 .hamburger:hover { background:var(--surface); }
 .overlay { position:fixed; inset:0; background:rgba(20,22,26,.38); z-index:45; }
 
@@ -91,8 +91,8 @@ html[data-pw="wide"]   { --page-w:1640px; }
   border-radius:var(--r-md); box-shadow:var(--shadow-md); padding:11px 40px 11px 14px;
   font-size:12.5px; line-height:1.55; color:var(--text-sub); }
 .pc-notice b { color:var(--text); }
-.pc-notice .pcn-close { position:absolute; right:6px; top:50%; transform:translateY(-50%);
-  width:30px; height:30px; border:none; background:none; color:var(--text-faint); font-size:16px; cursor:pointer; }
+.pc-notice .pcn-close { position:absolute; right:2px; top:50%; transform:translateY(-50%);
+  width:44px; height:44px; border:none; background:none; color:var(--text-faint); font-size:16px; cursor:pointer; }  /* 터치 타깃 ≥44px */
 @media (max-width:959px){ .pc-notice.show { display:block; } }
 
 /* ===== 방문자 카운트 (2026-08-11) — 사이드바 하단 소자 표기 ===== */

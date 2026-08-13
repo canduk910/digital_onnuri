@@ -18,3 +18,6 @@ backend/**/*.tfvars
 
 # 맥 드래그 클리핑 파일 (실수 커밋 방지)
 *.textClipping
+
+# 파이썬 import 부산물
+__pycache__/

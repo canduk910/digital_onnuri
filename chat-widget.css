@@ -107,8 +107,8 @@
 .cw-disclaim { flex:none; padding:0 14px 10px; font-size:10px; color:var(--text-faint, #989DA5); background:var(--bg, #fff); }
 
 /* ── 모바일: 풀스크린 ── */
-.cw-head .cw-close { display:none; margin-left:8px; width:30px; height:30px; align-items:center; justify-content:center;
-  border:1px solid var(--border, #E5E6E8); background:var(--bg, #fff); border-radius:6px; font-size:15px; cursor:pointer; color:var(--text, #0B0C0E); }
+.cw-head .cw-close { display:none; margin-left:8px; width:40px; height:40px; align-items:center; justify-content:center;
+  border:1px solid var(--border, #E5E6E8); background:var(--bg, #fff); border-radius:6px; font-size:15px; cursor:pointer; color:var(--text, #0B0C0E); }  /* 터치 타깃(모바일 전용 버튼) */
 @media (max-width:600px){
   /* 모바일(2026-08-12): 우측하단 기준 80% 팝업 — PC와 같은 앵커. 드래그 크기 조절도 지원하므로
      !important 없이 기본값만(인라인 크기가 이긴다 — 저장값은 JS가 뷰포트에 맞게 클램프). */
