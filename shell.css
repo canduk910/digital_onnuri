@@ -72,6 +72,23 @@ html[data-pw="wide"]   { --page-w:1640px; }
 .sb-width button:hover { border-color:var(--border-2); background:var(--surface); }
 .sb-width button.active { color:#fff; background:var(--text); border-color:var(--text); }
 
+/* ===== PC 사이드바 최소화 (2026-08-13) =====
+   html[data-sb-min] 상태에서 사이드바를 접고 본문을 전체 폭으로. 버튼은 shell.js가 주입.
+   모바일(≤959)은 기존 드로어가 담당 — 이 기능은 PC 전용. */
+@media (min-width:960px){
+  html[data-sb-min] .sidebar { transform:translateX(-100%); }
+  html[data-sb-min] .content { margin-left:0; }
+  .sb-collapse { position:absolute; top:12px; right:8px; width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--border); background:var(--bg); border-radius:var(--r-sm); color:var(--text-faint); font-size:13px; cursor:pointer; }
+  .sb-collapse:hover { color:var(--accent-press); border-color:var(--accent); }
+  .sb-expand { display:none; position:fixed; top:14px; left:0; z-index:60; width:26px; height:44px;
+    align-items:center; justify-content:center; border:1px solid var(--accent); border-left:none; border-radius:0 8px 8px 0;
+    background:var(--accent); color:#fff; font-size:14px; font-weight:800; cursor:pointer; box-shadow:var(--shadow-md); }
+  .sb-expand:hover { background:var(--accent-hover); }
+  html[data-sb-min] .sb-expand { display:flex; }
+}
+@media (max-width:959px){ .sb-collapse, .sb-expand { display:none !important; } }
+
 /* ===== 셸 반응형 ===== */
 @media (max-width:959px){
   .sidebar { transform:translateX(-100%); box-shadow:var(--shadow-md); }

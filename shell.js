@@ -34,7 +34,9 @@
      UI는 여기서 .sb-width 안에 주입 — 6개 페이지 마크업 공통(index DC 마운트 대비 재시도). */
   var PW_PX_KEY = "onnuri_pw_px", PW_MIN = 760, PW_DEFAULT = 1080;
   function pwAvail() {
-    var sb = window.matchMedia("(min-width:960px)").matches ? 248 : 0;
+    // 사이드바 최소화(data-sb-min) 상태면 그 폭도 가용 폭에 포함(2026-08-13)
+    var sb = window.matchMedia("(min-width:960px)").matches
+      && !document.documentElement.hasAttribute("data-sb-min") ? 248 : 0;
     return Math.max(PW_MIN + 40, window.innerWidth - sb - 64);
   }
   function applyPw(px) {
@@ -86,6 +88,49 @@
   var pwTimer = setInterval(function () {
     if (mountSlider() || --pwTries <= 0) clearInterval(pwTimer);
   }, 300);
+})();
+
+/* ── PC 사이드바 최소화 (2026-08-13) ──
+   접기(사이드바 상단 ◀)·펼침(좌측 고정 오렌지 탭 ❯) 버튼을 주입하고 html[data-sb-min]을 토글한다.
+   상태는 localStorage(onnuri_sb_min). 토글 시 화면 폭 슬라이더 가용치 재계산 + pagewidthchange 발행
+   (지도 resize 등이 청취). 클릭은 document 위임 — index DC 재렌더에도 생존. */
+(function () {
+  "use strict";
+  var KEY = "onnuri_sb_min";
+  function setMin(min) {
+    if (min) document.documentElement.setAttribute("data-sb-min", "1");
+    else document.documentElement.removeAttribute("data-sb-min");
+    try { min ? localStorage.setItem(KEY, "1") : localStorage.removeItem(KEY); } catch (e) {}
+    // 화면 폭 슬라이더 가용치 재계산 — resize 핸들러(위 IIFE)가 pwAvail·applyPw를 다시 돌게 한다
+    try { window.dispatchEvent(new Event("resize")); } catch (e) {}
+    try { window.dispatchEvent(new Event("pagewidthchange")); } catch (e) {}
+  }
+  try { if (localStorage.getItem(KEY)) document.documentElement.setAttribute("data-sb-min", "1"); } catch (e) {}
+  function mount() {
+    var sb = document.querySelector(".sidebar");
+    if (sb && !sb.querySelector(".sb-collapse")) {
+      var c = document.createElement("button");
+      c.type = "button"; c.className = "sb-collapse"; c.title = "사이드바 접기";
+      c.setAttribute("aria-label", "사이드바 접기"); c.textContent = "◀";
+      sb.appendChild(c);
+    }
+    if (!document.querySelector(".sb-expand")) {
+      var x = document.createElement("button");
+      x.type = "button"; x.className = "sb-expand"; x.title = "사이드바 펼치기";
+      x.setAttribute("aria-label", "사이드바 펼치기"); x.textContent = "❯";
+      document.body.appendChild(x);
+    }
+    return !!sb;
+  }
+  document.addEventListener("click", function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest(".sb-collapse")) { setMin(true); return; }
+    if (t.closest(".sb-expand")) { setMin(false); return; }
+  });
+  var tries = 12;
+  var timer = setInterval(function () { if (mount() || --tries <= 0) clearInterval(timer); }, 300);
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
+  else mount();
 })();
 
 /* ── 모바일 PC 최적화 안내 (2026-08-11) ──
