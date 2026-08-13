@@ -222,6 +222,12 @@
     border:1px solid var(--border); border-radius:var(--r-md); box-shadow:0 1px 4px rgba(0,0,0,.12); cursor:pointer; }
   .loc-btn:hover{ border-color:var(--accent); color:var(--accent); }
   .loc-btn:disabled{ opacity:.6; cursor:default; }
+  /* 거리뷰 모드 토글 — 내 위치 버튼 왼쪽 */
+  .street-btn{ position:absolute; top:12px; right:106px; z-index:5; display:inline-flex; align-items:center; gap:6px;
+    padding:8px 12px; font-size:13px; font-weight:600; color:var(--text); background:#fff;
+    border:1px solid var(--border); border-radius:var(--r-md); box-shadow:0 1px 4px rgba(0,0,0,.12); cursor:pointer; }
+  .street-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .street-btn.on{ background:var(--accent); color:#fff; border-color:var(--accent); }
   .loc-btn svg{ display:block; }
   .my-loc-dot{ width:18px; height:18px; border-radius:50%; background:#1a73e8; border:3px solid #fff; box-shadow:0 0 0 2px rgba(26,115,232,.4), 0 1px 3px rgba(0,0,0,.3); }
 
@@ -436,6 +442,7 @@
           <div id="map"></div>
           <button id="boundsBtn" class="bounds-btn" type="button" hidden>이 지도 범위로 목록 보기</button>
           <div id="mapTrunc" class="map-trunc" hidden></div>
+          <button id="streetBtn" class="street-btn" type="button" aria-label="거리뷰 모드 켜기/끄기" aria-pressed="false">거리뷰</button>
           <button id="locBtn" class="loc-btn" type="button" aria-label="현재 위치를 지도에 표시">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3a8.994 8.994 0 00-7.94-7.94V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19a7 7 0 110-14 7 7 0 010 14z"/></svg>
             <span>내 위치</span>
@@ -877,28 +884,49 @@
     view.innerHTML = '<div class="pano-msg">이 위치 주변에는 거리뷰가 제공되지 않습니다.<br>메인 지도의 파란 길을 눌러 근처 촬영 지점을 선택해 보세요.</div>';
     panoObj = null;
   }
-  function enterStreetMode(pos) {
-    if (!mapReady && !initMap()) return;
-    if (!streetLayer) streetLayer = new naver.maps.StreetLayer();
-    streetLayer.setMap(mapObj);
+  function setSpot(pos) {   // 현재 보는 위치 마커(주황 원)
+    if (!pos) return;
     if (!spotMarker) {
       spotMarker = new naver.maps.Marker({ map: mapObj, position: pos, zIndex: 300,
         icon: { content: '<div class="street-spot"></div>', anchor: new naver.maps.Point(9, 9) } });
     } else { spotMarker.setMap(mapObj); spotMarker.setPosition(pos); }
+  }
+  function updateStreetBtn(on) {
+    var b = el("streetBtn");
+    if (b) { b.classList.toggle("on", !!on); b.setAttribute("aria-pressed", on ? "true" : "false"); }
+  }
+  function enterStreetMode(pos) {   // pos 없이도 진입 가능(지도 구석 토글) — 클릭한 지점에서 거리뷰가 열린다
+    if (!mapReady && !initMap()) return;
+    if (!streetLayer) streetLayer = new naver.maps.StreetLayer();
+    streetLayer.setMap(mapObj);
+    setSpot(pos);
     if (!streetClickL) {
       streetClickL = naver.maps.Event.addListener(mapObj, "click", function (e) {
         if (panoObj) panoObj.setPosition(e.coord);   // 파노라마가 가장 가까운 촬영점을 찾는다
+        else {
+          var lat = e.coord.lat ? e.coord.lat() : e.coord.y, lng = e.coord.lng ? e.coord.lng() : e.coord.x;
+          openPano(lat, lng, null);
+        }
       });
     }
+    updateStreetBtn(true);
     var note = el("mapNote");
-    if (note) { panoNoteSaved = note.innerHTML; note.innerHTML = "거리뷰 모드 — 지도의 <b>파란 길</b>을 누르면 거리뷰가 그 지점으로 이동합니다."; }
+    if (note) {
+      if (panoNoteSaved == null) panoNoteSaved = note.innerHTML;
+      note.innerHTML = "거리뷰 모드 — 지도의 <b>파란 길</b>을 누르면 그 지점 거리뷰가 열리고, 다시 누르면 이동합니다.";
+    }
   }
   function exitStreetMode() {
     if (streetLayer) streetLayer.setMap(null);
     if (spotMarker) spotMarker.setMap(null);
     if (streetClickL) { naver.maps.Event.removeListener(streetClickL); streetClickL = null; }
+    updateStreetBtn(false);
     var note = el("mapNote");
     if (note && panoNoteSaved != null) { note.innerHTML = panoNoteSaved; panoNoteSaved = null; }
+  }
+  function toggleStreetMode() {
+    if (streetClickL) closePano();   // 모드 중이면 패널까지 닫고 완전 종료(closePano→exitStreetMode)
+    else enterStreetMode(null);
   }
   function openPano(lat, lng, name) {
     var m = el("panoModal"), view = el("panoView");
@@ -925,9 +953,8 @@
       });
       // 파노라마에서 이동(화살표·지도 클릭)하면 메인 지도의 현재 위치 마커를 따라 옮긴다
       naver.maps.Event.addListener(panoObj, "pano_changed", function () {
-        if (!panoObj || !spotMarker) return;
-        var p = panoObj.getPosition();
-        if (p) spotMarker.setPosition(p);
+        if (!panoObj) return;
+        setSpot(panoObj.getPosition());   // 마커가 없으면(구석 토글 진입) 여기서 생성
       });
     } catch (e) { showNoPano(view); }
     enterStreetMode(pos);
@@ -2087,6 +2114,7 @@
     });
     el("qClear").addEventListener("click", function () { resetSearch(); });
     var locBtn = el("locBtn"); if (locBtn) locBtn.addEventListener("click", showMyLocation);
+    var stBtn = el("streetBtn"); if (stBtn) stBtn.addEventListener("click", toggleStreetMode);
     var bBtn = el("boundsBtn"); if (bBtn) bBtn.addEventListener("click", toggleListByMap);
     el("sort").addEventListener("change", function (e) {
       var v = e.target.value;
