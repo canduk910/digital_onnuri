@@ -362,7 +362,7 @@ tpl = replace_once(
 # 검색 항목=merchants.html#앵커(크로스 페이지). 기본 활성=오프라인 사용처.
 SHELL = (
     "<link rel=\"stylesheet\" href=\"shell.css?v=8\">\n"
-    "<script src=\"shell.js?v=5\"></script>\n"
+    "<script src=\"shell.js?v=6\"></script>\n"
     "<link rel=\"stylesheet\" href=\"chat-widget.css?v=9\">\n"
     "<script src=\"config.js?v=1\"></script>\n"
     "<script src=\"chat-widget.js?v=9\" defer></script>\n"

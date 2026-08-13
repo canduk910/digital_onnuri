@@ -79,9 +79,14 @@
     applyPw(cur);
     return true;
   }
-  window.addEventListener("resize", function () {   // 창 크기 변화 → 가용 폭 갱신
+  window.addEventListener("resize", function () {   // 창 크기·사이드바 접힘 변화 → 가용 폭 갱신
     var r = document.querySelector("#pwRange");
-    if (r) { r.max = Math.round(pwAvail()); applyPw(parseInt(r.value, 10)); }
+    if (!r) return;
+    // '최대' 상태였다면 가용 폭이 변해도 최대를 유지한다 — 사이드바를 접으면 그만큼 본문이 넓어진다(2026-08-13)
+    var wasMax = parseInt(r.value, 10) >= parseInt(r.max, 10) - 10;
+    r.max = Math.round(pwAvail());
+    if (wasMax) r.value = r.max;
+    applyPw(parseInt(r.value, 10));
   });
   applyPw(savedPw());          // 슬라이더 마운트 전에도 폭은 즉시 적용(FOUC 방지)
   var pwTries = 12;
