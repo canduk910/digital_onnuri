@@ -127,6 +127,12 @@
   .sv-item .sv-act button { border:1px solid var(--border-2); background:var(--bg); border-radius:6px; cursor:pointer; font-size:12px; padding:5px 9px; color:var(--text-sub); }
   .sv-item .sv-act button:hover { border-color:var(--accent); color:var(--accent-press); }
   .sv-empty { padding:26px 16px; text-align:center; color:var(--text-faint); font-size:13px; }
+  /* 거리뷰 모달 */
+  .pano-box { width:min(880px, 94vw); }
+  #panoView { width:100%; height:min(64vh, 540px); background:var(--surface); position:relative; }
+  #panoView .pano-msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--text-faint); font-size:13.5px; text-align:center; padding:20px; }
+  .pano-hint { padding:10px 16px 14px; font-size:11.5px; color:var(--text-faint); line-height:1.5; }
   .mt-tag { display:block; font-size:11.5px; color:var(--text-faint); margin-top:2px; }
   .pay { display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--r-sm); font-size:11px; font-weight:700; margin-right:4px; white-space:nowrap; }
   .pay.card { background:var(--text); color:#fff; }
@@ -262,7 +268,7 @@
   .iw-actions{ display:flex; gap:6px; margin-top:10px; }
   .iw-act{ flex:1; min-height:38px; display:flex; align-items:center; justify-content:center;
     white-space:nowrap; padding:0 8px; font-size:12px; font-weight:700; border-radius:6px; text-decoration:none;
-    border:1px solid var(--border-2); color:var(--text); background:var(--bg); }
+    border:1px solid var(--border-2); color:var(--text); background:var(--bg); font-family:inherit; cursor:pointer; }
   .iw-act:hover{ border-color:var(--accent); color:var(--accent-press); }
   .iw-act.iw-act-dir{ background:var(--accent); color:#fff; border-color:var(--accent); }
   .iw-act.iw-act-dir:hover{ background:var(--accent-hover); color:#fff; }
@@ -490,6 +496,19 @@
     </div>
   </div>
 
+  <!-- 거리뷰(네이버 파노라마) — 공식 SDK panorama 서브모듈 -->
+  <div id="panoModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-box pano-box" role="dialog" aria-modal="true" aria-labelledby="panoTitle">
+      <div class="modal-head">
+        <strong id="panoTitle">거리뷰</strong>
+        <button class="modal-close" id="panoClose" type="button" aria-label="닫기">✕</button>
+      </div>
+      <div id="panoView"></div>
+      <p class="pano-hint">가맹점 좌표는 건물 단위 대표좌표라, 그 앞 도로에서 촬영된 가장 가까운 거리뷰가 열립니다 — 마우스 드래그로 둘러보고 휠로 확대할 수 있습니다.</p>
+    </div>
+  </div>
+
 <script>
   window.navermap_authFailure = function () {
     window.__naverAuthFail = true;
@@ -499,7 +518,7 @@
     if (m) m.style.display = "none";
   };
 </script>
-<script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=x79smqla3u"></script>
+<script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=x79smqla3u&submodules=panorama"></script>
 <script src="lib/MarkerClustering.js"></script>
 <script src="shell.js?v=5"></script>
 <script src="chat-widget.js?v=9" defer></script>
@@ -840,6 +859,47 @@
   }
   function openSvModal() { renderSvModal(); el("svModal").hidden = false; }
   function closeSvModal() { el("svModal").hidden = true; }
+
+  /* ── 거리뷰 (2026-08-13) — 네이버 공식 panorama 서브모듈. 팝업의 '거리뷰' 버튼(위임)으로 연다. ── */
+  var panoObj = null, panoTimer = null;
+  function showNoPano(view) {
+    view.innerHTML = '<div class="pano-msg">이 위치 주변에는 거리뷰가 제공되지 않습니다.<br>골목 안쪽 등 촬영 차량이 지나지 않은 곳일 수 있습니다.</div>';
+    panoObj = null;
+  }
+  function openPano(lat, lng, name) {
+    var m = el("panoModal"), view = el("panoView");
+    el("panoTitle").textContent = name ? "거리뷰 — " + name : "거리뷰";
+    m.hidden = false;
+    view.innerHTML = "";
+    clearTimeout(panoTimer);
+    if (!(window.naver && naver.maps && naver.maps.Panorama)) {
+      view.innerHTML = '<div class="pano-msg">거리뷰 모듈을 불러오지 못했습니다 — 새로고침 후 다시 시도해 주세요.</div>';
+      return;
+    }
+    var inited = false;
+    try {
+      panoObj = new naver.maps.Panorama(view, {
+        position: new naver.maps.LatLng(lat, lng),
+        pov: { pan: 0, tilt: 0, fov: 100 },
+        flightSpot: false,
+        zoomControl: true
+      });
+      naver.maps.Event.addListener(panoObj, "init", function () { inited = true; clearTimeout(panoTimer); });
+      naver.maps.Event.addListener(panoObj, "pano_status", function (st) {
+        if (st && st !== "OK" && !inited) showNoPano(view);
+      });
+    } catch (e) { showNoPano(view); return; }
+    // 주변에 파노라마가 없으면 init이 오지 않는다 — 타임아웃 폴백으로 안내
+    panoTimer = setTimeout(function () {
+      if (!inited && !view.querySelector("canvas, img")) showNoPano(view);
+    }, 3500);
+  }
+  function closePano() {
+    clearTimeout(panoTimer);
+    el("panoModal").hidden = true;
+    el("panoView").innerHTML = "";
+    panoObj = null;
+  }
   // 서버 뷰 필드(marketType) → 렌더 코드가 쓰는 market_type로 정규화.
   function normItem(m) { if (m && m.market_type === undefined && m.marketType !== undefined) m.market_type = m.marketType; return m; }
 
@@ -1565,7 +1625,11 @@
   }
   function mapActions(r) {
     var html = '<div class="iw-actions">'
-      + '<a class="iw-act" href="' + naverPlaceUrl(r) + '" target="_blank" rel="noopener">네이버 지도에서 보기</a>';
+      + '<a class="iw-act" href="' + naverPlaceUrl(r) + '" target="_blank" rel="noopener">네이버 지도</a>';
+    if (r.lat && r.lng) {
+      html += '<button type="button" class="iw-act iw-act-pano" data-lat="' + r.lat + '" data-lng="' + r.lng
+        + '" data-name="' + esc(r.name || "") + '">거리뷰</button>';
+    }
     var dir = naverDirUrl(r);
     if (dir) html += '<a class="iw-act iw-act-dir" href="' + dir + '" target="_blank" rel="noopener">길찾기</a>';
     return html + '</div>';
@@ -1941,6 +2005,14 @@
     el("svOpen").addEventListener("click", openSvModal);
     el("svClose").addEventListener("click", closeSvModal);
     el("svModal").addEventListener("click", function (e) { if (e.target.getAttribute("data-close")) closeSvModal(); });
+    // 거리뷰 — 팝업 버튼은 InfoWindow innerHTML이라 document 위임으로 받는다
+    el("panoClose").addEventListener("click", closePano);
+    el("panoModal").addEventListener("click", function (e) { if (e.target.getAttribute("data-close")) closePano(); });
+    document.addEventListener("click", function (e) {
+      var b = e.target && e.target.closest ? e.target.closest(".iw-act-pano") : null;
+      if (!b) return;
+      openPano(parseFloat(b.getAttribute("data-lat")), parseFloat(b.getAttribute("data-lng")), b.getAttribute("data-name"));
+    });
     // 브랜드 검색 팝업
     el("brandOpen").addEventListener("click", openBrandModal);
     el("bmClose").addEventListener("click", closeBrandModal);

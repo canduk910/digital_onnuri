@@ -17,6 +17,7 @@
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
 | 2026-08-06 | 초기 구성 (에이전트 5 + 스킬 6) | 전체 | - |
+| 2026-08-13 | 가맹점 거리뷰 (네이버 공식 파노라마) | merchants.html | 사용자 요청. 상세 팝업에 '거리뷰' 버튼(위임 — InfoWindow innerHTML) → 모달에 naver.maps.Panorama(SDK &submodules=panorama, 동일 클라이언트ID). 주변 파노라마 없으면 3.5s 타임아웃 폴백 안내. 대표좌표=건물 단위라 '그 앞 도로 촬영분' 힌트 병기. 리뷰수·사진은 공식 API 부재+UGC 저작권·약관 리스크로 기각(기존 '네이버 지도' 링크가 대체). 첫 버튼 라벨 '네이버 지도에서 보기'→'네이버 지도'(3버튼 한 줄) |
 | 2026-08-13 | 즐겨찾기·최근 본·위치 공유 + PC 사이드바 최소화 | merchants.html, shell.css(v8)/js(v5), 5 HTML·build_index.py 캐시버스트 | 사용자 요청(UX 4순위+추가). ①행 ☆ 토글·'★ 저장 N' 모달(즐겨찾기 100·최근 본 10, localStorage 전용 — 서버 미전송 안내 병기), 항목 클릭=지도 이동+팝업, 링크 버튼=?region=&spot=lat,lng,이름 공유 URL 복사, 착지 시 goSpot으로 팝업. 최근 본은 openInfo에서 기록. ②PC 사이드바 최소화: html[data-sb-min]+접기 ◀/펼침 ❯(오렌지 탭) 버튼 shell.js 주입(위임·재시도 — DC 내성), localStorage(onnuri_sb_min), 폭 슬라이더 가용치 재계산+pagewidthchange(지도 resize). 모바일은 기존 드로어 |
 | 2026-08-13 | 가까운 순 정렬 (내 위치 기준 거리순 + 거리 태그) | backend(MerchantDistRepository 신규·MerchantService/Controller·SearchBody+uLat/uLng·SearchBodyTest), merchants.html | 사용자 요청(UX 개선 3순위). 정렬 콤보에 '가까운 순(내 위치)' — 선택 시 위치 1회 획득(거부 시 이전 정렬 복귀), 서버는 CriteriaBuilder 거리 수식 정렬(위도차²+경도차²·cos² — JpaSort.unsafe는 소수점을 프로퍼티 경로로 파싱해 불가), WHERE는 MerchantSpecs 공유(경계면 1:1). JSON 폴백 jFull도 동일 수식. 이름 옆 거리 태그(m/km). 검증: 당산역 기준 129m→179m 오름차순, 서버 curl=JSON 폴백 동일 순서 |
 | 2026-08-13 | 터치 타깃 확대 (닫기·햄버거 30~38px → 40~44px) | shell.css(v7), chat-widget.css(v9), 5 HTML·build_index.py 캐시버스트 | UX 개선 2순위 후속. 햄버거 38→44, PC안내 닫기 30→44, 챗 닫기 30→40. .gitignore에 __pycache__/ 추가 |
