@@ -25,8 +25,10 @@ public class MerchantController {
     public PageResult<MerchantView> merchants(SearchQuery qy,
                                               @RequestParam(defaultValue = "0") int page,
                                               @RequestParam(defaultValue = "50") int size,
-                                              @RequestParam(required = false) String sort) {
-        return svc.search(qy, page, size, sort);
+                                              @RequestParam(required = false) String sort,
+                                              @RequestParam(required = false) Double uLat,
+                                              @RequestParam(required = false) Double uLng) {
+        return svc.search(qy, page, size, sort, uLat, uLng);
     }
 
     /** 칩 배지용 집계: 업종별·브랜드별·시장유형별 카운트. */
@@ -80,7 +82,7 @@ public class MerchantController {
         return svc.search(b.toQuery(),
                 b.page() == null ? 0 : b.page(),
                 b.size() == null ? 50 : b.size(),
-                b.sort());
+                b.sort(), b.uLat(), b.uLng());
     }
 
     @PostMapping("/merchants/facets")

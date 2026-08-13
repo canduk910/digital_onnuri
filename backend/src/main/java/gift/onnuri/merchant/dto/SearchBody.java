@@ -21,7 +21,9 @@ public record SearchBody(
         Double maxLng,
         Integer page,
         Integer size,
-        String sort
+        String sort,
+        Double uLat,     // 가까운 순(sort=dist) 기준 사용자 좌표 — 필터가 아니라 정렬 파라미터
+        Double uLng
 ) {
     public SearchQuery toQuery() {
         return new SearchQuery(region, si, gu, dong, cat, brand, mtype, digital, q,

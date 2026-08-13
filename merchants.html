@@ -111,6 +111,7 @@
   .cat-badge { display:inline-flex; align-items:center; padding:3px 9px; border-radius:var(--r-sm); font-size:12px; font-weight:600; background:var(--accent-soft); color:var(--accent-press); white-space:nowrap; }
   .cat-badge.etc { background:var(--no-soft); color:var(--text-sub); }
   .brand-tag { display:inline-flex; align-items:center; margin-left:6px; padding:2px 7px; border-radius:var(--r-sm); font-size:11px; font-weight:700; background:var(--text); color:#fff; white-space:nowrap; vertical-align:middle; }
+  .dist-tag { display:inline-flex; align-items:center; margin-left:6px; padding:2px 7px; border-radius:var(--r-sm); font-size:11px; font-weight:700; background:var(--accent-soft); color:var(--accent-press); white-space:nowrap; vertical-align:middle; font-variant-numeric:tabular-nums; }
   .mt-tag { display:block; font-size:11.5px; color:var(--text-faint); margin-top:2px; }
   .pay { display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--r-sm); font-size:11px; font-weight:700; margin-right:4px; white-space:nowrap; }
   .pay.card { background:var(--text); color:#fff; }
@@ -393,6 +394,7 @@
       <select class="sel" id="sort" aria-label="정렬 방식">
         <option value="default">기본 순서</option>
         <option value="name">이름순 (가나다)</option>
+        <option value="dist">가까운 순 (내 위치)</option>
       </select>
       <span class="count-text" id="countText"></span>
     </div>
@@ -705,7 +707,30 @@
     if (state.mtype !== "전체") p.mtype = state.mtype;
     if (state.q.trim()) p.q = state.q.trim();
     if (state.sort === "name") p.sort = "name";
+    else if (state.sort === "dist" && USER_POS) { p.sort = "dist"; p.uLat = USER_POS.lat; p.uLng = USER_POS.lng; }
     return p;
+  }
+
+  // ── 가까운 순(내 위치) — 위치는 1회 획득 후 캐시. 거리 근사식은 서버(MerchantDistRepository)와 1:1 ──
+  var USER_POS = null;
+  function getUserPos(cb) {
+    if (USER_POS) { cb(true); return; }
+    if (!navigator.geolocation) { cb(false); return; }
+    navigator.geolocation.getCurrentPosition(
+      function (pos) { USER_POS = { lat: pos.coords.latitude, lng: pos.coords.longitude }; cb(true); },
+      function () { cb(false); },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+  }
+  function distMeters(r) {   // 표시용 근사 거리(m) — 정렬은 서버/jFull이 담당
+    if (!USER_POS || !r.lat || !r.lng) return null;
+    var dy = (r.lat - USER_POS.lat) * 111320;
+    var dx = (r.lng - USER_POS.lng) * 111320 * Math.cos(USER_POS.lat * Math.PI / 180);
+    return Math.round(Math.sqrt(dx * dx + dy * dy));
+  }
+  function distLabel(r) {
+    var m = distMeters(r);
+    if (m == null) return "";
+    return '<span class="dist-tag">' + (m < 1000 ? m + "m" : (m / 1000).toFixed(1) + "km") + '</span>';
   }
   // 서버 뷰 필드(marketType) → 렌더 코드가 쓰는 market_type로 정규화.
   function normItem(m) { if (m && m.market_type === undefined && m.marketType !== undefined) m.market_type = m.marketType; return m; }
@@ -765,6 +790,16 @@
       out.push(r);
     }
     if (state.sort === "name") out.sort(function (a, b) { return (a.name || "").localeCompare(b.name || "", "ko"); });
+    else if (state.sort === "dist" && USER_POS) {
+      // 서버 정렬과 동일한 근사식(위도차²+경도차²·cos²) — 경계면 1:1. 좌표 없는 행은 뒤로.
+      var c2 = Math.pow(Math.cos(USER_POS.lat * Math.PI / 180), 2);
+      var key = function (r) {
+        if (!r.lat || !r.lng) return Infinity;
+        var dy = r.lat - USER_POS.lat, dx = r.lng - USER_POS.lng;
+        return dy * dy + dx * dx * c2;
+      };
+      out.sort(function (a, b) { return key(a) - key(b); });
+    }
     return out;
   }
   function jDistinctDong(rows) {
@@ -1199,7 +1234,7 @@
       if (r.qr === "Y") pay += '<span class="pay qr">QR</span>';
       if (!pay) pay = '<span class="pay none">앱 결제 미확인</span>';
       h += '<tr class="row-link" data-lat="' + (r.lat || "") + '" data-lng="' + (r.lng || "") + '" tabindex="0">'
-        + '<td class="name">' + esc(r.name) + brandTag + '</td>'
+        + '<td class="name">' + esc(r.name) + brandTag + (state.sort === "dist" ? distLabel(r) : "") + '</td>'
         + '<td data-label="업종"><span class="' + badgeCls + '">' + esc(catLabel(r.cat)) + '</span></td>'
         + '<td class="market" data-label="시장·상점가">' + esc(r.market || "—") + mt + '</td>'
         + '<td class="addr" data-label="주소">' + esc(r.addr || "—") + ' <span class="dong">· ' + dong + '</span></td>'
@@ -1764,7 +1799,21 @@
     el("qClear").addEventListener("click", function () { resetSearch(); });
     var locBtn = el("locBtn"); if (locBtn) locBtn.addEventListener("click", showMyLocation);
     var bBtn = el("boundsBtn"); if (bBtn) bBtn.addEventListener("click", toggleListByMap);
-    el("sort").addEventListener("change", function (e) { state.sort = e.target.value; state.page = 1; refresh("page"); });
+    el("sort").addEventListener("change", function (e) {
+      var v = e.target.value;
+      if (v === "dist") {   // 위치 허용을 받은 뒤에만 적용 — 거부·실패 시 이전 정렬로 되돌린다
+        getUserPos(function (ok) {
+          if (!ok) {
+            e.target.value = state.sort;
+            var note = el("mapNote"); if (note) note.textContent = "위치 정보를 가져오지 못해 가까운 순 정렬을 켤 수 없습니다 — 브라우저 위치 권한을 확인하세요.";
+            return;
+          }
+          state.sort = "dist"; state.page = 1; refresh("page");
+        });
+        return;
+      }
+      state.sort = v; state.page = 1; refresh("page");
+    });
     el("selMtype").addEventListener("change", function (e) { state.mtype = e.target.value; state.page = 1; refresh("filter"); });
     el("digitalOnly").addEventListener("change", function (e) { state.digitalOnly = e.target.checked; state.page = 1; refresh("all"); });
     // 브랜드 검색 팝업

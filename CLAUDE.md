@@ -17,6 +17,7 @@
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
 | 2026-08-06 | 초기 구성 (에이전트 5 + 스킬 6) | 전체 | - |
+| 2026-08-13 | 가까운 순 정렬 (내 위치 기준 거리순 + 거리 태그) | backend(MerchantDistRepository 신규·MerchantService/Controller·SearchBody+uLat/uLng·SearchBodyTest), merchants.html | 사용자 요청(UX 개선 3순위). 정렬 콤보에 '가까운 순(내 위치)' — 선택 시 위치 1회 획득(거부 시 이전 정렬 복귀), 서버는 CriteriaBuilder 거리 수식 정렬(위도차²+경도차²·cos² — JpaSort.unsafe는 소수점을 프로퍼티 경로로 파싱해 불가), WHERE는 MerchantSpecs 공유(경계면 1:1). JSON 폴백 jFull도 동일 수식. 이름 옆 거리 태그(m/km). 검증: 당산역 기준 129m→179m 오름차순, 서버 curl=JSON 폴백 동일 순서 |
 | 2026-08-13 | 터치 타깃 확대 (닫기·햄버거 30~38px → 40~44px) | shell.css(v7), chat-widget.css(v9), 5 HTML·build_index.py 캐시버스트 | UX 개선 2순위 후속. 햄버거 38→44, PC안내 닫기 30→44, 챗 닫기 30→40. .gitignore에 __pycache__/ 추가 |
 | 2026-08-13 | 모바일 레이아웃 개선: 결과 표→카드형 + 지도 dvh + 브레이크포인트 통일 | merchants.html | 사용자 요청(UX 개선 2순위). ①결과 표를 ≤959px에서 카드형으로(td를 블록화·data-label 라벨, 가로스크롤·컬럼드래그 제거) — 세로스택+표 이중스크롤 해소. ②지도 300px 고정→min(46dvh,400px) 비례. ③브레이크포인트 900↔959 불일치(셸=모바일/지도=데스크톱 사각지대) 해소: 지도레이아웃 900→959, 리스트 자체스크롤 901→960. ④col-grip 모바일 숨김(터치 스크롤 경합 방지). 터치타깃(셸·챗 닫기)은 후속 |
 | 2026-08-13 | 가맹점 상세 팝업에 네이버 지도 '장소보기·길찾기' 링크 | merchants.html | 사용자 요청(UX 개선 1순위). 마커·리스트 클릭 상세(openInfo/openGroupInfo)가 텍스트뿐이라 액션이 없던 것 → 장소보기(map.naver.com/p/search/이름+주소)·길찾기(p/directions/-/lng,lat,이름/-/transit) 2버튼. 좌표·주소는 기존 데이터. 그룹(동일좌표)은 상단 1세트. URL 형식 라이브 실측 확정. '앱' 단정 금지·터치타깃 38px |

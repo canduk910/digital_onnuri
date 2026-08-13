@@ -14,18 +14,34 @@ import java.util.stream.Collectors;
 public class MerchantService {
 
     private final MerchantRepository repo;
+    private final MerchantDistRepository distRepo;
     private final int mapMax;
 
-    public MerchantService(MerchantRepository repo,
+    public MerchantService(MerchantRepository repo, MerchantDistRepository distRepo,
                            @Value("${app.map.max-markers:3000}") int mapMax) {
         this.repo = repo;
+        this.distRepo = distRepo;
         this.mapMax = mapMax;
     }
 
-    /** 리스트 + 페이징. sort: "name"=가맹점명순, 그 외(기본)=id(수집순 근사). */
+    /** 리스트 + 페이징. sort: "name"=가맹점명순, "dist"=사용자 좌표 기준 가까운 순(uLat·uLng 필수), 그 외(기본)=id(수집순 근사). */
     public PageResult<MerchantView> search(SearchQuery qy, int page, int size, String sort) {
+        return search(qy, page, size, sort, null, null);
+    }
+
+    public PageResult<MerchantView> search(SearchQuery qy, int page, int size, String sort,
+                                           Double uLat, Double uLng) {
+        int sz = Math.min(Math.max(size, 1), 200);
+        int pg = Math.max(page, 0);
+        if ("dist".equals(sort) && uLat != null && uLng != null) {
+            // 가까운 순 — 정렬 키가 수식(거리)이라 Sort로 표현 불가 → 전용 Criteria 조회. WHERE는 Specs 공유.
+            List<MerchantView> items = distRepo.findNearest(qy, uLat, uLng, pg, sz)
+                    .stream().map(MerchantView::of).toList();
+            long total = repo.count(MerchantSpecs.from(qy));
+            return new PageResult<>(items, total, pg, sz);
+        }
         Sort order = "name".equals(sort) ? Sort.by("name") : Sort.by("id");
-        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 200), order);
+        Pageable pageable = PageRequest.of(pg, sz, order);
         Page<Merchant> p = repo.findAll(MerchantSpecs.from(qy), pageable);
         List<MerchantView> items = p.getContent().stream().map(MerchantView::of).toList();
         return new PageResult<>(items, p.getTotalElements(), p.getNumber(), p.getSize());

@@ -26,12 +26,13 @@ class SearchBodyTest {
         assertTrue(c.containsAll(List.of("region", "si", "gu", "dong", "cat", "brand", "mtype",
                 "digital", "q", "minLat", "maxLat", "minLng", "maxLng")), "SearchQuery 필드 누락");
         assertTrue(c.containsAll(List.of("page", "size", "sort")), "페이징 필드 누락");
+        assertTrue(c.containsAll(List.of("uLat", "uLng")), "가까운 순 정렬 좌표 필드 누락(2026-08-13)");
     }
 
     @Test
     void toQuery_는_필터_필드를_그대로_옮긴다() {
         SearchBody b = new SearchBody("서울", null, "동작구", "노량진동", null, "GS25", null,
-                Boolean.TRUE, "수산", 1.0, 2.0, 3.0, 4.0, 2, 50, "name");
+                Boolean.TRUE, "수산", 1.0, 2.0, 3.0, 4.0, 2, 50, "name", null, null);
         SearchQuery qy = b.toQuery();
         assertEquals("서울", qy.region());
         assertEquals("동작구", qy.gu());
