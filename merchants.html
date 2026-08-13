@@ -1623,6 +1623,16 @@
     return "https://map.naver.com/p/directions/-/" + r.lng + "," + r.lat + ","
       + encodeURIComponent(r.name || "") + "/-/transit";
   }
+  // InfoWindow는 내부 클릭 전파를 막아 document 위임이 닿지 않는다 — 팝업을 연 직후 직접 바인딩.
+  function wirePanoBtns() {
+    Array.prototype.forEach.call(document.querySelectorAll(".iw-act-pano"), function (b) {
+      if (b.__wired) return; b.__wired = true;
+      b.addEventListener("click", function () {
+        openPano(parseFloat(b.getAttribute("data-lat")), parseFloat(b.getAttribute("data-lng")), b.getAttribute("data-name"));
+      });
+    });
+  }
+
   function mapActions(r) {
     var html = '<div class="iw-actions">'
       + '<a class="iw-act" href="' + naverPlaceUrl(r) + '" target="_blank" rel="noopener">네이버 지도</a>';
@@ -1648,6 +1658,7 @@
     infoWin.setContent(html);
     if (anchor instanceof naver.maps.Marker) infoWin.open(mapObj, anchor);
     else infoWin.open(mapObj, new naver.maps.LatLng(r.lat, r.lng));
+    setTimeout(wirePanoBtns, 0);
   }
 
   // 동일좌표(같은 건물) 여러 가맹점 — 그 위치의 전체 목록 팝업(온누리 '선택 위치 가맹점'과 동일 UX).
@@ -1667,6 +1678,7 @@
       + '<div class="iwg-list">' + items + '</div></div>';
     infoWin.setContent(html);
     infoWin.open(mapObj, anchor);
+    setTimeout(wirePanoBtns, 0);
   }
 
   function renderMap() {
