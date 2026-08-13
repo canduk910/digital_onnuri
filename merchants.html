@@ -341,6 +341,17 @@
       font-size:11px; font-weight:700; color:var(--text-faint); }
     #resultArea .col-grip{ display:none; }   /* 컬럼 폭 드래그는 데스크톱 전용 — 터치 스크롤과 경합 방지 */
     #resultArea .pager{ padding-top:6px; }
+    /* 좁은 화면에선 상단 중앙(지도범위)과 우측(거리뷰·내 위치) 버튼이 겹친다 → 지도범위 버튼을 하단 중앙으로 */
+    .bounds-btn{ top:auto; bottom:12px; }
+  }
+
+  /* 모바일 거리뷰 — 하단 고정 시트(낮게 시작, 지도가 위에 보여 파란 길 재탭 용이). 이동·크기조절은 PC 전용 */
+  @media (max-width:600px){
+    .pano-float{ left:0 !important; right:0 !important; top:auto !important; bottom:0 !important;
+      width:100% !important; border-radius:12px 12px 0 0; }
+    #panoView{ height:32dvh !important; }
+    .pano-resize{ display:none; }
+    .pano-float .modal-head{ cursor:default; touch-action:auto; }
   }
 </style>
 </head>
