@@ -27,6 +27,8 @@ app:
       https://koscomlabor.cloud
   map:
     max-markers: 3000          # 지도 좌표 API 상한(현 클라이언트 MAP_MAX와 동일)
+  admin:
+    key: ${APP_ADMIN_KEY:}     # 제보 처리상태 변경 키 — 서버 .env에만 실제 값. 비면 관리 기능 비활성(403)
   # 챗봇 (ADR-12). API 키는 서버 .env의 OPENAI_API_KEY로만 주입 — 코드·저장소 비노출.
   openai:
     api-key: ${OPENAI_API_KEY:}

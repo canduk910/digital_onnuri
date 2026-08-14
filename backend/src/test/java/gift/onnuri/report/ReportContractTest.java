@@ -28,4 +28,21 @@ class ReportContractTest {
         assertEquals(List.of("title", "content", "page", "nickname"),
                 components(ReportCreate.class));
     }
+
+    @Test
+    void 처리상태는_접수_반영만_허용한다() {
+        assertTrue(ReportController.isValidStatus("접수"));
+        assertTrue(ReportController.isValidStatus("반영"));
+        assertFalse(ReportController.isValidStatus("완료"));
+        assertFalse(ReportController.isValidStatus(null));
+    }
+
+    @Test
+    void 관리자_키_미설정이면_기능_비활성_그리고_정확_일치만_통과() {
+        assertFalse(ReportController.authorized("", "anything"));      // 미설정 → 비활성
+        assertFalse(ReportController.authorized(null, "anything"));
+        assertFalse(ReportController.authorized("secret", null));
+        assertFalse(ReportController.authorized("secret", "wrong"));
+        assertTrue(ReportController.authorized("secret", "secret"));
+    }
 }

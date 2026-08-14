@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>제보 관리 — 코스콤 디지털온누리 가이드</title>
+<link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">
+<link rel="stylesheet" href="shell.css?v=8">
+<style>
+  /* 제보 처리상태 관리(운영자 전용, 비공개 URL) — 공통 셸은 shell.css (ADR-9) */
+  .page-head { margin-bottom:22px; padding-top:6px; }
+  h1 { font-family:var(--font-display); font-size:clamp(28px, 4vw, 42px); font-weight:700; letter-spacing:-0.035em; margin-bottom:8px; }
+  .subtitle { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent-press); margin-bottom:8px; }
+  .meta-line { font-size:13px; color:var(--text-sub); }
+
+  .key-state { display:inline-flex; align-items:center; gap:8px; margin:10px 0 18px; padding:8px 14px;
+    border-radius:var(--r-md); font-size:12.5px; font-weight:700; background:var(--surface); color:var(--text-sub); }
+  .key-state.ok { background:#EEF6EF; color:#1F7A47; }
+  .key-state button { border:1px solid var(--border-2); background:var(--bg); border-radius:6px; cursor:pointer;
+    font-size:12px; padding:4px 10px; color:var(--text-sub); }
+
+  .rep-item { background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); padding:14px 18px; margin-bottom:10px; }
+  .rep-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:5px; }
+  .rep-title { font-size:14.5px; font-weight:800; }
+  .rep-badge { display:inline-flex; padding:2px 8px; border-radius:var(--r-sm); font-size:11px; font-weight:700; background:var(--accent-soft); color:var(--accent-press); }
+  .rep-badge.done { background:#EEF6EF; color:#1F7A47; }
+  .rep-meta { margin-left:auto; font-size:11.5px; color:var(--text-faint); font-variant-numeric:tabular-nums; }
+  .rep-body { font-size:13px; color:var(--text-sub); line-height:1.65; white-space:pre-wrap; word-break:break-word; margin-bottom:10px; }
+  .rep-act { display:flex; gap:6px; align-items:center; }
+  .rep-act button { border:1px solid var(--border-2); background:var(--bg); border-radius:6px; cursor:pointer;
+    font-size:12.5px; font-weight:700; padding:7px 14px; color:var(--text-sub); }
+  .rep-act button:hover { border-color:var(--accent); color:var(--accent-press); }
+  .rep-act button.cur { background:var(--accent); color:#fff; border-color:var(--accent); cursor:default; }
+  .rep-act .msg { font-size:12px; color:var(--text-faint); }
+  .rep-empty { padding:28px; text-align:center; color:var(--text-faint); font-size:13px; background:var(--surface); border-radius:var(--r-md); }
+  .rep-more { margin-top:14px; text-align:center; }
+  .rep-more button { font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; background:var(--bg); border:1px solid var(--border-2); border-radius:var(--r-sm); padding:9px 22px; color:var(--text-sub); }
+  .foot-note { margin-top:30px; padding-top:14px; border-top:1px solid var(--border); font-size:12px; color:var(--text-faint); line-height:1.7; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="hamburger" id="navToggle" aria-label="메뉴 열기" aria-expanded="false">☰</button>
+  <span class="topbar-brand"><img class="ci-img ci-img-sm" src="assets/koscom_ci.png" alt="koscom"> 코스콤 디지털온누리 가이드</span>
+</header>
+<div class="overlay" id="navOverlay" hidden></div>
+
+<aside class="sidebar" id="sidebar">
+  <a class="sb-logo" href="index.html">
+    <img class="ci-img" src="assets/koscom_ci.png" alt="koscom">
+    <span class="sb-logo-txt">코스콤 디지털온누리 가이드</span>
+  </a>
+  <nav class="sb-nav" aria-label="사이트 메뉴">
+    <div class="sb-group">사용 가이드</div>
+    <a class="sb-item" href="index.html#offline">오프라인 사용처</a>
+    <a class="sb-item" href="index.html#online">온라인 가맹 플랫폼</a>
+    <a class="sb-item" href="payment.html">결제 방법</a>
+    <a class="sb-item" href="terms.html">용어·유의사항</a>
+    <div class="sb-group">가맹점 스마트 검색</div>
+    <a class="sb-item" href="merchants.html">오프라인 가맹점 찾기</a>
+    <a class="sb-item" href="online.html">온라인 사용처 찾기</a>
+    <div class="sb-group">소식</div>
+    <a class="sb-item" href="news.html">온누리 뉴스</a>
+    <div class="sb-group">피드백</div>
+    <a class="sb-item" href="report.html">버그 제보</a>
+  </nav>
+  <div class="sb-width" role="group" aria-label="화면 폭 조절">
+    <span class="sb-width-label">화면 폭</span>
+  </div>
+  <a class="sb-ext" href="https://www.onnuri.gift/place" target="_blank" rel="noopener">공식 가맹점 지도 ↗</a>
+</aside>
+
+<main class="content">
+  <div class="content-inner">
+    <div class="page-head">
+      <div class="subtitle">Admin</div>
+      <h1>제보 관리</h1>
+      <p class="meta-line">버그 제보의 처리상태(접수↔반영)를 변경합니다 — 운영자 전용 페이지입니다.</p>
+      <div id="keyState" class="key-state">키 확인 중…</div>
+    </div>
+
+    <div id="repList"><div class="rep-empty">불러오는 중…</div></div>
+    <div class="rep-more" id="repMore" hidden><button type="button" id="moreBtn">더 보기</button></div>
+
+    <div class="foot-note">
+      이 페이지 주소와 키는 운영자만 보관하세요 — 키가 없으면 상태 변경이 거부(403)됩니다.
+      키는 서버 환경변수(APP_ADMIN_KEY)로만 관리되며 저장소에 없습니다.
+    </div>
+  </div>
+</main>
+
+<script src="shell.js?v=6"></script>
+<script src="config.js?v=1"></script>
+<script>
+(function () {
+  "use strict";
+  var CFG = window.ONNURI_CONFIG || {};
+  var API = (function () {
+    if (CFG.apiBase) return CFG.apiBase.replace(/\/$/, "");
+    var h = location.hostname;
+    if (h === "localhost" || h === "127.0.0.1") return "http://localhost:8080/api";
+    return "https://api.koscomlabor.cloud/api";
+  })();
+  var el = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+  }); };
+
+  // 키: ?key= 우선(북마크용) → sessionStorage → 프롬프트. URL의 키는 히스토리에 남지 않게 지운다.
+  var KEY = (function () {
+    try {
+      var q = new URLSearchParams(location.search).get("key");
+      if (q) {
+        sessionStorage.setItem("onnuri_admin_key", q);
+        history.replaceState(null, "", location.pathname);
+        return q;
+      }
+      return sessionStorage.getItem("onnuri_admin_key") || "";
+    } catch (e) { return ""; }
+  })();
+  function renderKeyState() {
+    var ks = el("keyState");
+    if (KEY) {
+      ks.className = "key-state ok";
+      ks.innerHTML = "관리자 키 입력됨 <button type=\"button\" id=\"keyClear\">키 지우기</button>";
+      ks.querySelector("#keyClear").addEventListener("click", function () {
+        try { sessionStorage.removeItem("onnuri_admin_key"); } catch (e) {}
+        KEY = ""; renderKeyState();
+      });
+    } else {
+      ks.className = "key-state";
+      ks.innerHTML = "관리자 키 없음 — 상태 변경 불가 <button type=\"button\" id=\"keySet\">키 입력</button>";
+      ks.querySelector("#keySet").addEventListener("click", function () {
+        var v = prompt("관리자 키를 입력하세요");
+        if (v) { try { sessionStorage.setItem("onnuri_admin_key", v); } catch (e) {} KEY = v; renderKeyState(); }
+      });
+    }
+  }
+
+  var PAGE_SIZE = 20, page = 0, total = 0;
+  function render(items, append) {
+    var list = el("repList");
+    if (!append) list.innerHTML = "";
+    if (!items.length && !append) {
+      list.innerHTML = '<div class="rep-empty">제보가 없습니다.</div>'; return;
+    }
+    items.forEach(function (r) {
+      var d = document.createElement("div");
+      d.className = "rep-item";
+      var badge = r.status === "반영" ? "rep-badge done" : "rep-badge";
+      d.innerHTML = '<div class="rep-head"><span class="' + badge + '">' + esc(r.status) + '</span>'
+        + '<span class="rep-title">#' + r.id + ' ' + esc(r.title) + '</span>'
+        + (r.page ? '<span class="msg">· ' + esc(r.page) + '</span>' : '')
+        + '<span class="rep-meta">' + esc(r.nickname || "익명") + ' · ' + esc(r.createdAt) + '</span></div>'
+        + '<div class="rep-body">' + esc(r.content) + '</div>'
+        + '<div class="rep-act">'
+        + '<button type="button" data-s="접수" class="' + (r.status === "접수" ? "cur" : "") + '">접수</button>'
+        + '<button type="button" data-s="반영" class="' + (r.status === "반영" ? "cur" : "") + '">반영</button>'
+        + '<span class="msg"></span></div>';
+      Array.prototype.forEach.call(d.querySelectorAll(".rep-act button"), function (b) {
+        b.addEventListener("click", function () { setStatus(r.id, b.getAttribute("data-s"), d); });
+      });
+      list.appendChild(d);
+    });
+  }
+  function setStatus(id, status, card) {
+    var msg = card.querySelector(".rep-act .msg");
+    if (!KEY) { msg.textContent = "키를 먼저 입력하세요."; return; }
+    msg.textContent = "변경 중…";
+    fetch(API + "/reports/" + id + "/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Key": KEY },
+      body: JSON.stringify({ status: status })
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, code: r.status, d: d }; }); })
+      .then(function (res) {
+        if (!res.ok) { msg.textContent = (res.d && res.d.message) || ("실패(" + res.code + ")"); return; }
+        msg.textContent = "변경됨";
+        var badge = card.querySelector(".rep-badge");
+        badge.textContent = status;
+        badge.className = status === "반영" ? "rep-badge done" : "rep-badge";
+        Array.prototype.forEach.call(card.querySelectorAll(".rep-act button"), function (b) {
+          b.classList.toggle("cur", b.getAttribute("data-s") === status);
+        });
+      })
+      .catch(function () { msg.textContent = "서버에 연결하지 못했습니다."; });
+  }
+  function load(append) {
+    fetch(API + "/reports?page=" + page + "&size=" + PAGE_SIZE)
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (d) {
+        total = d.total;
+        render(d.items, append);
+        el("repMore").hidden = (page + 1) * PAGE_SIZE >= total;
+      })
+      .catch(function () {
+        el("repList").innerHTML = '<div class="rep-empty">목록을 불러오지 못했습니다.</div>';
+      });
+  }
+  el("moreBtn").addEventListener("click", function () { page++; load(true); });
+  renderKeyState();
+  load(false);
+})();
+</script>
+</body>
+</html>

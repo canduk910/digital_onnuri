@@ -214,8 +214,11 @@ python3 backend/tools/nightly_update.py --no-collect --skip-online --skip-rag
   실사고: 동작구 total=1·노량진동 0곳, 데이터는 무결). 교체 직후 반드시
   `REINDEX DATABASE onnuri;` 실행 후 회귀 기준값(동 단위 포함)으로 검증한다.
 - **로그**: `docker compose logs app` / `logs caddy`.
-- **버그 제보 상태 갱신**(report.html 게시판): 반영 완료 시
-  `docker compose -f docker-compose.prod.yml exec -T db psql -U onnuri -d onnuri -c "UPDATE report SET status='반영' WHERE id=<번호>;"`
+- **버그 제보 상태 갱신**(report.html 게시판): 관리자 페이지 `admin-report.html`에서 접수↔반영 토글(2026-08-14).
+  - 키 설정(최초 1회): 서버 `.env`에 `APP_ADMIN_KEY=<랜덤값>` 추가(`openssl rand -hex 24`로 생성) 후 `up -d --build app`.
+    키가 비어 있으면 상태 변경 API(`POST /api/reports/{id}/status`, `X-Admin-Key` 헤더)는 전부 403 — 기능 비활성.
+  - 접속: `https://koscomlabor.cloud/admin-report.html?key=<APP_ADMIN_KEY>` — 첫 진입 시 키를 sessionStorage에 옮기고 URL에서 지운다.
+  - 폴백(SQL 직접): `docker compose -f docker-compose.prod.yml exec -T db psql -U onnuri -d onnuri -c "UPDATE report SET status='반영' WHERE id=<번호>;"`
 - **DB 백업**: `pgdata` 볼륨 백업. 예) `docker exec onnuri-db pg_dump -U onnuri onnuri > backup.sql`.
 - **CORS**: 기본값에 `https://canduk910.github.io` 포함. 다른 오리진 추가 시 `.env`의 `APP_CORS_ALLOWED_ORIGINS` 주석 해제.
 - **pgvector(RAG) 전환 시**: compose `db` 이미지를 `pgvector/pgvector:pg16`으로 교체(같은 `pgdata` 볼륨 유지 가능) 후 `CREATE EXTENSION vector`.

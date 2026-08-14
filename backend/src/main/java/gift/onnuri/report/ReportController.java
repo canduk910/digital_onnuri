@@ -26,10 +26,40 @@ public class ReportController {
 
     private final JdbcTemplate jdbc;
     private final RateLimiter limiter;
+    private final String adminKey;
 
-    public ReportController(JdbcTemplate jdbc, RateLimiter reportRateLimiter) {
+    public ReportController(JdbcTemplate jdbc, RateLimiter reportRateLimiter,
+                            @org.springframework.beans.factory.annotation.Value("${app.admin.key:}") String adminKey) {
         this.jdbc = jdbc;
         this.limiter = reportRateLimiter;
+        this.adminKey = adminKey;
+    }
+
+    /** 처리상태 화이트리스트 — report.html 배지와 1:1(그 외 값은 배지 스타일이 없다). */
+    static boolean isValidStatus(String s) {
+        return "접수".equals(s) || "반영".equals(s);
+    }
+
+    /** 관리자 키 검증 — 서버 .env(APP_ADMIN_KEY)에만 존재. 미설정이면 기능 자체 비활성(403). */
+    static boolean authorized(String configuredKey, String providedKey) {
+        return configuredKey != null && !configuredKey.isBlank() && configuredKey.equals(providedKey);
+    }
+
+    /** 처리상태 변경(운영자 전용) — admin-report.html이 X-Admin-Key와 함께 호출한다. */
+    @PostMapping("/{id}/status")
+    public ResponseEntity<?> setStatus(@PathVariable long id,
+                                       @RequestBody Map<String, String> body,
+                                       @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (!authorized(adminKey, key)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "관리자 키가 올바르지 않습니다."));
+        }
+        String status = body.get("status");
+        if (!isValidStatus(status)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "상태는 '접수' 또는 '반영'만 가능합니다."));
+        }
+        int n = jdbc.update("UPDATE report SET status = ? WHERE id = ?", status, id);
+        if (n == 0) return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "해당 제보가 없습니다."));
+        return ResponseEntity.ok(Map.of("ok", true, "id", id, "status", status));
     }
 
     @PostMapping

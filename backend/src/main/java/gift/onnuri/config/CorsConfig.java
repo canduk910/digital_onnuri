@@ -24,6 +24,7 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")
                 .allowedOrigins(origins)
                 .allowedMethods("GET", "POST")   // POST는 챗봇(/api/chat) SSE용
+                .allowedHeaders("*")             // X-Admin-Key(제보 관리) 등 커스텀 헤더 허용(2026-08-14)
                 .maxAge(3600);
     }
 }
