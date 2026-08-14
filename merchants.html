@@ -133,14 +133,19 @@
     display:flex; flex-direction:column; box-shadow:0 10px 34px rgba(20,22,26,.3); }
   .pano-float[hidden] { display:none; }
   .pano-float .modal-head { cursor:move; user-select:none; touch-action:none; }
+  .pano-date { margin-left:auto; margin-right:8px; font-size:11.5px; font-weight:700; color:var(--text-faint); white-space:nowrap; font-variant-numeric:tabular-nums; }
   #panoView { width:100%; height:var(--pano-h, min(44vh, 400px)); background:var(--surface); position:relative; }
   #panoView .pano-msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     color:var(--text-faint); font-size:13.5px; text-align:center; padding:20px; }
   .pano-hint { padding:10px 16px 12px; font-size:11.5px; color:var(--text-faint); line-height:1.5; }
   .pano-resize { position:absolute; right:0; bottom:0; width:22px; height:22px; cursor:nwse-resize; touch-action:none; z-index:6;
     background:linear-gradient(135deg, transparent 55%, var(--border-2) 55%, var(--border-2) 65%, transparent 65%, transparent 75%, var(--border-2) 75%, var(--border-2) 85%, transparent 85%); }
-  /* 거리뷰 모드 — 메인 지도 위 '현재 보는 위치' 마커 */
-  .street-spot { width:18px; height:18px; border-radius:50%; background:var(--accent); border:3px solid #fff;
+  /* 거리뷰 모드 — 메인 지도 위 '현재 보는 위치+방향' 마커. 부채꼴(콘)이 파노라마 시선 방향(pov.pan)을 따라 회전 */
+  .street-spot-wrap { width:44px; height:44px; position:relative; transition:transform .15s ease; will-change:transform; }
+  .street-cone { position:absolute; left:50%; bottom:50%; transform:translateX(-50%); width:0; height:0;
+    border-left:15px solid transparent; border-right:15px solid transparent; border-top:22px solid rgba(242,107,29,.38); }
+  .street-spot { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:18px; height:18px; border-radius:50%; background:var(--accent); border:3px solid #fff;
     box-shadow:0 0 0 2px var(--accent), 0 2px 8px rgba(20,22,26,.45); }
   .mt-tag { display:block; font-size:11.5px; color:var(--text-faint); margin-top:2px; }
   .pay { display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--r-sm); font-size:11px; font-weight:700; margin-right:4px; white-space:nowrap; }
@@ -530,6 +535,7 @@
   <div id="panoModal" class="pano-float" hidden>
     <div class="modal-head">
       <strong id="panoTitle">거리뷰</strong>
+      <span id="panoDate" class="pano-date"></span>
       <button class="modal-close" id="panoClose" type="button" aria-label="닫기">✕</button>
     </div>
     <div id="panoView"></div>
@@ -897,12 +903,40 @@
     view.innerHTML = '<div class="pano-msg">이 위치 주변에는 거리뷰가 제공되지 않습니다.<br>메인 지도의 파란 길을 눌러 근처 촬영 지점을 선택해 보세요.</div>';
     panoObj = null;
   }
-  function setSpot(pos) {   // 현재 보는 위치 마커(주황 원)
+  function setSpot(pos) {   // 현재 보는 위치+방향 마커(주황 원 + 시야 콘)
     if (!pos) return;
     if (!spotMarker) {
       spotMarker = new naver.maps.Marker({ map: mapObj, position: pos, zIndex: 300,
-        icon: { content: '<div class="street-spot"></div>', anchor: new naver.maps.Point(9, 9) } });
+        icon: { content: '<div class="street-spot-wrap"><div class="street-cone"></div><div class="street-spot"></div></div>',
+                anchor: new naver.maps.Point(22, 22) } });
     } else { spotMarker.setMap(mapObj); spotMarker.setPosition(pos); }
+    setTimeout(updateSpotDir, 0);
+  }
+  // 촬영일자 — 파노라마 메타(location.photodate)가 있을 때만 표시(없으면 비움 — 사실만)
+  function updatePanoDate() {
+    var out = el("panoDate");
+    if (!out) return;
+    var txt = "";
+    try {
+      var loc = panoObj && panoObj.getLocation && panoObj.getLocation();
+      var pd = loc && (loc.photodate || loc.photoDate);
+      if (pd) {
+        var digits = String(pd).replace(/\D/g, "");
+        if (digits.length >= 6) txt = "촬영 " + digits.slice(0, 4) + "." + digits.slice(4, 6);
+        else txt = "촬영 " + pd;
+      }
+    } catch (e) {}
+    out.textContent = txt;
+  }
+  // 파노라마 시선 방향(pov.pan, 정북 0°·시계방향)을 마커 콘 회전으로 동기화
+  function updateSpotDir() {
+    if (!spotMarker || !panoObj) return;
+    try {
+      var pov = panoObj.getPov();
+      var root = spotMarker.getElement && spotMarker.getElement();
+      var w = root && root.querySelector(".street-spot-wrap");
+      if (w && pov) w.style.transform = "rotate(" + (pov.pan || 0) + "deg)";
+    } catch (e) {}
   }
   function updateStreetBtn(on) {
     var b = el("streetBtn");
@@ -968,7 +1002,11 @@
       naver.maps.Event.addListener(panoObj, "pano_changed", function () {
         if (!panoObj) return;
         setSpot(panoObj.getPosition());   // 마커가 없으면(구석 토글 진입) 여기서 생성
+        updatePanoDate();
       });
+      // 시선을 돌리면(드래그) 지도 마커의 시야 콘도 따라 회전
+      naver.maps.Event.addListener(panoObj, "pov_changed", updateSpotDir);
+      naver.maps.Event.addListener(panoObj, "init", updatePanoDate);
     } catch (e) { showNoPano(view); }
     enterStreetMode(pos);
     // 주변에 파노라마가 없으면 init이 오지 않는다 — 타임아웃 폴백으로 안내
@@ -980,6 +1018,7 @@
     clearTimeout(panoTimer);
     el("panoModal").hidden = true;
     el("panoView").innerHTML = "";
+    var pd = el("panoDate"); if (pd) pd.textContent = "";
     panoObj = null;
     exitStreetMode();
   }

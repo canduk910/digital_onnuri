@@ -17,6 +17,7 @@
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
 | 2026-08-06 | 초기 구성 (에이전트 5 + 스킬 6) | 전체 | - |
+| 2026-08-14 | 거리뷰 시야 방향 콘 + 촬영일자 표시 | merchants.html | 사용자 요청 2건. ①지도 마커를 주황 원+시야 부채꼴(.street-spot-wrap)로 — pov_changed마다 pov.pan(정북 0°·시계방향)으로 회전(전환 .15s). ②패널 헤더에 촬영일(location.photodate → "촬영 YYYY.MM") — 메타 없으면 비움(사실만), pano_changed·init 갱신·닫기 시 초기화 |
 | 2026-08-14 | 제보 처리상태 관리자 페이지 (B안 — 비밀 키) | admin-report.html(신규), backend(ReportController /{id}/status·X-Admin-Key·상태 화이트리스트, CorsConfig allowedHeaders, application.yml app.admin.key), DEPLOY.md | 사용자 결정. 키=서버 .env APP_ADMIN_KEY만(저장소·채팅 비노출, 비면 403 비활성). 페이지는 ?key= 진입→sessionStorage 이관·URL 소거, 사이드바 미노출·noindex. 접수/반영 화이트리스트, SQL 폴백 유지. 검증: 무키·오키 403, 정키 인증 통과, 서버 키 생성 완료. 2026-08-14 사용자 검증 완료 — 정상 |
 | 2026-08-14 | 뉴스 헤드라인 6번째 교체 | news.html | 사용자 요청. 세계일보 삼성 80만원 → 동행일보 "온누리상품권으로 닌텐도 구매? 소상공인 불평등 심화"(8/12) |
 | 2026-08-14 | 거리뷰 버튼을 내 위치 아래로 이동 | merchants.html | 사용자 요청. top:12/right:106 → top:58/right:12 — 우상단 세로 스택(내 위치 위·거리뷰 아래). 2026-08-14 사용자 검증 완료 — 정상 |
