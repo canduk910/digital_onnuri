@@ -79,3 +79,9 @@
 - 결정: ①검색 5종(merchants·facets·map·regions·brands)에 POST(JSON body, SearchBody) 병행 추가 — 프론트는 POST만 사용, GET은 운영 curl·회귀 스크립트 호환용 유지. 프로브(size=1, 필터 없음)만 GET 잔존. ②챗 착지는 sessionStorage(onnuri_nav_filter) 핸드오프 — 페이지가 읽는 즉시 삭제, 주소창은 클린 URL. URL 파라미터 진입은 직접 링크 호환용 2순위로 유지.
 - 근거: 필터값은 민감정보는 아니나 위치·관심사 이력이 로그에 남는 것 자체를 차단. GET 제거 대신 병행: 회귀 기준값 curl·외부 스크립트 비파괴. 계약은 SearchBodyTest가 고정.
 - 결과·롤백: 프론트 apiGet 구현만 되돌리면 GET 복귀. 회귀 기준값 검증 명령(dev-testing)은 GET 그대로 유효.
+
+## ADR-15: 페이지 도메인 서브도메인 이전 — onnuri.koscomlabor.cloud (2026-08-15)
+- 맥락: apex(koscomlabor.cloud)를 온누리 가이드가 점유 중. 사용자 결정 — apex는 게이트 포털(별도 저장소)로 넘기고 이 프로젝트는 온누리 전용 서브도메인으로.
+- 결정: 이 저장소 GitHub Pages 커스텀 도메인을 onnuri.koscomlabor.cloud로 교체(가비아 CNAME onnuri→canduk910.github.io). 백엔드 CORS에 신규 오리진 추가(구 apex 오리진은 전환기 유지). 페이지 도메인은 코드에 미참조(API 도메인 api.koscomlabor.cloud만 절대 URL)라 프론트 무수정.
+- 근거: apex A 레코드가 이미 GitHub Pages IP라 게이트도 Pages 저장소면 DNS 무변경. NCP Caddy에 apex를 얹는 대안은 메인 도메인 가용성이 단일 서버에 묶여 기각. 구 딥링크 리다이렉트(404.html 경로 보존)는 게이트 저장소 책임.
+- 결과·롤백: localStorage(즐겨찾기 등)는 오리진 단위라 신 도메인에서 초기화(수용). 관리자 페이지 URL 변경. 롤백 = Pages 커스텀 도메인을 apex로 되돌리면 끝(CORS는 양쪽 다 허용이라 무영향).

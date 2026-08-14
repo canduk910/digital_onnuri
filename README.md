@@ -2,7 +2,7 @@
 
 코스콤 임직원을 위한 **디지털온누리상품권 사용처 안내 웹 가이드**. 어디서 쓸 수 있는지(오프라인 가맹점·온라인몰), 어떻게 결제하는지, 카드 실적은 어떻게 잡히는지를 한곳에서 확인하고, 서울·인천·경기·부산(코스콤·한국거래소 소재지)의 가맹점을 지도·목록으로 검색한다.
 
-**라이브:** https://koscomlabor.cloud
+**라이브:** https://onnuri.koscomlabor.cloud (apex `koscomlabor.cloud`는 게이트 포털 — 별도 저장소)
 
 > 계산대에서 결제 실패를 겪지 않는 것이 이 가이드의 품질 기준이다. 정책·사용처 정보는 날짜에 종속되므로, 데이터의 "언제 확인한 것인지"를 스탬프로 정직하게 표기한다.
 
@@ -40,7 +40,7 @@
 ```
 [사용자 브라우저]
       │
-      ├─ 정적 프론트엔드 ──────── GitHub Pages (koscomlabor.cloud)
+      ├─ 정적 프론트엔드 ──────── GitHub Pages (onnuri.koscomlabor.cloud)
       │   index/merchants/online/payment/terms/report.html
       │   + 공통 셸(shell.css/js) · 챗 위젯 · 네이버 지도 SDK
       │

@@ -24,7 +24,8 @@ app:
       http://localhost:8655,
       http://127.0.0.1:8655,
       https://canduk910.github.io,
-      https://koscomlabor.cloud
+      https://koscomlabor.cloud,
+      https://onnuri.koscomlabor.cloud
   map:
     max-markers: 3000          # 지도 좌표 API 상한(현 클라이언트 MAP_MAX와 동일)
   admin:
