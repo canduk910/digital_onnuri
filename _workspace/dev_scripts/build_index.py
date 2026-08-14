@@ -380,7 +380,7 @@ SHELL = (
     "    <a class=\"sb-item\" href=\"#online\">온라인 가맹 플랫폼</a>\n"
     "    <a class=\"sb-item\" href=\"payment.html\">결제 방법</a>\n"
     "    <a class=\"sb-item\" href=\"terms.html\">용어·유의사항</a>\n"
-    "    <div class=\"sb-group\">가맹점 검색</div>\n"
+    "    <div class=\"sb-group\">가맹점 스마트 검색</div>\n"
     "    <a class=\"sb-item\" href=\"merchants.html#sidoTabs\">오프라인 가맹점 찾기</a>\n"
     "    <a class=\"sb-item\" href=\"online.html\">온라인 사용처 찾기</a>\n"
     "    <div class=\"sb-group\">소식</div>\n"
