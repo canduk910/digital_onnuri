@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온누리 뉴스 — 코스콤 디지털온누리 가이드</title>
+<link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">
+<link rel="stylesheet" href="shell.css?v=8">
+<link rel="stylesheet" href="chat-widget.css?v=9">
+<style>
+  /* 온누리 뉴스 페이지 전용 스타일 — 공통 셸은 shell.css (ADR-9) */
+  .page-head { position:relative; margin-bottom:26px; padding-top:6px; }
+  .page-head::after { content:"온"; position:absolute; right:-8px; top:-46px; font-size:190px; font-weight:900;
+    color:var(--accent); opacity:.045; line-height:1; pointer-events:none; user-select:none; z-index:-1; }
+  h1 { font-family:var(--font-display); font-size:clamp(32px, 4.4vw, 50px); font-weight:700; letter-spacing:-0.035em; line-height:1.08; margin-bottom:10px; }
+  .subtitle { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent-press); margin-bottom:8px; }
+  .meta-line { font-size:13px; color:var(--text-sub); }
+
+  .sec { margin:30px 0 8px; }
+  .sec h2 { font-family:var(--font-display); font-size:clamp(20px, 2.4vw, 26px); font-weight:700; letter-spacing:-0.03em; margin-bottom:4px; }
+  .sec .sec-sub { font-size:12.5px; color:var(--text-faint); margin-bottom:14px; }
+
+  /* 헤드라인(고정 주요 소식) */
+  .head-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; margin:14px 0 6px; }
+  .head-card { display:block; background:var(--bg); border:1px solid var(--accent-line); border-left:4px solid var(--accent);
+    border-radius:var(--r-md); padding:18px 20px; color:var(--text); }
+  .head-card:hover { text-decoration:none; border-color:var(--accent); box-shadow:0 4px 14px rgba(242,107,29,.12); }
+  .head-badge { display:inline-flex; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:800;
+    background:var(--accent); color:#fff; margin-bottom:9px; letter-spacing:.04em; }
+  .head-title { font-family:var(--font-display); font-size:17px; font-weight:700; line-height:1.4; letter-spacing:-0.02em; margin-bottom:7px; }
+  .head-desc { font-size:12.5px; color:var(--text-sub); line-height:1.6; margin-bottom:9px; }
+  .head-src { font-size:11.5px; color:var(--text-faint); }
+  .head-src b { color:var(--accent-press); font-weight:700; }
+
+  /* 최신 뉴스 목록 */
+  .news-list { display:flex; flex-direction:column; margin-top:6px; }
+  .news-item { display:flex; align-items:baseline; gap:12px; padding:11px 4px; border-bottom:1px solid var(--border); color:var(--text); }
+  .news-item:hover { text-decoration:none; background:var(--surface); }
+  .news-item .n-title { flex:1; min-width:0; font-size:14px; font-weight:600; line-height:1.5; }
+  .news-item:hover .n-title { color:var(--accent-press); }
+  .news-item .n-meta { flex:none; font-size:11.5px; color:var(--text-faint); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .news-state { padding:26px; text-align:center; color:var(--text-faint); font-size:13px; background:var(--surface); border-radius:var(--r-md); margin-top:8px; }
+  .news-state a { color:var(--accent-press); font-weight:700; }
+  .news-fetched { margin-top:10px; font-size:11.5px; color:var(--text-faint); }
+
+  @media (max-width:600px){
+    .news-item { flex-direction:column; gap:2px; }
+  }
+  .foot-note { margin-top:34px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-faint); line-height:1.7; }
+  @media (max-width:959px){ .page-head::after { display:none; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="hamburger" id="navToggle" aria-label="메뉴 열기" aria-expanded="false">☰</button>
+  <span class="topbar-brand"><img class="ci-img ci-img-sm" src="assets/koscom_ci.png" alt="koscom"> 코스콤 디지털온누리 가이드</span>
+</header>
+<div class="overlay" id="navOverlay" hidden></div>
+
+<aside class="sidebar" id="sidebar">
+  <a class="sb-logo" href="index.html">
+    <img class="ci-img" src="assets/koscom_ci.png" alt="koscom">
+    <span class="sb-logo-txt">코스콤 디지털온누리 가이드</span>
+  </a>
+  <nav class="sb-nav" aria-label="사이트 메뉴">
+    <div class="sb-group">사용 가이드</div>
+    <a class="sb-item" href="index.html#offline">오프라인 사용처</a>
+    <a class="sb-item" href="index.html#online">온라인 가맹 플랫폼</a>
+    <a class="sb-item" href="payment.html">결제 방법</a>
+    <a class="sb-item" href="terms.html">용어·유의사항</a>
+    <div class="sb-group">가맹점 검색</div>
+    <a class="sb-item" href="merchants.html">오프라인 가맹점 찾기</a>
+    <a class="sb-item" href="online.html">온라인 사용처 찾기</a>
+    <div class="sb-group">소식</div>
+    <a class="sb-item active" href="news.html" aria-current="page">온누리 뉴스</a>
+    <div class="sb-group">피드백</div>
+    <a class="sb-item" href="report.html">버그 제보</a>
+  </nav>
+  <div class="sb-width" role="group" aria-label="화면 폭 조절">
+    <span class="sb-width-label">화면 폭</span>
+  </div>
+  <a class="sb-ext" href="https://www.onnuri.gift/place" target="_blank" rel="noopener">공식 가맹점 지도 ↗</a>
+</aside>
+
+<main class="content">
+  <div class="content-inner">
+    <div class="page-head">
+      <div class="subtitle">News</div>
+      <h1>온누리 뉴스</h1>
+      <p class="meta-line">온누리상품권 관련 최신 언론 보도를 모았습니다 — 제목을 누르면 해당 언론사 기사로 이동합니다.</p>
+    </div>
+
+    <section class="sec" id="headlines">
+      <h2>주요 소식</h2>
+      <div class="sec-sub">이용 전 꼭 알아둘 제도 변화 — 운영자가 선정한 고정 소식입니다</div>
+      <div class="head-grid">
+        <a class="head-card" href="https://v.daum.net/v/20251209130047197" target="_blank" rel="noopener">
+          <span class="head-badge">주요</span>
+          <div class="head-title">'온누리깡' 뿌리 뽑는다…과징금 3배·영업정지 5년</div>
+          <div class="head-desc">상품권 부정유통(이른바 '깡') 처벌을 대폭 강화하는 전통시장법 개정안이 국무회의를 통과 — 적발 시 부당이득의 최대 3배 과징금.</div>
+          <span class="head-src"><b>한국경제</b> · 2025-12-09 · 기사 보기 ↗</span>
+        </a>
+        <a class="head-card" href="https://www.munhwa.com/article/11594353" target="_blank" rel="noopener">
+          <span class="head-badge">주요</span>
+          <div class="head-title">의사·변호사 온누리상품권 못받는다… 상품권깡 과징금도 강화</div>
+          <div class="head-desc">연매출 30억 원 초과 점포·병원 등은 가맹 등록 불가 — 가이드의 '연매출 30억 기준'(용어·유의사항)과 직결되는 시행령 개정.</div>
+          <span class="head-src"><b>문화일보</b> · 기사 보기 ↗</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="sec" id="latest">
+      <h2>최신 뉴스</h2>
+      <div class="sec-sub">'온누리상품권' 검색 결과 최신순 — 구글 뉴스 수집(약 30분 간격 갱신)</div>
+      <div id="newsList" class="news-list"><div class="news-state">뉴스를 불러오는 중입니다…</div></div>
+      <div id="newsFetched" class="news-fetched" hidden></div>
+    </section>
+
+    <div class="foot-note">
+      뉴스는 각 언론사의 콘텐츠이며 이 페이지는 <strong>제목과 링크만</strong> 제공합니다(본문 미수록) — 내용의 정확성·책임은 해당 언론사에 있습니다.
+      주요 소식 카드는 운영자가 선정한 고정 항목으로, 최신 기사가 아닐 수 있습니다.
+    </div>
+  </div>
+</main>
+
+<script src="shell.js?v=6"></script>
+<script src="chat-widget.js?v=9" defer></script>
+<script src="config.js?v=1"></script>
+<script>
+(function () {
+  "use strict";
+  var CFG = window.ONNURI_CONFIG || {};
+  var API = (function () {
+    if (CFG.apiBase) return CFG.apiBase.replace(/\/$/, "");
+    var h = location.hostname;
+    if (h === "localhost" || h === "127.0.0.1") return "http://localhost:8080/api";
+    return "https://api.koscomlabor.cloud/api";
+  })();
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+  }); };
+  var FALLBACK = '뉴스를 불러오지 못했습니다 — <a href="https://news.google.com/search?q=%EC%98%A8%EB%88%84%EB%A6%AC%EC%83%81%ED%92%88%EA%B6%8C&hl=ko&gl=KR&ceid=KR:ko" target="_blank" rel="noopener">구글 뉴스에서 직접 보기 ↗</a>';
+
+  fetch(API + "/news")
+    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (d) {
+      var list = document.getElementById("newsList");
+      var items = d.items || [];
+      if (!items.length) { list.innerHTML = '<div class="news-state">' + FALLBACK + '</div>'; return; }
+      list.innerHTML = items.map(function (n) {
+        return '<a class="news-item" href="' + esc(n.link) + '" target="_blank" rel="noopener">'
+          + '<span class="n-title">' + esc(n.title) + '</span>'
+          + '<span class="n-meta">' + esc(n.source || "") + (n.pubDate ? " · " + esc(n.pubDate) : "") + '</span></a>';
+      }).join("");
+      if (d.fetchedAt) {
+        var f = document.getElementById("newsFetched");
+        f.hidden = false;
+        f.textContent = "수집 기준 " + d.fetchedAt + " (KST)";
+      }
+    })
+    .catch(function () {
+      document.getElementById("newsList").innerHTML = '<div class="news-state">' + FALLBACK + '</div>';
+    });
+})();
+</script>
+</body>
+</html>
