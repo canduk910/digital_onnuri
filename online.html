@@ -461,7 +461,7 @@
       META.survey = (cat.items || []).reduce(function (m, it) { return !m || it.surveyed_on < m ? it.surveyed_on : m; }, "");
       var s = PLATFORMS.filter(function (p) { return p.kind === "shopping"; }).length;
       var d = PLATFORMS.length - s;
-      el("metaLine").innerHTML = "공식 목록 <span class='num'>" + esc(META.platforms) + "</span> 수집 · 취급품목 실측 <span class='num'>"
+      el("metaLine").innerHTML = "공식 목록 <span class='num'>" + esc(META.platforms) + "</span> 수집(매일 00:30 자동 갱신) · 취급품목 실측 <span class='num'>"
         + esc(META.survey) + "</span> 기준 · <span class='num'>" + nf(PLATFORMS.length) + "곳</span> — 쇼핑 <span class='num'>" + s + "</span> · 배달 <span class='num'>" + d + "</span>";
       el("noticeMain").innerHTML = "<strong>각 쇼핑몰이 취급하는 물품종류와 대표 브랜드를 " + esc(META.survey)
         + "에 플랫폼 단위로 확인해 태그한 목록입니다.</strong> 상품 재고·전체 브랜드 목록이 아니며, 온누리 결제 가능 범위는 각 몰의 전용관·기획전 기준입니다 — 결제 전 해당 몰에서 확인하세요.";
