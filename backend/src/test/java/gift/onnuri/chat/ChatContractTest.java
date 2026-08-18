@@ -42,4 +42,23 @@ class ChatContractTest {
         assertEquals(List.of("page", "params", "label"),
                 components(ChatEvents.NavigateAction.class));
     }
+
+    /**
+     * 시스템 프롬프트의 그림 우선 지시(2026-08-18 사용자 요청)를 고정한다.
+     * 위젯은 ```mermaid 코드블록만 다이어그램으로 렌더하므로(htmlLabels:false·
+     * flowchart), 프롬프트가 이 형식과 문법 가드를 잃으면 그림이 조용히 사라진다.
+     */
+    @Test
+    void 시스템_프롬프트는_그림_우선_설명을_지시한다() {
+        RagRepository rag = org.mockito.Mockito.mock(RagRepository.class);
+        org.mockito.Mockito.when(rag.minCollectedOn()).thenReturn(null);
+        OpenAiClient ai = org.mockito.Mockito.mock(OpenAiClient.class);   // 생성자가 ai.mapper() 호출
+        org.mockito.Mockito.when(ai.mapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        String p = new ChatService(ai, rag, null).systemPrompt();
+        assertTrue(p.contains("```mermaid"), "mermaid 코드블록 형식 지시");
+        assertTrue(p.contains("그림을 우선"), "설명형 답변의 기본 모드 = 그림");
+        assertTrue(p.contains("flowchart"), "위젯이 검증한 다이어그램 종류");
+        assertTrue(p.contains("대괄호"), "라벨 문법 가드(파싱 실패 방지)");
+        assertTrue(p.contains("억지 그림 금지"), "단순 사실 답변엔 그림 강요 금지");
+    }
 }
