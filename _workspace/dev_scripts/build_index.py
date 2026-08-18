@@ -543,14 +543,24 @@ if _j < 0:
 _e = tpl.find('</div>', _j)
 TERMS_POINTER = (
     '<div id="terms" style="margin-top:26px;padding-top:16px;border-top:1px solid #E6E6E6">'
-    '<p style="margin:0;font-size:12px;color:#8A8580;line-height:1.7">'
+    '<p style="margin:0;font-size:12px;color:#6B6E73;line-height:1.7">'
     '용어 풀이와 유의사항 각주는 <a href="terms.html" style="color:#C4510F;font-weight:700">용어·유의사항</a>, '
     '결제 단계·카드 실적 안내는 <a href="payment.html" style="color:#C4510F;font-weight:700">결제 방법</a> 페이지로 옮겼습니다. '
-    '※ 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong style="color:#26231F">정확하지 않을 수 있습니다</strong> — '
+    '※ 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong style="color:#17181A">정확하지 않을 수 있습니다</strong> — '
     '내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.</p></div>'
 )
 tpl = tpl[:_j] + TERMS_POINTER + tpl[_e + len('</div>'):]
 print("[OK] 7g. terms 블록 → 포인터·면책 치환 (terms.html로 분리)")
+
+# ---------- 7g-guard. 7f 이후 삽입 블록의 웜톤 재검사 (2026-08-19) ----------
+# 7f(색상 매핑)는 "마지막에 한 번" 도는 전제로 쓰였으나, 이후 7g 가 그 뒤에 추가되면서
+# 7g 가 삽입하는 TERMS_POINTER 는 매핑을 우회했다(실제로 #8A8580·#26231F 가 되살아났다).
+# 7f 뒤에 문자열을 삽입하는 스텝이 또 생겨도 잡히도록 여기서 한 번 더 검사한다.
+_leftover2 = sorted(set(_re.findall(
+    r"#(?:E7E5E1|EFEEEC|8A8580|6E6A64|171512|26231F|FAFAF9|F0EFED|FDEEE3|FDF3EA|FBD8BC|F5D2B8|EFC5A3|F4F4F3|A3A09B)", tpl)))
+if _leftover2:
+    raise SystemExit(f"[FAIL] 7g-guard: 7f 이후 삽입 블록에 웜톤 잔존 {_leftover2} — COLOR_MAP 목표값으로 직접 쓸 것")
+print("[OK] 7g-guard: 7f 이후 웜톤 잔존 0")
 
 # ---------- 7h. 템플릿 내부 <head> 탭 제목·파비콘 (2026-08-18) ----------
 # 로더는 template 을 DOMParser 로 파싱해
