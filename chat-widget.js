@@ -37,6 +37,7 @@
   var libsReady = null;   // Promise
   var mermaidSeq = 0;
   var AUTOMAP_KEY = "onnuri_chat_automap";   // 지도 바로 이동 토글 (기본 ON)
+  var CLOSED_KEY = "onnuri_chat_closed";     // 기본 열림(2026-08-15) — 사용자가 닫으면 세션 동안 유지
   var pendingNav = null;                      // 자동 이동 예약(답변 완료 후 실행)
   function autoMapOn() { return localStorage.getItem(AUTOMAP_KEY) !== "0"; }
 
@@ -163,6 +164,12 @@
       if (e.key === "Escape" && panel.classList.contains("open")) toggle();
     });
     restore();
+    // 기본 열림(2026-08-15) — 페이지 로드 시 패널 활성화. 사용자가 닫으면 같은 브라우저
+    // 세션(sessionStorage) 동안 닫힘 유지 — 페이지 이동마다 다시 열리는 것 방지.
+    // 자동 열림은 포커스 없이(모바일 키보드 팝업·데스크톱 포커스 강탈 방지).
+    var autoOpen = true;
+    try { autoOpen = sessionStorage.getItem(CLOSED_KEY) !== "1"; } catch (e) {}
+    if (autoOpen) setOpen(true, false);
   }
 
   // 패널 크기 조절(2026-08-12) — 좌상단 모서리 드래그. 우하단 고정이라 좌·상으로 끌면 커진다.
@@ -205,12 +212,17 @@
     });
   }
 
-  function toggle() {
-    var open = panel.classList.toggle("open");
+  function setOpen(open, focus) {
+    panel.classList.toggle("open", open);
     fab.classList.toggle("open", open);
     if (fabLabel) fabLabel.hidden = open;
     fab.setAttribute("aria-label", open ? "챗봇 닫기" : "온누리 가이드 챗봇 열기");
-    if (open) { ensureLibs().then(rerenderAll); input.focus(); scrollEnd(); }
+    if (open) { ensureLibs().then(rerenderAll); if (focus) input.focus(); scrollEnd(); }
+  }
+  function toggle() {
+    var open = !panel.classList.contains("open");
+    setOpen(open, true);
+    try { sessionStorage.setItem(CLOSED_KEY, open ? "0" : "1"); } catch (e) {}
   }
 
   // ---- 이력 ----

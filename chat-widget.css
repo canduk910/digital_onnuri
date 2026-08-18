@@ -110,9 +110,10 @@
 .cw-head .cw-close { display:none; margin-left:8px; width:40px; height:40px; align-items:center; justify-content:center;
   border:1px solid var(--border, #E5E6E8); background:var(--bg, #fff); border-radius:6px; font-size:15px; cursor:pointer; color:var(--text, #0B0C0E); }  /* 터치 타깃(모바일 전용 버튼) */
 @media (max-width:600px){
-  /* 모바일(2026-08-12): 우측하단 기준 80% 팝업 — PC와 같은 앵커. 드래그 크기 조절도 지원하므로
-     !important 없이 기본값만(인라인 크기가 이긴다 — 저장값은 JS가 뷰포트에 맞게 클램프). */
-  .cw-panel { right:12px; bottom:12px; width:min(80vw, 480px); height:80dvh;
+  /* 모바일(2026-08-12): 우측하단 기준 팝업 — PC와 같은 앵커. 드래그 크기 조절도 지원하므로
+     !important 없이 기본값만(인라인 크기가 이긴다 — 저장값은 JS가 뷰포트에 맞게 클램프).
+     2026-08-15: 기본 열림 도입에 맞춰 높이 80→60dvh — 페이지가 위에 보여 덜 침범적. */
+  .cw-panel { right:12px; bottom:12px; width:min(80vw, 480px); height:60dvh;
     border-radius:var(--r-lg, 14px); border:1px solid var(--border, #E5E6E8); }
   .cw-fab { right:14px; bottom:14px; }
   .cw-fab.open { display:none; }           /* 열림 중엔 헤더 닫기 버튼 사용 */
