@@ -21,16 +21,25 @@ with open(OUT, encoding="utf-8") as f:
 with open(SRC, encoding="utf-8") as f:
     src_lines = f.read().split("\n")
 
+# 8단계(외곽 <head> 탭 제목·파비콘)는 템플릿 밖 정적 라인을 바꾸고 link 라인을 1줄 늘린다.
+# (a) 무결성 비교는 그 차이를 되돌린 정규화본으로 수행한다 — 그러지 않으면 라인 인덱스가
+# 통째로 밀려 이후 모든 검사가 무의미해진다(2026-08-12 파비콘 추가 이후 실제로 그랬다).
+OUTER_TITLE_OLD = "  <title>디지털온누리상품권 가이드</title>"
+OUTER_TITLE_NEW = "  <title>코스콤 디지털온누리 가이드</title>"
+OUTER_FAVICON = '  <link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">'
+norm_lines = [OUTER_TITLE_OLD if ln == OUTER_TITLE_NEW else ln
+              for ln in out_lines if ln != OUTER_FAVICON]
+
 # (a) 로더 스크립트 / manifest / base64 blob 무결 — 388행(템플릿) 외 전부 원본과 동일
 print("(a) 로더·manifest·base64 무결성")
-check(len(out_lines) == len(src_lines), f"라인 수 동일 ({len(out_lines)} == {len(src_lines)})")
-diff_lines = [i + 1 for i in range(min(len(out_lines), len(src_lines))) if out_lines[i] != src_lines[i]]
+check(len(norm_lines) == len(src_lines), f"라인 수 동일 ({len(norm_lines)} == {len(src_lines)}, 외곽 head 정규화 후)")
+diff_lines = [i + 1 for i in range(min(len(norm_lines), len(src_lines))) if norm_lines[i] != src_lines[i]]
 check(diff_lines == [TPL_IDX + 1], f"변경 라인은 388행(템플릿)뿐: {diff_lines}")
-check(out_lines[375] == src_lines[375], "manifest 라인(376) 불변")
+check(norm_lines[375] == src_lines[375], "manifest 라인(376) 불변")
 
 # (b) 템플릿 JSON 파싱 가능
 print("(b) 템플릿 JSON 파싱")
-raw388 = out_lines[TPL_IDX]
+raw388 = norm_lines[TPL_IDX]
 tpl = None
 try:
     tpl = json.loads(raw388)
@@ -123,6 +132,21 @@ if tpl:
     check(not warm, f"웜톤 hex 잔존 0 (실제 {warm})")
     check("border-radius:999px" not in tpl, "pill(999px) 잔존 0")
     check("#F26B1D" in tpl and "#C4510F" in tpl, "오렌지 포인트 유지(#F26B1D·#C4510F)")
+
+    # (h) 탭 제목·파비콘: 외곽과 템플릿 내부 양쪽 (2026-08-18)
+    # 로더는 document.documentElement.replaceWith(doc.documentElement) 로 문서 루트를 통째로
+    # 교체한다 → 외곽 <head> 의 <title>·<link icon> 은 그 순간 사라진다. 템플릿 내부에도
+    # 있어야 실제 탭에 남는다. 외곽만 검사하면 이 결함을 놓친다(2026-08-12~08-18 실제 사고).
+    print("(h) 탭 제목·파비콘 (외곽 + 템플릿 내부)")
+    check(OUTER_TITLE_NEW in out_lines, "외곽 <title> = 코스콤 디지털온누리 가이드")
+    check(OUTER_FAVICON in out_lines, "외곽 <link rel=icon> 존재")
+    check("<title>코스콤 디지털온누리 가이드</title>" in tpl,
+          "템플릿 내부 <title> 존재 (replaceWith 후에도 탭 제목 유지)")
+    check('<link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">' in tpl,
+          "템플릿 내부 <link rel=icon> 존재 (replaceWith 후에도 파비콘 유지)")
+    _head_m = re.search(r"<head[^>]*>", tpl, re.I)
+    check(bool(_head_m) and tpl.find("<title>", _head_m.end()) < tpl.lower().find("</head>"),
+          "템플릿 <title> 이 <head> 안에 위치")
 
 print()
 if fails:

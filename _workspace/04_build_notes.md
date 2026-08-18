@@ -198,3 +198,53 @@ API 응답은 키가 camelCase일 수 있고 JSON 폴백은 snake_case. **내부
 ### 미검증 / 전달
 - **실서버 연동 미검증**: 위 200/403/429는 전부 `fetch` 모킹이다. 로컬 백엔드를 띄우지 않았으므로 실제 `AdminController`와의 응답 형식·CORS preflight(로그인은 `Content-Type: application/json`이라 preflight 발생)는 **dev-qa 경계면 검증 몫**. 코드 리뷰로는 계약 일치 확인(200 `Map.of("key", …)`, 403/429 `Map.of("message", …)`).
 - 이 페이지는 사이드바 미노출·`noindex` 독립 페이지라 다른 페이지·`build_index.py`와 무관 — 캐시버스트·재빌드 불요.
+
+---
+
+## index.html 파비콘·탭 제목 소실 수정 (2026-08-18)
+
+### 증상
+`onnuri.koscomlabor.cloud` 접속 시 index(홈)에만 파비콘이 안 보이고, 탭 제목 자리에 URL이 뜬다. 나머지 7개 정적 페이지는 정상. **도메인 변경과 무관** — 2026-08-12 파비콘 도입 시점부터 index는 계속 이 상태였다.
+
+### 근본 원인
+번들 로더가 템플릿을 파싱해 문서 루트를 통째로 교체한다:
+
+```js
+const doc = new DOMParser().parseFromString(template, 'text/html');
+document.documentElement.replaceWith(doc.documentElement);   // index.html:318
+```
+
+파비콘을 심은 곳은 `build_index.py` 8단계인데, 그 주석 그대로 **"외곽 `<title>` — 템플릿 밖 정적 라인"**만 고친다. 교체해 들어오는 템플릿 내부 `<head>`에는 `meta charset`·`viewport`·로더 script뿐이라 `<title>`도 `<link rel=icon>`도 없다. 결과적으로 JS 실행 순간 둘 다 소실.
+
+실측(수정 전, 라이브): `document.readyState === "complete"` 시점에 `document.title === ""`, `link[rel=icon]` **0개**, `document.head` 링크 **0개**. 같은 조건에서 `merchants.html`은 둘 다 정상.
+
+### 수정
+`build_index.py`에 **7h 스텝** 신설 — 템플릿 내부 `<head>` 여는 태그 직후에 `<title>`·`<link rel=icon>` 주입. 외곽(8단계)은 그대로 둔다(언패킹 중 첫 화면용).
+
+- **인코딩 앞에 두어야 한다.** `json.dumps` 뒤에 두면 조용히 무반영 — 2026-08-11 7g가 실제로 걸렸던 함정이라 주석에 명시했다.
+- 중복 주입 가드: 템플릿 head에 `<title>`/`rel="icon"`이 이미 있으면 빌드 실패.
+- **파비콘 참조는 상대 경로(`favicon.svg?v=1`)** — data URI 인라인도 검토했으나 기각. index 번들은 이미 `shell.css`·`shell.js`·`config.js`·`chat-widget.*`·`assets/koscom_ci.png`를 외부 참조하는 구조(서버 로그로 확인)라 자기완결이 아니고, 나머지 7페이지와 같은 참조를 쓰면 파비콘 교체 시 한 곳만 고치면 된다.
+
+### verify_build.py (D-F1) 복구
+검증 스크립트가 **이미 죽어 있었다.** 8단계가 외곽에 link 라인을 1줄 늘리면서 라인 인덱스가 통째로 밀려, (a) 무결성부터 (b) 템플릿 JSON 파싱까지 전부 FAIL — 2026-08-12 이후 D-F1이 사실상 무의미했다.
+
+- (a)(b): 외곽 head 차이(제목 치환 + link 라인)를 되돌린 **정규화본**으로 비교하도록 수정.
+- **(h) 절 신설**: 외곽 title/link **그리고 템플릿 내부** title/link 존재를 각각 검사. 외곽만 보면 이번 결함을 놓치므로 내부 검사가 회귀 방지의 핵심이다.
+
+### 검증 (2026-08-18)
+| # | 항목 | 결과 |
+|---|---|---|
+| V1 | 수정 전 RED | (h) 템플릿 내부 title·link **FAIL** 2건 — 결함이 검사에 잡힘 |
+| V2 | 재빌드 후 GREEN | (h) 5개 항목 전부 PASS, (a)(b) 무결성·JSON 파싱 복구 |
+| V3 | 실브라우저(로컬 8900, 캐시 없는 새 오리진) | 서버 로그에 `GET /favicon.svg?v=1 200` **실제 요청 확인** |
+| V4 | 로드 완료 후 DOM | `document.title = "코스콤 디지털온누리 가이드"`, `link[rel=icon]` 1개, fetch 200 `image/svg+xml` |
+| V5 | 렌더 회귀 | 사이드바·탭·표·챗 위젯 정상, `__bundler_err` 없음 |
+
+### 미해결 — 별건 (verify_build.py 기존 드리프트 19건)
+수정 전후 **동일하게** 실패하는 낡은 검사 19건이 남아 있다(내 변경으로 새로 깨진 것은 0건). 대부분 그동안의 의도된 변경을 검사 목록이 따라오지 못한 것으로 보인다:
+
+- `id="payment"`, `{{ regionApps }}`, `대통령령 제36415호` 등 → 2026-08-11 payment/terms 페이지 분리로 index에서 제거된 토큰
+- `--accent:#F26B1D`, `--sb-w:248px`, `.sb-item.active::before`, `matchMedia("(max-width:959px)")` 등 → 셸이 `shell.css`/`shell.js`로 외부화되며 템플릿에서 빠짐
+- 웜톤 hex 잔존 `#26231F`·`#8A8580` → 2026-08-11 `TERMS_POINTER` 문자열에 하드코딩되어 재유입
+
+각 항목이 "의도된 변경"인지 "진짜 회귀"인지는 건별 판단이 필요하므로 임의로 지우지 않았다 — 검사를 지우는 것은 회귀를 덮는 일이 될 수 있다.

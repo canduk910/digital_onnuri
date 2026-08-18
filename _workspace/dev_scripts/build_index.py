@@ -552,6 +552,25 @@ TERMS_POINTER = (
 tpl = tpl[:_j] + TERMS_POINTER + tpl[_e + len('</div>'):]
 print("[OK] 7g. terms 블록 → 포인터·면책 치환 (terms.html로 분리)")
 
+# ---------- 7h. 템플릿 내부 <head> 탭 제목·파비콘 (2026-08-18) ----------
+# 로더는 template 을 DOMParser 로 파싱해
+#   document.documentElement.replaceWith(doc.documentElement)
+# 로 문서 루트를 통째로 교체한다. 그 순간 외곽 <head>(8단계에서 심는 <title>·<link icon>)는
+# 통째로 사라지고, 템플릿 내부 <head> 에는 meta 2개와 로더 script 뿐이라 탭 제목과 파비콘이
+# 함께 소실된다(실측: 로드 완료 후 document.title === "" , link[rel=icon] 0개).
+# 따라서 템플릿 내부에도 심어야 한다. 인코딩(json.dumps) 앞에 두어야 반영된다 —
+# 뒤에 두면 조용히 무반영된다(2026-08-11 7g 와 같은 함정).
+_m_head = re.search(r"<head[^>]*>", tpl, re.I)
+if not _m_head:
+    raise SystemExit("[FAIL] 7h: 템플릿 <head> 여는 태그를 찾지 못함")
+HEAD_INJECT = ("\n<title>코스콤 디지털온누리 가이드</title>"
+               '\n<link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">')
+for _tok in ("<title>", "rel=\"icon\""):
+    if _tok in tpl[:tpl.lower().find("</head>")]:
+        raise SystemExit(f"[FAIL] 7h: 템플릿 head 에 '{_tok}' 가 이미 있음 — 중복 주입 방지")
+tpl = tpl[:_m_head.end()] + HEAD_INJECT + tpl[_m_head.end():]
+print("[OK] 7h. 템플릿 내부 head 에 탭 제목·파비콘 주입")
+
 # json.dumps 는 '/' 를 이스케이프하지 않으므로 </ 가 리터럴로 남는다. 원본 번들과 동일하게
 # 모든 </ 를 </ 로 복구해 리터럴 </ 를 제거한다(JSON 에서 / 는 '/' 로 디코드되어 내용 불변).
 encoded = json.dumps(tpl, ensure_ascii=False).replace("</", "<\\u002F")
