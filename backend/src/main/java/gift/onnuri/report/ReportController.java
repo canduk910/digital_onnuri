@@ -2,6 +2,7 @@ package gift.onnuri.report;
 
 import gift.onnuri.chat.RateLimiter;
 import gift.onnuri.merchant.dto.PageResult;
+import gift.onnuri.web.ClientIp;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -64,7 +65,7 @@ public class ReportController {
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody ReportCreate in, HttpServletRequest http) {
-        if (!limiter.tryAcquire(clientIp(http))) {
+        if (!limiter.tryAcquire(ClientIp.of(http))) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("message", "잠시 후 다시 시도해 주세요."));
         }
@@ -99,10 +100,5 @@ public class ReportController {
         String t = s.trim();
         if (t.isEmpty()) return null;
         return t.substring(0, Math.min(t.length(), max));
-    }
-
-    private String clientIp(HttpServletRequest http) {
-        String xff = http.getHeader("X-Forwarded-For");
-        return (xff != null && !xff.isBlank()) ? xff.split(",")[0].trim() : http.getRemoteAddr();
     }
 }

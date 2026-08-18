@@ -2,6 +2,7 @@ package gift.onnuri.chat;
 
 import gift.onnuri.chat.dto.ChatEvents;
 import gift.onnuri.chat.dto.ChatRequest;
+import gift.onnuri.web.ClientIp;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,13 +35,13 @@ public class ChatController {
     public ChatController(ChatService svc, OpenAiClient ai, RateLimiter chatRateLimiter) {
         this.svc = svc;
         this.ai = ai;
-        this.limiter = chatRateLimiter;   // 빈 2개(chat/report) — 파라미터명으로 선택
+        this.limiter = chatRateLimiter;   // 빈 3개(chat/report/adminLogin) — 파라미터명으로 선택
     }
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chat(@RequestBody ChatRequest req, HttpServletRequest http) {
         SseEmitter emitter = new SseEmitter(120_000L);
-        String ip = clientIp(http);
+        String ip = ClientIp.of(http);
         if (!limiter.tryAcquire(ip)) {
             // SSE 계약 유지: 429 대신 error 이벤트로 위젯에 사유 전달
             sendError(emitter, "요청이 많아 잠시 제한되었습니다. 1분 후 다시 시도해 주세요.");
@@ -84,15 +85,6 @@ public class ChatController {
             emitter.complete();
         } catch (IOException | IllegalStateException ignored) {
         }
-    }
-
-    /** Caddy 리버스 프록시 뒤에서 실제 클라이언트 IP (X-Forwarded-For 첫 항목). */
-    private String clientIp(HttpServletRequest http) {
-        String xff = http.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
-        }
-        return http.getRemoteAddr();
     }
 
     @ExceptionHandler(Exception.class)

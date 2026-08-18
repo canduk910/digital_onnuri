@@ -152,3 +152,49 @@ API 응답은 키가 camelCase일 수 있고 JSON 폴백은 snake_case. **내부
 ### 제약 / 전달
 - 신규 자산 `online-source.js`는 online.html·terms.html에 `?v=1`로 참조. 이후 이 파일 수정 시 버전 범프 필요(HTML 자체는 버스트 불요).
 - config.js는 무변경(dataMode·probeTimeoutMs·apiBase·dataVersion 기존 값 재사용). 라이브 dataMode=auto면 백엔드 배포 후 자동으로 API 우선.
+
+---
+
+## 델타 — admin-report.html 비밀번호 로그인 (2026-08-18)
+
+### 배경
+관리자 키 입력 경로가 ①`?key=` URL ②sessionStorage ③`prompt()` 3가지뿐이라 48자리 키를 사람이 들고 다녀야 했다. 기억 가능한 비밀번호로 서버에서 키를 받아오는 경로를 **추가**한다(기존 3경로는 전부 유지 — 회귀 없음).
+
+### 계약 (리더 확정 · 백엔드 `AdminController` 동일)
+| 항목 | 값 |
+|---|---|
+| 엔드포인트 | `POST {API}/admin/login` (API_BASE는 페이지 기존 로직 재사용 — `CFG.apiBase` → localhost:8080 → api.koscomlabor.cloud) |
+| 요청 | `Content-Type: application/json`, body `{"password":"…"}` |
+| 200 | `{"key":"<관리자 키>"}` → `sessionStorage.onnuri_admin_key`에 저장 후 **기존 `renderKeyState()` 흐름에 합류** |
+| 403 | "비밀번호가 올바르지 않거나 로그인 기능이 비활성 상태입니다." |
+| 429 | "시도 횟수를 초과했습니다 — 잠시 후 다시 시도해 주세요." |
+
+403 문구는 서버가 주는 `message`("비밀번호가 올바르지 않습니다")를 쓰지 않고 프론트 고정 문구를 쓴다 — 서버는 오답·비밀번호 미설정·키 미설정을 구분하지 않고 403을 주므로(의도된 설계), "올바르지 않다"고만 단정하면 서버 미설정 상황에서 거짓말이 된다.
+
+### 구현
+- **폼 위치**: 키 없음 상태의 `#keyState`(`.key-state`) 안. `<form class="admin-login" id="loginForm">` + `input#adminPw`(type=password, `autocomplete="current-password"`, aria-label) + `button#loginBtn`. 기존 `#keySet`("키 입력", prompt) 버튼은 **보조로 그대로** 둔다.
+- **Enter 제출**: form의 `submit` 이벤트를 `preventDefault()` 후 `login()` 호출 — 별도 keydown 핸들러 없이 브라우저 기본 동작을 그대로 쓴다.
+- **에러 표시**: `#loginErr`(`.login-err`, `role="alert"`, `flex-basis:100%`)로 폼 아래 새 줄 인라인. 실패 시 폼은 유지하고 입력값을 남긴 채 `focus()+select()`.
+- **진행 중 상태**: 버튼 `disabled` + "확인 중…" → 실패 시 "로그인"으로 복원.
+- **응답 파싱**: `r.text()` 후 `try/JSON.parse` — 403/429가 본문 없이 오거나 비-JSON이어도 예외로 죽지 않는다(기존 `setStatus`는 `r.json()` 직행이라 이 내성이 없음. 신규 코드에만 적용).
+- **레이아웃**: `.key-state`에 `flex-wrap:wrap` 추가 — 좁은 화면에서 폼이 다음 줄로 접힌다.
+- **터치 타깃**: input·로그인·"키 입력" 모두 `min-height:40px`(기존 `.key-state button`은 `padding:4px 10px`로 ~26px이었음 → 40px로 상향).
+
+### 보안 취급
+비밀번호는 **요청 본문에만** 쓰고 어디에도 저장하지 않는다(localStorage·sessionStorage 미기록). 로그인 성공 시 폼 자체가 DOM에서 사라지므로 입력값도 함께 소멸 — 검증에서 성공 후 `document.body.innerHTML`에 비밀번호 문자열이 남지 않음을 확인했다. 저장되는 것은 서버가 돌려준 키뿐이고, 기존과 동일하게 sessionStorage(탭 종료 시 소멸).
+
+### 검증 (2026-08-18, 로컬 정적 서버 8655 + `fetch` 모킹)
+| # | 시나리오 | 결과 |
+|---|---|---|
+| V1 | 키 없음 → 폼 표시 | 통과 — `#adminPw`(password·current-password)·`#loginBtn` 존재, `#keySet` 유지, 높이 40/40/40px |
+| V2 | 정상 로그인(200) | 통과 — 요청 `POST http://localhost:8080/api/admin/login` body `{"password":"…"}` CT json, `keyState.className="key-state ok"`("관리자 키 입력됨"), sessionStorage=응답 키, 폼 소멸, DOM에 비번 잔존 없음 |
+| V3 | 오답(403) | 통과 — 지정 문구 표시, 폼·입력값 유지, 버튼 재활성화, sessionStorage `null` |
+| V3b | 429 | 통과 — "시도 횟수를 초과했습니다 — 잠시 후 다시 시도해 주세요." |
+| V4 | Enter 제출 | 통과 — 로그인 요청 정확히 1회, 페이지 이동·`?password=` 노출 없음 |
+| V5 | 기존 `?key=` 진입 | 통과(회귀 없음) — ok 상태, URL에서 `key` 제거, 폼 미표시. "키 지우기" → 폼 복귀 |
+| — | 모바일 390px | 통과 — 가로 스크롤 없음(scrollWidth 390 = innerWidth), 폼이 2줄로 wrap |
+| — | 문법 | `node --check` OK |
+
+### 미검증 / 전달
+- **실서버 연동 미검증**: 위 200/403/429는 전부 `fetch` 모킹이다. 로컬 백엔드를 띄우지 않았으므로 실제 `AdminController`와의 응답 형식·CORS preflight(로그인은 `Content-Type: application/json`이라 preflight 발생)는 **dev-qa 경계면 검증 몫**. 코드 리뷰로는 계약 일치 확인(200 `Map.of("key", …)`, 403/429 `Map.of("message", …)`).
+- 이 페이지는 사이드바 미노출·`noindex` 독립 페이지라 다른 페이지·`build_index.py`와 무관 — 캐시버스트·재빌드 불요.

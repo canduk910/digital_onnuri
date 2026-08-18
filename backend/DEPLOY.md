@@ -217,8 +217,19 @@ python3 backend/tools/nightly_update.py --no-collect --skip-online --skip-rag
 - **버그 제보 상태 갱신**(report.html 게시판): 관리자 페이지 `admin-report.html`에서 접수↔반영 토글(2026-08-14).
   - 키 설정(최초 1회): 서버 `.env`에 `APP_ADMIN_KEY=<랜덤값>` 추가(`openssl rand -hex 24`로 생성) 후 `up -d --build app`.
     키가 비어 있으면 상태 변경 API(`POST /api/reports/{id}/status`, `X-Admin-Key` 헤더)는 전부 403 — 기능 비활성.
-  - 접속: `https://onnuri.koscomlabor.cloud/admin-report.html?key=<APP_ADMIN_KEY>` — 첫 진입 시 키를 sessionStorage에 옮기고 URL에서 지운다.
+  - 비밀번호 설정(2026-08-18, 로그인용): 서버 `.env`에 `APP_ADMIN_PASSWORD=<기억 가능한 비밀번호>` 추가 후 `up -d --build app`.
+    비면 로그인 API(`POST /api/admin/login`)는 전부 403 — 로그인 비활성(키 직접 입력 방식은 그대로 동작). 무차별 대입 방지로 IP당 분 5회·일 30회 초과 시 429.
+  - 접속: `https://onnuri.koscomlabor.cloud/admin-report.html` — 비밀번호로 로그인하면 서버가 `APP_ADMIN_KEY`를 돌려주고, 그 키를 sessionStorage에 둔다.
+    `?key=<APP_ADMIN_KEY>` 직접 진입도 유지(첫 진입 시 키를 sessionStorage로 옮기고 URL에서 지운다).
   - 폴백(SQL 직접): `docker compose -f docker-compose.prod.yml exec -T db psql -U onnuri -d onnuri -c "UPDATE report SET status='반영' WHERE id=<번호>;"`
+- **⚠ Caddy 앞단에 CDN·LB를 추가하면 rate limit이 깨진다**(2026-08-18): 세 한도(로그인·제보·챗)는
+  `X-Forwarded-For`의 **마지막** 값을 클라이언트 IP로 쓴다 — 현 구성이 Caddy 1홉이라 마지막 값이
+  실제 IP이고 위조가 불가능하기 때문이다(첫 값을 쓰면 클라이언트가 헤더를 위조해 한도를 통째로 우회한다).
+  홉이 하나 늘면 마지막 값이 그 중계자 IP가 되어 **모든 이용자가 한 버킷을 공유**한다(정상 이용자가
+  서로의 한도에 걸려 차단된다). 앞단을 추가할 때는 `gift/onnuri/web/ClientIp.java`와 Caddy
+  `trusted_proxies`를 함께 다시 정할 것.
+  같은 이유로 **`app` 서비스에 `ports:`를 추가해 직접 노출하지 말 것** — Caddy를 거치지 않은 요청은
+  XFF를 통째로 클라이언트가 지어낼 수 있어 한도 우회(F-6)가 그대로 재발한다. 현 구성의 `expose: 8080`을 유지한다.
 - **DB 백업**: `pgdata` 볼륨 백업. 예) `docker exec onnuri-db pg_dump -U onnuri onnuri > backup.sql`.
 - **CORS**: 기본값(application.yml)에 `https://canduk910.github.io`·`https://koscomlabor.cloud`·`https://onnuri.koscomlabor.cloud` 포함(2026-08-15 서브도메인 이전 — ADR-15). 다른 오리진 추가 시 `.env`의 `APP_CORS_ALLOWED_ORIGINS` 주석 해제.
 - **pgvector(RAG) 전환 시**: compose `db` 이미지를 `pgvector/pgvector:pg16`으로 교체(같은 `pgdata` 볼륨 유지 가능) 후 `CREATE EXTENSION vector`.

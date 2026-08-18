@@ -14,11 +14,21 @@
   .subtitle { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent-press); margin-bottom:8px; }
   .meta-line { font-size:13px; color:var(--text-sub); }
 
-  .key-state { display:inline-flex; align-items:center; gap:8px; margin:10px 0 18px; padding:8px 14px;
+  .key-state { display:inline-flex; align-items:center; flex-wrap:wrap; gap:8px; margin:10px 0 18px; padding:8px 14px;
     border-radius:var(--r-md); font-size:12.5px; font-weight:700; background:var(--surface); color:var(--text-sub); }
   .key-state.ok { background:#EEF6EF; color:#1F7A47; }
   .key-state button { border:1px solid var(--border-2); background:var(--bg); border-radius:6px; cursor:pointer;
-    font-size:12px; padding:4px 10px; color:var(--text-sub); }
+    font-size:12px; min-height:40px; padding:0 12px; color:var(--text-sub); }
+
+  /* 비밀번호 로그인 — 서버가 관리자 키를 돌려주면 기존 sessionStorage 흐름에 합류 */
+  .admin-login { display:flex; align-items:center; gap:6px; }
+  .admin-login input { font:inherit; font-size:13px; font-weight:500; height:40px; width:190px; max-width:46vw;
+    padding:0 12px; border:1px solid var(--border-2); border-radius:6px; background:var(--bg); color:var(--text); }
+  .admin-login button { border:1px solid var(--accent); background:var(--accent); color:#fff; border-radius:6px;
+    cursor:pointer; font-size:12.5px; font-weight:700; min-height:40px; padding:0 16px; }
+  .admin-login button:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
+  .admin-login button[disabled] { opacity:.6; cursor:default; }
+  .login-err { flex-basis:100%; font-size:12.5px; font-weight:600; color:#B4232A; }
 
   .rep-item { background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); padding:14px 18px; margin-bottom:10px; }
   .rep-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:5px; }
@@ -130,12 +140,54 @@
       });
     } else {
       ks.className = "key-state";
-      ks.innerHTML = "관리자 키 없음 — 상태 변경 불가 <button type=\"button\" id=\"keySet\">키 입력</button>";
+      ks.innerHTML = "<span>관리자 키 없음 — 상태 변경 불가</span>"
+        + "<form class=\"admin-login\" id=\"loginForm\">"
+        + "<input type=\"password\" id=\"adminPw\" name=\"password\" autocomplete=\"current-password\""
+        + " placeholder=\"관리자 비밀번호\" aria-label=\"관리자 비밀번호\">"
+        + "<button type=\"submit\" id=\"loginBtn\">로그인</button>"
+        + "</form>"
+        + "<button type=\"button\" id=\"keySet\">키 입력</button>"
+        + "<span class=\"login-err\" id=\"loginErr\" role=\"alert\" hidden></span>";
+      ks.querySelector("#loginForm").addEventListener("submit", function (e) {
+        e.preventDefault(); login();
+      });
       ks.querySelector("#keySet").addEventListener("click", function () {
         var v = prompt("관리자 키를 입력하세요");
         if (v) { try { sessionStorage.setItem("onnuri_admin_key", v); } catch (e) {} KEY = v; renderKeyState(); }
       });
     }
+  }
+
+  // 비밀번호는 요청 본문에만 쓰고 어디에도 저장하지 않는다 — 서버가 돌려준 키만 sessionStorage에 남는다.
+  function login() {
+    var pw = el("adminPw"), btn = el("loginBtn"), err = el("loginErr");
+    var fail = function (m) {
+      err.textContent = m; err.hidden = false;
+      btn.disabled = false; btn.textContent = "로그인";
+      pw.focus(); pw.select();
+    };
+    if (!pw.value) { fail("비밀번호를 입력하세요."); return; }
+    err.hidden = true;
+    btn.disabled = true; btn.textContent = "확인 중…";
+    fetch(API + "/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw.value })
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        var d = null; try { d = t ? JSON.parse(t) : null; } catch (e) {}
+        return { ok: r.ok, code: r.status, d: d };
+      });
+    }).then(function (res) {
+      if (res.ok && res.d && res.d.key) {
+        try { sessionStorage.setItem("onnuri_admin_key", res.d.key); } catch (e) {}
+        KEY = res.d.key; renderKeyState(); return;
+      }
+      if (res.code === 403) fail("비밀번호가 올바르지 않거나 로그인 기능이 비활성 상태입니다.");
+      else if (res.code === 429) fail("시도 횟수를 초과했습니다 — 잠시 후 다시 시도해 주세요.");
+      else if (res.ok) fail("서버 응답에 관리자 키가 없습니다.");
+      else fail((res.d && res.d.message) || ("로그인 실패(" + res.code + ")"));
+    }).catch(function () { fail("서버에 연결하지 못했습니다."); });
   }
 
   var PAGE_SIZE = 20, page = 0, total = 0;

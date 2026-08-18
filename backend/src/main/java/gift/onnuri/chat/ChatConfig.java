@@ -18,6 +18,14 @@ public class ChatConfig {
         return new RateLimiter(perMinute, perDay, Clock.system(ZoneId.of("Asia/Seoul")));
     }
 
+    /** 관리자 로그인(POST /api/admin/login) — 무차별 대입 방지라 제보보다도 타이트하게. */
+    @Bean
+    public RateLimiter adminLoginRateLimiter(
+            @Value("${app.admin.rate-per-minute:5}") int perMinute,
+            @Value("${app.admin.rate-per-day:30}") int perDay) {
+        return new RateLimiter(perMinute, perDay, Clock.system(ZoneId.of("Asia/Seoul")));
+    }
+
     @Bean
     public RateLimiter chatRateLimiter(
             @Value("${app.chat.rate-per-minute:10}") int perMinute,

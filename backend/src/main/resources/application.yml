@@ -30,6 +30,9 @@ app:
     max-markers: 3000          # 지도 좌표 API 상한(현 클라이언트 MAP_MAX와 동일)
   admin:
     key: ${APP_ADMIN_KEY:}     # 제보 처리상태 변경 키 — 서버 .env에만 실제 값. 비면 관리 기능 비활성(403)
+    password: ${APP_ADMIN_PASSWORD:}  # 관리자 로그인 비밀번호 — 서버 .env에만 실제 값. 비면 로그인 API 비활성(403)
+    rate-per-minute: 5         # 로그인 무차별 대입 방지(IP당)
+    rate-per-day: 30
   # 챗봇 (ADR-12). API 키는 서버 .env의 OPENAI_API_KEY로만 주입 — 코드·저장소 비노출.
   openai:
     api-key: ${OPENAI_API_KEY:}
