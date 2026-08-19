@@ -443,7 +443,7 @@ tpl = replace_once(
     "<a href=\"online.html\" style=\"display:flex;flex-direction:column;gap:6px;background:#FAFAF9;border:1.5px solid #E7E5E1;border-radius:12px;padding:13px 15px;margin-bottom:14px;text-decoration:none;color:inherit\" style-hover=\"border-color:#F26B1D;background:#FFFFFF\" style-focus=\"border-color:#F26B1D;box-shadow:0 0 0 3px #FBD8BC\">\n"
     "          <span style=\"display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#171512\">온라인 사용처 찾기 <span style=\"font-size:11px;font-weight:700;color:#C4510F;background:#FDEEE3;border-radius:999px;padding:2px 8px\">내부</span></span>\n"
     "          <span style=\"font-size:12.5px;color:#6E6A64;line-height:1.55\">쇼핑몰·배달앱을 물품종류(농·수·축산물, 가전, 의류 등)와 브랜드로 골라 찾습니다. 각 몰 실측 태그 기준.</span>\n"
-    "          <span style=\"font-size:11.5px;color:#9A968F;line-height:1.5\">이 안내 페이지의 목록은 갱신 시점에 고정됩니다 — 최신 플랫폼 목록은 위 '온라인 사용처 찾기'에서 확인하세요.</span>\n"
+    "          <span style=\"font-size:11.5px;color:#585D64;line-height:1.5\">이 안내 페이지의 목록은 갱신 시점에 고정됩니다 — 최신 플랫폼 목록은 위 '온라인 사용처 찾기'에서 확인하세요.</span>\n"
     "        </a>\n<div id=\"online\" style=\"background:#FDF3EA;",
     "S16.online-search-entry",
 )
@@ -484,16 +484,19 @@ tpl = replace_once(
 
 # ---------- 7f. 전역 색상 매핑: 따뜻한 톤 → 중립 모노톤 (오렌지 #F26B1D·#C4510F 유지) ----------
 # 인라인 스타일에 흩어진 웜톤 hex 를 중립 토큰 값으로 일괄 치환.
+# 2026-08-19: 목표값을 shell.css 팔레트와 일치시켰다(토큰 출처 단일화).
+#   --text #0B0C0E · --text-sub #585D64 · --border #E5E6E8 · --surface #F6F6F7 · --surface-2 #EFF0F2
+# 이전에는 index 인라인만 구 모노톤(#17181A 등)을 써서, shell.css 한쪽만 고치면 나머지가 조용히 어긋났다.
 # 원본 + 이번에 추가된 S10/S15 등 블록 모두에 적용되도록 마지막에 한 번 수행.
 COLOR_MAP = [
-    ("#E7E5E1", "#E6E6E6"),  # border
-    ("#EFEEEC", "#E6E6E6"),  # border(옅음)
-    ("#8A8580", "#6B6E73"),  # text-sub
-    ("#6E6A64", "#6B6E73"),  # text-sub
-    ("#171512", "#17181A"),  # text
-    ("#26231F", "#17181A"),  # text(strong)
-    ("#FAFAF9", "#F7F7F7"),  # surface
-    ("#F0EFED", "#F0F0F0"),  # surface-2
+    ("#E7E5E1", "#E5E6E8"),  # border
+    ("#EFEEEC", "#E5E6E8"),  # border(옅음)
+    ("#8A8580", "#585D64"),  # text-sub
+    ("#6E6A64", "#585D64"),  # text-sub
+    ("#171512", "#0B0C0E"),  # text
+    ("#26231F", "#0B0C0E"),  # text(strong)
+    ("#FAFAF9", "#F6F6F7"),  # surface
+    ("#F0EFED", "#EFF0F2"),  # surface-2
     ("#FDEEE3", "#FEF3EC"),  # accent-soft
     ("#FDF3EA", "#FEF3EC"),  # accent-soft
     ("#FBD8BC", "#FEF3EC"),  # accent-soft(포커스 링)
@@ -505,7 +508,7 @@ for _old_c, _new_c in COLOR_MAP:
     tpl = tpl.replace(_old_c, _new_c)
 # 매핑 후 잔존 웜톤 검사(오렌지 계열 제외 — 남으면 누락)
 import re as _re
-_leftover = sorted(set(_re.findall(r"#(?:E7E5E1|EFEEEC|8A8580|6E6A64|171512|26231F|FAFAF9|F0EFED|FDEEE3|FDF3EA|FBD8BC|F5D2B8|EFC5A3|F4F4F3|A3A09B)", tpl)))
+_leftover = sorted(set(_re.findall(r"#(?:E7E5E1|EFEEEC|8A8580|6E6A64|171512|26231F|FAFAF9|F0EFED|FDEEE3|FDF3EA|FBD8BC|F5D2B8|EFC5A3|F4F4F3|A3A09B|9A968F)", tpl)))
 if _leftover:
     raise SystemExit(f"[FAIL] 24.color-map: 웜톤 잔존 {_leftover}")
 print(f"[OK] 24.color-map: 웜톤 치환 (변경 {sum(1 for a,b in COLOR_MAP)} 규칙, 길이 {len(_before_map)}->{len(tpl)})")
@@ -542,11 +545,11 @@ if _j < 0:
     raise SystemExit("[FAIL] 7g: terms 블록을 찾지 못함")
 _e = tpl.find('</div>', _j)
 TERMS_POINTER = (
-    '<div id="terms" style="margin-top:26px;padding-top:16px;border-top:1px solid #E6E6E6">'
-    '<p style="margin:0;font-size:12px;color:#6B6E73;line-height:1.7">'
+    '<div id="terms" style="margin-top:26px;padding-top:16px;border-top:1px solid #E5E6E8">'
+    '<p style="margin:0;font-size:12px;color:#585D64;line-height:1.7">'
     '용어 풀이와 유의사항 각주는 <a href="terms.html" style="color:#C4510F;font-weight:700">용어·유의사항</a>, '
     '결제 단계·카드 실적 안내는 <a href="payment.html" style="color:#C4510F;font-weight:700">결제 방법</a> 페이지로 옮겼습니다. '
-    '※ 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong style="color:#17181A">정확하지 않을 수 있습니다</strong> — '
+    '※ 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong style="color:#0B0C0E">정확하지 않을 수 있습니다</strong> — '
     '내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.</p></div>'
 )
 tpl = tpl[:_j] + TERMS_POINTER + tpl[_e + len('</div>'):]
@@ -557,7 +560,7 @@ print("[OK] 7g. terms 블록 → 포인터·면책 치환 (terms.html로 분리)
 # 7g 가 삽입하는 TERMS_POINTER 는 매핑을 우회했다(실제로 #8A8580·#26231F 가 되살아났다).
 # 7f 뒤에 문자열을 삽입하는 스텝이 또 생겨도 잡히도록 여기서 한 번 더 검사한다.
 _leftover2 = sorted(set(_re.findall(
-    r"#(?:E7E5E1|EFEEEC|8A8580|6E6A64|171512|26231F|FAFAF9|F0EFED|FDEEE3|FDF3EA|FBD8BC|F5D2B8|EFC5A3|F4F4F3|A3A09B)", tpl)))
+    r"#(?:E7E5E1|EFEEEC|8A8580|6E6A64|171512|26231F|FAFAF9|F0EFED|FDEEE3|FDF3EA|FBD8BC|F5D2B8|EFC5A3|F4F4F3|A3A09B|9A968F)", tpl)))
 if _leftover2:
     raise SystemExit(f"[FAIL] 7g-guard: 7f 이후 삽입 블록에 웜톤 잔존 {_leftover2} — COLOR_MAP 목표값으로 직접 쓸 것")
 print("[OK] 7g-guard: 7f 이후 웜톤 잔존 0")

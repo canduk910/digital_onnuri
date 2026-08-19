@@ -96,8 +96,8 @@ if tpl:
                 "서울·인천·경기·부산 외 지역의 가맹점은 온누리 공식 지도에서 확인하세요",
                 "href=\"https://www.onnuri.gift/place\"",
                 "새 창에서 열림", "내부 · 서울·인천·경기·부산", "외부 · 전국",
-                # 요건2 지도 검색 안내 문장 유지(인라인 링크만 제거) 확인 — hex 는 task #24 모노톤(#17181A)
-                "가맹 여부는 <strong style=\"color:#17181A\">온누리 가맹점 지도</strong>에서 점포 단위로 확인할 수 있습니다",
+                # 요건2 지도 검색 안내 문장 유지(인라인 링크만 제거) 확인 — hex 는 shell.css 팔레트(#0B0C0E, 2026-08-19 통일)
+                "가맹 여부는 <strong style=\"color:#0B0C0E\">온누리 가맹점 지도</strong>에서 점포 단위로 확인할 수 있습니다",
                 "기업형슈퍼마켓(SSM) 직영점",
                 "GS더프레시 직영", "직영점은 가맹 제외 — 단, 같은 브랜드라도"]:
         check(tok in tpl, f"토큰 '{tok}' 존재")
@@ -142,10 +142,17 @@ if tpl:
         check(tok in shell_js, f"shell.js 스크립트 '{tok}' 존재")
     # 모노톤 불변식: 웜톤 hex·pill 잔존 0 (오렌지 #F26B1D·#C4510F 는 유지)
     warm = sorted(set(re.findall(
-        r"#(?:E7E5E1|EFEEEC|8A8580|6E6A64|171512|26231F|FAFAF9|F0EFED|FDEEE3|FDF3EA|FBD8BC|F5D2B8|EFC5A3|F4F4F3|A3A09B)", tpl)))
+        r"#(?:E7E5E1|EFEEEC|8A8580|6E6A64|171512|26231F|FAFAF9|F0EFED|FDEEE3|FDF3EA|FBD8BC|F5D2B8|EFC5A3|F4F4F3|A3A09B|9A968F)", tpl)))
     check(not warm, f"웜톤 hex 잔존 0 (실제 {warm})")
     check("border-radius:999px" not in tpl, "pill(999px) 잔존 0")
     check("#F26B1D" in tpl and "#C4510F" in tpl, "오렌지 포인트 유지(#F26B1D·#C4510F)")
+    # 토큰 출처 단일화(2026-08-19): index 인라인 색이 shell.css 팔레트와 같은 값이어야 한다.
+    # 구 모노톤이 되살아나면 여기서 잡힌다 — 한쪽만 고치고 나머지를 잊는 것이 이 저장소의 상습 결함이다.
+    for _old, _new in [("#17181A", "#0B0C0E"), ("#6B6E73", "#585D64"), ("#E6E6E6", "#E5E6E8"),
+                       ("#F7F7F7", "#F6F6F7"), ("#F0F0F0", "#EFF0F2")]:
+        check(_old not in tpl, f"구 모노톤 {_old} 잔존 0 (→ {_new})")
+    for _tok in ["#0B0C0E", "#585D64", "#E5E6E8"]:
+        check(_tok in shell_css and _tok in tpl, f"{_tok} 가 shell.css·템플릿 양쪽에 존재(출처 일치)")
 
     # (h) 탭 제목·파비콘: 외곽과 템플릿 내부 양쪽 (2026-08-18)
     # 로더는 document.documentElement.replaceWith(doc.documentElement) 로 문서 루트를 통째로
