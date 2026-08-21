@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """야간 배치(서버 cron 00:30) — 가맹점·온라인 플랫폼 데이터 자동 갱신.
 
-세 단계가 서로 독립적으로 fail-open 한다(ADR-14):
+네 단계가 서로 독립적으로 fail-open 한다(ADR-14, D는 ADR-16):
   A 가맹점  — 공식 API 전수 재수집 → stage 테이블 적재 → ±20% 가드 → 무중단 stage-swap
   B 온라인  — 공식 e-commerce API 순회 → upsert(post_no/이름 매칭, 큐레이션 필드 보존)
   C RAG     — OPENAI_API_KEY 있을 때만 코퍼스 재빌드
+  D 채록    — 온라인 취급품목·브랜드 변화 **탐지만**(하루 3~4곳 순환, 자동 반영 없음)
 
 배치 전체 실패(exit≠0)로 치는 것은 **A 단계 실패뿐**이다. B·C 실패는 로그만 남기고 기존 데이터를 유지한다.
 
@@ -18,6 +19,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -303,11 +305,47 @@ def stage_c_rag():
     log(f"C 판정: OK — 소요 {time.time()-t0:.1f}s")
 
 
+def stage_d_survey(out_dir):
+    """온라인 취급품목·브랜드 변화 **탐지**(자동 반영 없음).
+
+    단계 B(온라인 플랫폼)는 공식 API 라 계약이 안정적이지만 이 단계는 HTML 스크래핑이다.
+    사이트 개편이나 지연 로드로 절반만 걷힌 회차를 자동 반영하면 데이터가 조용히 나빠지므로,
+    변화 후보만 리포트로 남기고 반영 판단은 사람이 한다(2026-08-22 결정).
+
+    하루 3~4곳씩 순환해 일주일에 22곳을 한 바퀴 돈다 — 매일 전수 스크래핑은 상대 사이트
+    부담에 견줘 얻는 게 적다(취급품목은 가맹점 목록만큼 자주 바뀌지 않는다).
+    """
+    log("=== 단계 D: 온라인 취급품목·브랜드 변화 탐지 ===")
+    script = ROOT / "backend" / "tools" / "survey_nightly.js"
+    if not script.exists():
+        log("D 스킵: survey_nightly.js 없음.")
+        return
+    node = shutil.which("node")
+    if not node:
+        log("D 스킵: node 없음(설치: nodejs).")
+        return
+    t0 = time.time()
+    cmd = [node, str(script)]
+    if out_dir:
+        cmd += ["--out", out_dir]
+    r = subprocess.run(cmd, cwd=str(ROOT))
+    if r.returncode == 2:
+        log("D 스킵: playwright 미설치 — npm i playwright && npx playwright install --with-deps chromium")
+        return
+    if r.returncode != 0:
+        log(f"D 실패(로그만): survey_nightly exit={r.returncode}. 배치 실패 아님.")
+        return
+    log(f"D 판정: OK — 소요 {time.time()-t0:.1f}s (데이터 자동 반영 없음, 리포트만)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-merchants", action="store_true")
     ap.add_argument("--skip-online", action="store_true")
     ap.add_argument("--skip-rag", action="store_true")
+    ap.add_argument("--skip-survey", action="store_true")
+    ap.add_argument("--survey-out", default=os.environ.get("SURVEY_OUT_DIR"),
+                    help="변화 탐지 리포트를 남길 디렉터리(미지정 시 로그로만)")
     ap.add_argument("--no-collect", action="store_true",
                     help="가맹점 재수집 생략(기존 JSON으로 스왑만 — 로컬 검증)")
     ap.add_argument("--collected-on", default=date.today().isoformat())
@@ -318,22 +356,35 @@ def main():
     log(f"야간 배치 시작 (collected_on={today}, DSN 호스트={DSN.split()[0]})")
 
     merchant_failed = False
-    with psycopg.connect(DSN, autocommit=True) as conn:
-        if args.skip_merchants:
-            log("단계 A 스킵(--skip-merchants)")
-        else:
-            ok = stage_a_merchants(conn, today, args.no_collect)
-            merchant_failed = not ok
+    # A·B 만 DB 를 쓴다. 둘 다 스킵이면 연결하지 않는다 —
+    # 단계 D(채록 탐지)는 DB 가 필요 없어서, 이 가드가 없으면 D 만 돌려보는 것이 불가능하다.
+    if args.skip_merchants and args.skip_online:
+        log("단계 A·B 스킵 — DB 연결 생략")
+    else:
+        with psycopg.connect(DSN, autocommit=True) as conn:
+            if args.skip_merchants:
+                log("단계 A 스킵(--skip-merchants)")
+            else:
+                ok = stage_a_merchants(conn, today, args.no_collect)
+                merchant_failed = not ok
 
-        if args.skip_online:
-            log("단계 B 스킵(--skip-online)")
-        else:
-            stage_b_online(conn, today)
+            if args.skip_online:
+                log("단계 B 스킵(--skip-online)")
+            else:
+                stage_b_online(conn, today)
 
     if args.skip_rag:
         log("단계 C 스킵(--skip-rag)")
     else:
         stage_c_rag()
+
+    if args.skip_survey:
+        log("단계 D 스킵(--skip-survey)")
+    else:
+        try:
+            stage_d_survey(args.survey_out)
+        except Exception as e:                     # noqa: BLE001 — D 는 배치를 죽이지 않는다
+            log(f"D 실패(로그만): {e}. 배치 실패 아님.")
 
     log(f"야간 배치 종료 — 총 소요 {time.time()-t0:.1f}s, "
         f"판정 {'FAIL(가맹점)' if merchant_failed else 'OK'}")

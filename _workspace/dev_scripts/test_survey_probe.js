@@ -5,7 +5,9 @@
  * 실행: node _workspace/dev_scripts/test_survey_probe.js
  */
 'use strict';
-const { matchBrands, extractListSegment, analyze, COLLECT_SNIPPET, BRAND_DICT } = require('./survey_probe.js');
+const fs = require('fs');
+const path = require('path');
+const { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, COLLECT_SNIPPET, BRAND_DICT } = require('./survey_probe.js');
 
 let pass = 0, fail = 0;
 function check(cond, label, detail) {
@@ -132,6 +134,69 @@ console.log('(g) 수집 스니펫 — 브라우저로 보내는 문자열의 형
         '원문과 링크를 수집한다');
   check((() => { try { new Function('return ' + COLLECT_SNIPPET); return true; } catch (e) { return false; } })(),
         '스니펫이 문법적으로 유효하다');
+}
+
+console.log('(h) todaysSlice — 22곳을 일주일에 한 바퀴, 결정적으로 나눈다');
+{
+  const ids = Array.from({ length: 22 }, (_, i) => 'm' + i);
+  const days = Array.from({ length: 7 }, (_, k) => new Date(2026, 7, 24 + k)); // 월~일
+  const picks = days.map((d) => todaysSlice(ids, d));
+  const sizes = picks.map((p) => p.length);
+  check(sizes.every((n) => n >= 3 && n <= 4), '하루 3~4곳', JSON.stringify(sizes));
+  const union = new Set(picks.flat());
+  check(union.size === 22, '일주일이면 22곳 전부 한 번씩', `실제 ${union.size}`);
+  const total = sizes.reduce((a, b) => a + b, 0);
+  check(total === 22, '중복 없이 정확히 한 번씩', String(total));
+  const again = todaysSlice(ids, new Date(2026, 7, 24));
+  check(JSON.stringify(again) === JSON.stringify(picks[0]), '같은 날짜면 같은 결과(결정적)');
+  const nextWeek = todaysSlice(ids, new Date(2026, 7, 31));
+  check(JSON.stringify(nextWeek) === JSON.stringify(picks[0]), '7일 뒤 같은 묶음으로 돌아온다');
+}
+
+console.log('(i) computeDelta — 추가만 보고한다');
+{
+  const current = { brands: ['애플', '정관장'], cats: ['agri-rice', 'food'] };
+  const analyzed = { confirmed: ['애플', '다이슨'], brandDirectory: ['테팔'], cats: ['가전', '과일'], textLen: 9000 };
+  const mapCats = (cs) => cs.map((c) => (/가전/.test(c) ? 'appliance' : /과일/.test(c) ? 'agri-fruit' : null)).filter(Boolean);
+  const d = computeDelta(current, analyzed, mapCats);
+  check(d.newBrands.includes('다이슨') && d.newBrands.includes('테팔'), '새 브랜드를 잡는다');
+  check(!d.newBrands.includes('애플'), '이미 있는 브랜드는 델타가 아니다');
+  check(d.newCats.includes('appliance') && d.newCats.includes('agri-fruit'), '새 카테고리를 잡는다');
+  check(!d.newCats.includes('food'), '이미 있는 카테고리는 델타가 아니다');
+  check(d.thin === false, '본문이 충분하면 thin=false');
+}
+{
+  // 기획전 회전으로 이번에 안 보인 브랜드가 "사라짐"으로 보고되면 안 된다.
+  const current = { brands: ['닌텐도', 'KODAK'], cats: ['food'] };
+  const d = computeDelta(current, { confirmed: [], brandDirectory: [], cats: [], textLen: 9000 }, () => []);
+  check(d.newBrands.length === 0 && d.newCats.length === 0, '미관찰은 델타가 아니다(삭제 방향 보고 없음)');
+  check(!('removedBrands' in d), '삭제 필드 자체가 없다 — 지우라는 신호를 만들지 않는다');
+}
+{
+  // 수집이 반쯤 실패한 회차를 '변화 없음'으로 읽으면 안 된다(2026-08-21 공영쇼핑).
+  const d = computeDelta({ brands: [], cats: [] }, { confirmed: [], cats: [], textLen: 354 }, () => []);
+  check(d.thin === true, '본문이 얇으면 thin=true 로 표시');
+}
+
+console.log('(j) 배치 러너가 스니펫을 실행 가능한 형태로 쓰는가');
+{
+  // Playwright 의 evaluate 는 문자열을 **표현식**으로 평가한다. "() => {...}" 를 그대로
+  // 넘기면 함수 객체가 나올 뿐 실행되지 않고, 직렬화도 안 돼 undefined 가 온다.
+  // 2026-08-22 실제로 이 버그로 전 몰 수집이 실패했다 — 즉시 호출로 감싸야 한다.
+  const runner = path.join(__dirname, '..', '..', 'backend', 'tools', 'survey_nightly.js');
+  if (!fs.existsSync(runner)) {
+    check(false, '배치 러너 파일 존재', runner);
+  } else {
+    const src = fs.readFileSync(runner, 'utf-8');
+    check(/evaluate\(`\(\$\{COLLECT_SNIPPET\}\)\(\)`\)/.test(src),
+          'evaluate 에 즉시 호출 형태 `(${COLLECT_SNIPPET})()` 로 넘긴다');
+    check(!/evaluate\(COLLECT_SNIPPET\)/.test(src),
+          '스니펫을 맨 문자열로 넘기지 않는다(실행되지 않는 형태)');
+    check(/computeDelta\(/.test(src) && /mapCats/.test(src),
+          '델타 계산에 프로브의 순수 함수를 쓴다(로직 복제 아님)');
+    check(!/writeFileSync\([^)]*online_catalog/.test(src) && !/git\s+(commit|push)/.test(src),
+          '카탈로그를 고치거나 git 을 건드리지 않는다(탐지 전용)');
+  }
 }
 
 console.log();

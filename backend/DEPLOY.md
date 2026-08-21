@@ -168,6 +168,59 @@ chmod +x ~/onnuri_batch/run.sh
 - 비밀값은 스크립트에 하드코딩하지 말고 `.env`에서 읽거나 별도 관리. 위 `<…>`는 서버 `.env` 값으로 치환.
 - RAG까지 자동화하려면 `--skip-rag`를 빼고 `OPENAI_API_KEY`를 export.
 
+### 단계 D — 온라인 취급품목·브랜드 변화 탐지 (2026-08-22, ADR-16)
+
+매 회차 온라인 몰 3~4곳을 열어 카테고리·브랜드를 채록하고, 현재 `data/online_catalog.json`과
+비교해 **새로 생긴 것만** 로그·리포트로 남긴다. 22곳을 일주일에 한 바퀴 돈다.
+
+> **데이터를 자동으로 고치지 않는다.** 커밋도 푸시도 하지 않는다. 단계 B(온라인 플랫폼)는
+> 공식 API라 계약이 안정적이지만 채록은 HTML 스크래핑이다. 사이트 개편이나 지연 로드로
+> 절반만 걷힌 회차를 자동 반영하면 데이터가 조용히 나빠진다. 반영은 사람이 리포트를 보고 결정한다.
+
+이 단계는 **선택**이다. node나 playwright가 없으면 로그만 남기고 건너뛴다(배치 실패 아님).
+
+```bash
+# 배치 클론에서 (한 번만)
+sudo apt-get install -y nodejs npm          # node 18+ 권장
+cd ~/onnuri_batch/repo
+npm i playwright
+npx playwright install --with-deps chromium # 브라우저 + 시스템 의존 라이브러리
+```
+
+`run.sh`에 리포트 저장 위치를 넘기면 날짜별 JSON이 쌓인다(로그만 볼 거면 생략 가능):
+
+```bash
+export SURVEY_OUT_DIR=~/onnuri_batch/survey
+```
+
+이미 Chrome이 깔린 서버이거나 playwright 번들과 캐시 버전이 어긋나면 채널을 지정한다:
+
+```bash
+export PLAYWRIGHT_CHANNEL=chrome
+```
+
+단독 실행(수동 재실측·점검용):
+
+```bash
+cd ~/onnuri_batch/repo
+node backend/tools/survey_nightly.js              # 오늘 몫 3~4곳
+node backend/tools/survey_nightly.js --all        # 22곳 전부
+node backend/tools/survey_nightly.js --ids cyso   # 특정 몰만
+python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-rag   # D만
+```
+
+리포트를 읽는 법:
+
+| 표시 | 뜻 | 할 일 |
+|---|---|---|
+| `새 브랜드` / `새 카테고리` | 현재 카탈로그에 없는 값이 관찰됨 | 확인 후 반영 판단 |
+| `※ 기획전 딥링크` | 몰 루트가 아닌 기획전/전용관 링크 | 호스트 몰 전체 GNB가 섞였을 수 있음 — **온누리 결제 범위인지 확인 필수** |
+| `[의심] 본문이 얇다` | 수집이 반쯤 실패했을 가능성 | 사이트 개편·로그인 요구 여부 확인 |
+| `[실패]` | 페이지를 열지 못함 | URL 변경 여부 확인 |
+
+반영할 때는 `data/online_catalog.json`을 고치고 `_workspace/15_online_catalog_report.md`에 근거를 남긴다.
+**확인하지 못한 몰의 `surveyed_on`은 올리지 않는다** — 화면 스탬프가 그 날짜를 근거로 계산된다.
+
 ### crontab 등록 (서버 TZ 먼저 확인)
 
 ```bash

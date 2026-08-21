@@ -458,15 +458,33 @@
         if (!PLATFORMS.some(function (p) { return p.id === it.id; })) console.warn("카탈로그 고아 id:", it.id);
       });
       META.platforms = (plat.meta || {}).collected_on || "";
-      META.survey = (cat.items || []).reduce(function (m, it) { return !m || it.surveyed_on < m ? it.surveyed_on : m; }, "");
+      // 실측 스탬프(2026-08-21 개정): 예전에는 min(surveyed_on) 하나만 썼다. 그러면 22곳 중
+      // 21곳을 새로 확인해도 못 본 1곳 때문에 화면이 옛 날짜를 말한다 — 최신 확인을 통째로
+      // 가리는 셈이다. 반대로 확인 안 한 항목의 날짜를 올리는 것도 금지다(검증되지 않은
+      // 정보에 신뢰를 주는 일). 그래서 둘을 나눠 보여준다: 대표 확인일 = 확인된 것 중 가장
+      // 최근(ok 기준), 그리고 뒤처진 곳이 있으면 몇 곳이 언제인지 함께 밝힌다.
+      var surveyed = (cat.items || []).filter(function (it) { return it.surveyed_on; });
+      var okDates = surveyed.filter(function (it) { return it.survey_status !== "partial"; })
+                            .map(function (it) { return it.surveyed_on; });
+      META.survey = okDates.length
+        ? okDates.reduce(function (m, d) { return d > m ? d : m; }, okDates[0])
+        : surveyed.reduce(function (m, it) { return !m || it.surveyed_on < m ? it.surveyed_on : m; }, "");
+      var behind = surveyed.filter(function (it) { return it.surveyed_on < META.survey; });
+      META.behindCount = behind.length;
+      META.behindOldest = behind.reduce(function (m, it) { return !m || it.surveyed_on < m ? it.surveyed_on : m; }, "");
+      META.surveyNote = behind.length
+        ? " · " + behind.length + "곳은 " + META.behindOldest + " 확인분"
+        : "";
       var s = PLATFORMS.filter(function (p) { return p.kind === "shopping"; }).length;
       var d = PLATFORMS.length - s;
       el("metaLine").innerHTML = "공식 목록 <span class='num'>" + esc(META.platforms) + "</span> 수집(매일 00:30 자동 갱신) · 취급품목 실측 <span class='num'>"
-        + esc(META.survey) + "</span> 기준 · <span class='num'>" + nf(PLATFORMS.length) + "곳</span> — 쇼핑 <span class='num'>" + s + "</span> · 배달 <span class='num'>" + d + "</span>";
+        + esc(META.survey) + "</span> 기준" + esc(META.surveyNote) + " · <span class='num'>" + nf(PLATFORMS.length) + "곳</span> — 쇼핑 <span class='num'>" + s + "</span> · 배달 <span class='num'>" + d + "</span>";
       el("noticeMain").innerHTML = "<strong>각 쇼핑몰이 취급하는 물품종류와 대표 브랜드를 " + esc(META.survey)
         + "에 플랫폼 단위로 확인해 태그한 목록입니다.</strong> 상품 재고·전체 브랜드 목록이 아니며, 온누리 결제 가능 범위는 각 몰의 전용관·기획전 기준입니다 — 결제 전 해당 몰에서 확인하세요.";
       el("footMethod").innerHTML = "※ 취급 품목·브랜드 태그는 각 몰의 카테고리 메뉴·기획전·브랜드관을 " + esc(META.survey)
-        + "에 실측해 기록한 것입니다(조사 로그: 저장소 _workspace/15_online_catalog_report.md). 이후 각 몰의 취급 변화는 반영되지 않을 수 있습니다." + "<br>" + " 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong>정확하지 않을 수 있습니다</strong> — 내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.";
+        + "에 실측해 기록한 것입니다(조사 로그: 저장소 _workspace/15_online_catalog_report.md)."
+        + (META.behindCount ? " 다만 " + META.behindCount + "곳은 그날 확인하지 못해 " + esc(META.behindOldest) + " 실측분을 그대로 두었습니다 — 확인하지 못한 곳의 날짜는 올리지 않습니다." : "")
+        + " 이후 각 몰의 취급 변화는 반영되지 않을 수 있습니다." + "<br>" + " 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong>정확하지 않을 수 있습니다</strong> — 내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.";
       applyUrlParams();
       renderAll();
     }).catch(function (e) {

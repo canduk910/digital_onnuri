@@ -173,6 +173,92 @@ function analyze(raw, dict = BRAND_DICT) {
   };
 }
 
+/**
+ * 사이트 카테고리 문구 → taxonomy id 매핑.
+ *
+ * 몰마다 카테고리 이름이 다르다("정육"·"축산"·"육류"·"소고기"). 같은 축으로 묶어야
+ * 델타가 "이 몰이 새 품목을 취급하기 시작했다"를 뜻하게 된다.
+ * 주의: 이 매핑은 **후보를 만드는 도구**다. 기획전 딥링크 몰은 몰 전체 GNB 가 섞여
+ * 들어오므로(2026-08-21 롯데ON), 최종 반영 전에 사람이 범위를 확인해야 한다.
+ */
+const CAT_RULES = [
+  ['agri-rice', /쌀|잡곡|곡류|곡물|현미|찹쌀|흑미|보리|귀리|백미|견과|아몬드|호두|땅콩|잣|밤\b/],
+  ['agri-veg', /채소|고구마|감자|옥수수|버섯|나물|배추|무\b|양파|당근|쌈/],
+  ['agri-fruit', /과일|사과|배\b|수박|메론|참외|귤|만감|자두|복숭아|토마토|곶감|망고|키위|체리|석류|포도|딸기|블루베리|바나나/],
+  ['fish-fresh', /생선|해산물|어패|활어|회\b|오징어|낙지|문어|전복|굴\b|조개|새우|게\b|장어|고등어|갈치|광어|참돔|멍게/],
+  ['fish-dried', /건어물|해조|김\/|김·|미역|다시마|멸치|황태|굴비|건해산/],
+  ['meat-beef', /소고기|쇠고기|한우|육우|우육/],
+  ['meat-pork', /돼지|돈육|한돈|삼겹|목살/],
+  ['meat-chicken', /닭|오리|계란|알류|양고기/],
+  ['meat', /축산|정육|육류/],
+  ['food', /가공식품|반찬|김치|젓갈|장류|간편식|즉석|밀키트|면\b|라면|통조림|양념|오일|조미|과자|간식|떡|베이커리|잼|유제품|우유|두유|음료|생수|커피|차\b|주류|전통주|꿀|조청|분식|만두|냉동식품|델리|선식|누룽지|전통식품|축산가공|농산가공|수산가공/],
+  ['health', /건강식품|홍삼|인삼|수삼|녹용|비타민|영양제|건강기능|건강즙|건강액|다이어트|이너뷰티|유산균|프로폴리스|헬스보충|영양보충|약초/],
+  ['living', /생활용품|생활\/|주방용품|주방잡화|세제|세탁|청소|욕실|화장지|물티슈|생리대|위생|수납|정리|침구|커튼|가구|인테리어|조명|홈패브릭|카펫|러그|공구|전기|자재|안마|찜질|의료용품|그릇|냄비|프라이팬|조리도구|텀블러|밀폐|도시락|수저|일회용품|보온|보냉|주전자|생활잡화|만물|잡화가게/],
+  ['appliance', /가전|디지털|컴퓨터|노트북|데스크톱|모니터|프린터|태블릿|휴대폰|스마트기기|카메라|TV\b|영상|음향|저장장치|세탁기|건조기|냉장고|주변기기|게임|드론|로봇청소기/],
+  ['fashion-sports', /스포츠 ?의류|스포츠 ?신발|골프|등산|아웃도어|캠핑|낚시|자전거|헬스|요가|필라테스|수영|스키|보드|구기|라켓|레저|스포츠 ?잡화|격투/],
+  ['fashion-casual', /의류|옷가게|캐주얼|언더웨어|잠옷|신발|가방|캐리어|지갑|벨트|모자|머플러|장갑|양말|쥬얼리|시계|선글라스|패션잡화|패션\/|속옷/],
+  ['beauty', /뷰티|화장품|스킨케어|메이크업|선케어|클렌징|필링|향수|헤어케어|바디케어|네일|이미용|팩\/|마스크|세안|남성화장품|뷰티소품/],
+  ['hobby', /취미|완구|장난감|피규어|프라모델|보드게임|도서|문구|사무용품|필기구|악기|화방|반려|애완|강아지|고양이|펫|조류|관상어|수족관|소동물|꽃|원예|가드닝|화분|수집|파티용품|종교용품/],
+  ['baby', /출산|유아|육아|기저귀|분유|수유|유모차|카시트|아기띠|힙시트|신생아|유아동|아동\/주니어|어린이/],
+];
+
+/** 사이트 카테고리 문구 배열 → taxonomy id 배열 */
+function mapCats(cats) {
+  const hit = new Set();
+  for (const c of cats || []) {
+    for (const [id, re] of CAT_RULES) if (re.test(c)) hit.add(id);
+  }
+  const out = [...hit];
+  // 소분류가 잡혔으면 부모 단독 항목은 뺀다(기존 데이터 관례)
+  if (out.some((x) => x.startsWith('meat-')) && out.includes('meat')) {
+    out.splice(out.indexOf('meat'), 1);
+  }
+  return out.sort();
+}
+
+/**
+ * 오늘 돌아볼 몰을 고른다. 22곳을 매일 전부 훑으면 상대 사이트에 부담이고 대부분의
+ * 회차가 "변화 없음"이 된다. 하루 3~4곳씩 돌려 일주일에 한 바퀴 돈다.
+ *
+ * 나누는 기준은 목록 순서(고정)와 날짜다 — 무작위가 아니라 결정적이어야 어제 뭘 봤는지
+ * 재현할 수 있고, 특정 몰이 영영 선택되지 않는 일도 없다.
+ *
+ * @param {string[]} ids   전체 대상 id (정렬된 고정 순서)
+ * @param {Date} today
+ * @param {number} [cycle=7] 며칠에 한 바퀴
+ */
+function todaysSlice(ids, today, cycle = 7) {
+  const epochDay = Math.floor(today.getTime() / 86400000);
+  const bucket = ((epochDay % cycle) + cycle) % cycle;
+  return ids.filter((_, i) => i % cycle === bucket);
+}
+
+/**
+ * 현재 카탈로그 항목과 이번 채록 결과를 비교한다.
+ *
+ * 방향을 하나로 고정한다: **추가만 보고한다.** 이번에 안 보였다고 사라진 것이 아니다 —
+ * 기획전은 회전하고, 지연 로드로 절반만 걷힌 회차도 있다(2026-08-21 공영쇼핑 실측).
+ * "사라짐"을 델타로 올리면 그걸 본 사람이 데이터를 지우게 되고, 다음 달에 되돌아온다.
+ *
+ * @param {{cats?:string[], brands?:string[]}} current  online_catalog.json 의 항목
+ * @param {{confirmed?:string[], brandDirectory?:string[], cats?:string[]}} analyzed
+ * @param {(cats:string[])=>string[]} mapCats  사이트 카테고리 → taxonomy id 매핑
+ */
+function computeDelta(current, analyzed, mapCats) {
+  const curB = new Set(current.brands || []);
+  const curC = new Set(current.cats || []);
+  const seenB = [...new Set([...(analyzed.confirmed || []), ...(analyzed.brandDirectory || [])])];
+  const seenC = mapCats ? mapCats(analyzed.cats || []) : [];
+  return {
+    newBrands: seenB.filter((b) => !curB.has(b)),
+    newCats: seenC.filter((c) => !curC.has(c)),
+    seenBrandCount: seenB.length,
+    seenCatCount: seenC.length,
+    // 수집이 반쯤 실패한 회차를 "변화 없음"으로 읽으면 안 된다.
+    thin: (analyzed.textLen || 0) < 1500,
+  };
+}
+
 /** 22개 몰 공통 브랜드 사전. 실측에서 한 번이라도 확인된 것 + 흔한 유통 브랜드. */
 const BRAND_DICT = [
   '삼성전자', '삼성', 'LG전자', 'LG', '애플', '닌텐도', '플레이스테이션', 'DJI', '코닥', 'KODAK',
@@ -196,5 +282,5 @@ const BRAND_DICT = [
 
 // 브라우저(Playwright evaluate)와 Node(test) 양쪽에서 쓸 수 있게 내보낸다.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { matchBrands, extractListSegment, analyze, COLLECT_SNIPPET, BRAND_DICT, WORDISH };
+  module.exports = { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, mapCats, CAT_RULES, COLLECT_SNIPPET, BRAND_DICT, WORDISH };
 }
