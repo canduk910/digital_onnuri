@@ -179,24 +179,49 @@ chmod +x ~/onnuri_batch/run.sh
 
 이 단계는 **선택**이다. node나 playwright가 없으면 로그만 남기고 건너뛴다(배치 실패 아님).
 
+#### 설치 — 시스템 Node를 교체하지 말 것 (2026-08-23 실제 구성)
+
+이 서버에는 온누리 외 다른 서비스(`koscomlabor-web/api/db`)도 돌고, `koscomlabor-web/deploy.sh`는
+매일 00:10에 `npm run build`를 수행한다. 시스템 `nodejs`(우분투 기본 v12)를 NodeSource 등으로
+갈아치우면 apt의 `node-*` 의존 패키지가 연쇄 제거되고 그쪽 배포가 깨질 수 있다.
+**배치 전용 Node를 따로 두고 PATH로만 앞세운다.**
+
 ```bash
-# 배치 클론에서 (한 번만)
-sudo apt-get install -y nodejs npm          # node 18+ 권장
+# 1) 배치 전용 Node 20 (시스템 node 는 v12 그대로 둔다)
+cd /tmp && V=v20.18.1
+curl -fsSL -o node.tar.xz "https://nodejs.org/dist/$V/node-$V-linux-x64.tar.xz"
+mkdir -p /opt/node20 && tar -xJf node.tar.xz -C /opt/node20 --strip-components=1 && rm node.tar.xz
+/opt/node20/bin/node -v          # v20.18.1
+/usr/bin/node -v                 # v12.22.9 — 그대로여야 정상
+
+# 2) playwright + chromium (PATH 를 앞세워야 한다. npm 셔뱅이 `env node` 라 그냥 쓰면 v12 를 집는다)
+export PATH=/opt/node20/bin:$PATH
 cd ~/onnuri_batch/repo
 npm i playwright
-npx playwright install --with-deps chromium # 브라우저 + 시스템 의존 라이브러리
+npx playwright install --with-deps chromium   # 브라우저 + 시스템 의존 라이브러리(~115MB)
 ```
 
-`run.sh`에 리포트 저장 위치를 넘기면 날짜별 JSON이 쌓인다(로그만 볼 거면 생략 가능):
+`run.sh`에 두 줄을 넣는다. **PATH가 핵심이다** — cron은 PATH가 최소라 이게 없으면
+`D 스킵: node 없음`으로 넘어간다(2026-08-23 실제로 그렇게 찍혔다):
 
 ```bash
-export SURVEY_OUT_DIR=~/onnuri_batch/survey
+export PATH=/opt/node20/bin:$PATH
+export SURVEY_OUT_DIR=~/onnuri_batch/survey   # 날짜별 JSON 리포트(생략하면 로그로만)
 ```
 
 이미 Chrome이 깔린 서버이거나 playwright 번들과 캐시 버전이 어긋나면 채널을 지정한다:
 
 ```bash
 export PLAYWRIGHT_CHANNEL=chrome
+```
+
+설치 후 cron과 같은 최소 환경에서 확인한다(전체 배치를 기다릴 필요 없다):
+
+```bash
+env -i HOME=/root PATH=/usr/bin:/bin /bin/bash -c '
+  export PATH=/opt/node20/bin:$PATH
+  cd /root/onnuri_batch/repo
+  python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-rag'
 ```
 
 단독 실행(수동 재실측·점검용):
