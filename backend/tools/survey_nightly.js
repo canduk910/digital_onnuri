@@ -41,7 +41,7 @@ try {
   console.error('[survey] 프로브를 찾지 못했습니다: ' + PROBE + ' — ' + e.message);
   process.exit(3);
 }
-const { analyze, computeDelta, todaysSlice, mapCats, COLLECT_SNIPPET } = probe;
+const { analyze, computeDelta, todaysSlice, localDate, localStamp, mapCats, COLLECT_SNIPPET } = probe;
 
 // ── 인자 ──
 const argv = process.argv.slice(2);
@@ -53,8 +53,8 @@ const ALL = has('--all');
 const NAV_TIMEOUT = Number(valOf('--timeout') || 45000);
 
 function log(msg) {
-  const t = new Date().toISOString().replace('T', ' ').slice(0, 19);
-  console.log(`[${t}] ${msg}`);
+  // 배치(nightly_update.py)와 같은 로컬 시각 표기 — 한 로그 파일에 섞이므로 기준이 같아야 한다
+  console.log(`[${localStamp()}] ${msg}`);
 }
 
 // ── 대상 결정 ──
@@ -181,7 +181,7 @@ function isDeepLink(url) {
   if (OUT_DIR) {
     try {
       fs.mkdirSync(OUT_DIR, { recursive: true });
-      const stamp = new Date().toISOString().slice(0, 10);
+      const stamp = localDate();   // KST 00:30 실행이 전날 파일명으로 찍히지 않도록
       const file = path.join(OUT_DIR, `survey-delta-${stamp}.json`);
       fs.writeFileSync(file, JSON.stringify({ date: stamp, report }, null, 1), 'utf-8');
       log(`리포트 저장: ${file}`);

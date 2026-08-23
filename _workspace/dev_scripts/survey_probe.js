@@ -228,9 +228,25 @@ function mapCats(cats) {
  * @param {number} [cycle=7] 며칠에 한 바퀴
  */
 function todaysSlice(ids, today, cycle = 7) {
-  const epochDay = Math.floor(today.getTime() / 86400000);
+  // 로컬 자정 기준 일수를 쓴다. getTime()/86400000 은 UTC 기준이라, 배치가 도는
+  // KST 00:30 은 UTC 로 전날 15:30 이 되어 하루 전 묶음이 뽑힌다. 순환 자체는
+  // 어느 쪽이든 7일에 한 바퀴지만, 로그·리포트 날짜(로컬)와 기준이 어긋나면
+  // "오늘 어디를 봤나"를 대조할 수 없다.
+  const epochDay = Math.floor((today.getTime() - today.getTimezoneOffset() * 60000) / 86400000);
   const bucket = ((epochDay % cycle) + cycle) % cycle;
   return ids.filter((_, i) => i % cycle === bucket);
+}
+
+/** 로컬 기준 YYYY-MM-DD (toISOString 은 UTC 라 KST 새벽에 전날로 찍힌다) */
+function localDate(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** 로컬 기준 YYYY-MM-DD HH:MM:SS — 배치 로그(파이썬)와 같은 표기 */
+function localStamp(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${localDate(d)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 /**
@@ -282,5 +298,5 @@ const BRAND_DICT = [
 
 // 브라우저(Playwright evaluate)와 Node(test) 양쪽에서 쓸 수 있게 내보낸다.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, mapCats, CAT_RULES, COLLECT_SNIPPET, BRAND_DICT, WORDISH };
+  module.exports = { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, localDate, localStamp, mapCats, CAT_RULES, COLLECT_SNIPPET, BRAND_DICT, WORDISH };
 }

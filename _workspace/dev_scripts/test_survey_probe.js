@@ -7,7 +7,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, COLLECT_SNIPPET, BRAND_DICT } = require('./survey_probe.js');
+const { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, localDate, localStamp, COLLECT_SNIPPET, BRAND_DICT } = require('./survey_probe.js');
 
 let pass = 0, fail = 0;
 function check(cond, label, detail) {
@@ -151,6 +151,25 @@ console.log('(h) todaysSlice — 22곳을 일주일에 한 바퀴, 결정적으�
   check(JSON.stringify(again) === JSON.stringify(picks[0]), '같은 날짜면 같은 결과(결정적)');
   const nextWeek = todaysSlice(ids, new Date(2026, 7, 31));
   check(JSON.stringify(nextWeek) === JSON.stringify(picks[0]), '7일 뒤 같은 묶음으로 돌아온다');
+
+  // 배치는 KST 00:30 에 돈다. UTC 기준으로 계산하면 그 시각은 전날 15:30 이라
+  // 하루 전 묶음이 뽑히고, 로컬 날짜로 찍히는 로그와 어긋난다(2026-08-23 실제 결함).
+  const midnightish = new Date(2026, 7, 23, 0, 30);
+  const noonSameDay = new Date(2026, 7, 23, 12, 0);
+  check(JSON.stringify(todaysSlice(ids, midnightish)) === JSON.stringify(todaysSlice(ids, noonSameDay)),
+        '같은 로컬 날짜면 00:30 과 정오가 같은 묶음');
+  check(JSON.stringify(todaysSlice(ids, midnightish)) !== JSON.stringify(todaysSlice(ids, new Date(2026, 7, 22, 12, 0))),
+        '전날과는 다른 묶음(하루 밀리지 않는다)');
+}
+
+console.log('(h-2) 로컬 날짜 표기 — UTC 로 찍어 전날이 되지 않는가');
+{
+  const d = new Date(2026, 7, 23, 0, 30, 5);
+  check(localDate(d) === '2026-08-23', 'localDate 가 로컬 날짜', localDate(d));
+  check(localStamp(d) === '2026-08-23 00:30:05', 'localStamp 가 배치 로그와 같은 표기', localStamp(d));
+  check(new Date(2026, 7, 23, 0, 30).toISOString().slice(0, 10) !== localDate(d) ||
+        new Date().getTimezoneOffset() === 0,
+        'UTC 표기와 다르다(양수 오프셋 지역에서) — 이 차이가 결함의 원인이었다');
 }
 
 console.log('(i) computeDelta — 추가만 보고한다');
