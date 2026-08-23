@@ -2,8 +2,8 @@
  "meta": {
   "source": "각 플랫폼 사이트 실측 — GNB/카테고리 메뉴·기획전·브랜드관·상품명 채록 (Playwright)",
   "method": "플랫폼 단위 태깅(상품 크롤링 아님). 태깅 범위는 온누리 결제 가능 범위 — 기획전 딥링크(11번가·현대홈쇼핑·공영쇼핑·롯데ON·사이소·우체국)는 해당 기획전/전용관 내부 기준",
-  "collected_on": "2026-08-21",
-  "note": "brands 는 각 몰의 브랜드관/브랜드 디렉터리를 제공하는 곳은 전수, 그 외는 실측 관찰분. 2026-08-21 재실측에서 온누리찬스(133종)·온누리핫딜(15종)이 공식 브랜드 목록을 노출해 전수 반영했다. 브랜드는 기존 목록에 합집합으로 더한다 — 기획전이 회전하면 이번에 안 보인 브랜드가 다음에 다시 나온다. 관찰 로그: _workspace/15_online_catalog_report.md. 배달 8곳은 음식 주문이라 태깅 제외. 공영쇼핑·시장을 방으로는 이번에 본문 확인 실패(survey_status=partial) — 기존 태깅과 수집일을 유지했다.",
+  "collected_on": "2026-08-23",
+  "note": "brands 는 각 몰의 브랜드관/브랜드 디렉터리를 제공하는 곳은 전수, 그 외는 실측 관찰분. 2026-08-21 재실측에서 온누리찬스(133종)·온누리핫딜(15종)이 공식 브랜드 목록을 노출해 전수 반영했다. 브랜드는 기존 목록에 합집합으로 더한다 — 기획전이 회전하면 이번에 안 보인 브랜드가 다음에 다시 나온다. 브랜드 표기는 표준형으로 통일한다(에코백스·코닥·CJ제일제당·삼성전자·LG전자·매일유업 등 — 동의어 사전은 survey_probe.js BRAND_ALIASES). 다른 법인·제품군(종근당/종근당건강, 대상/대상웰라이프 등)은 묶지 않는다. 관찰 로그: _workspace/15_online_catalog_report.md. 배달 8곳은 음식 주문이라 태깅 제외. 공영쇼핑·시장을 방으로는 이번에 본문 확인 실패(survey_status=partial) — 기존 태깅과 수집일을 유지했다.",
   "next_update": "재실측: _workspace/dev_scripts/survey_probe.js (수집) + survey_run.js (분석). QA: test_survey_probe.js"
  },
  "taxonomy": [
@@ -138,11 +138,11 @@
     "코렐",
     "트라이앵글",
     "아토팜",
-    "매일",
+    "매일유업",
     "리얼베리어",
-    "삼성",
+    "삼성전자",
     "다이슨",
-    "LG",
+    "LG전자",
     "나이키",
     "로보락",
     "농심",
@@ -169,8 +169,8 @@
     "meat-pork"
    ],
    "brands": [
-    "LG",
-    "삼성",
+    "LG전자",
+    "삼성전자",
     "쿠쿠"
    ],
    "evidence": "기획전 카테고리 탭 7종(계절·주방가전/냉장·축산·가공/전통·건강식품/수산·반찬·젓갈/곡물·건과·견과/스킨·바디·케어/커피·생수·음료) 실측",
@@ -285,14 +285,16 @@
     "에코백스",
     "프리웰",
     "아이젠",
-    "NEXTU",
+    "넥스트유",
     "로지텍",
     "LG전자",
-    "다이슨"
+    "다이슨",
+    "쿠쿠",
+    "에브리봇"
    ],
-   "evidence": "가전·디지털 전용몰 유지. 베스트 상품 실측(DJI OSMO POCKET 4·ECOVACS T50 PRO·LG전자 울트라기어·다이슨 에어랩·로지텍)",
+   "evidence": "가전·디지털 전용몰. 베스트 상품 실측(DJI OSMO POCKET 4·ECOVACS T50 PRO OMNI/윈봇 W2·LG전자 울트라기어·다이슨 에어랩·로지텍) + 2026-08-23 야간 배치 탐지로 쿠쿠·에브리봇 추가",
    "survey_url": "https://luxurysystem.co.kr/",
-   "surveyed_on": "2026-08-21",
+   "surveyed_on": "2026-08-23",
    "survey_status": "ok"
   },
   {
@@ -321,7 +323,6 @@
     "hobby",
     "living",
     "meat-beef",
-    "meat-chicken",
     "meat-poultry"
    ],
    "brands": [
@@ -373,7 +374,6 @@
     "hobby",
     "living",
     "meat-beef",
-    "meat-chicken",
     "meat-pork",
     "meat-poultry"
    ],
@@ -403,13 +403,12 @@
     "hobby",
     "living",
     "meat-beef",
-    "meat-chicken",
     "meat-pork",
     "meat-poultry"
    ],
    "brands": [
     "깨끗한나라",
-    "KODAK",
+    "코닥",
     "더푸드랩",
     "마리슈타이거",
     "쿠쿠",
@@ -459,8 +458,8 @@
     "living",
     "meat",
     "meat-beef",
-    "meat-chicken",
-    "meat-pork"
+    "meat-pork",
+    "meat-poultry"
    ],
    "brands": [
     "삼성전자",
@@ -532,7 +531,6 @@
     "스투시",
     "신일",
     "싸파",
-    "씨제이제일제당",
     "아가타",
     "아망떼",
     "아미",
@@ -719,7 +717,6 @@
     "hobby",
     "living",
     "meat-beef",
-    "meat-chicken",
     "meat-pork",
     "meat-poultry"
    ],
@@ -769,8 +766,8 @@
     "living",
     "meat",
     "meat-beef",
-    "meat-chicken",
-    "meat-pork"
+    "meat-pork",
+    "meat-poultry"
    ],
    "brands": [
     "삼성전자",
@@ -786,7 +783,7 @@
     "가민",
     "마샬",
     "청정원",
-    "매일",
+    "매일유업",
     "빕스",
     "오아",
     "아망떼"
@@ -800,6 +797,7 @@
    "id": "onnuri-noljang",
    "cats": [
     "agri-veg",
+    "appliance",
     "fish",
     "food",
     "living",
@@ -810,9 +808,9 @@
     "맥심",
     "아망떼"
    ],
-   "evidence": "카테고리 16종 실측(농축산물 할인지원·특산물·생활용품 등). 상품 브랜드 2종",
+   "evidence": "카테고리 16종 실측(농축산물 할인지원·특산물·생활용품 등). 상품 브랜드 2종. 2026-08-23 야간 배치에서 가전 축 확인",
    "survey_url": "https://mall.noljang.co.kr/",
-   "surveyed_on": "2026-08-21",
+   "surveyed_on": "2026-08-23",
    "survey_status": "ok"
   },
   {

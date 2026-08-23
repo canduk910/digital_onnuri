@@ -7,7 +7,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, localDate, localStamp, COLLECT_SNIPPET, BRAND_DICT } = require('./survey_probe.js');
+const { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, localDate, localStamp, normalizeBrand, normalizeBrands, BRAND_ALIASES, COLLECT_SNIPPET, BRAND_DICT } = require('./survey_probe.js');
 
 let pass = 0, fail = 0;
 function check(cond, label, detail) {
@@ -216,6 +216,82 @@ console.log('(j) 배치 러너가 스니펫을 실행 가능한 형태로 쓰는
     check(!/writeFileSync\([^)]*online_catalog/.test(src) && !/git\s+(commit|push)/.test(src),
           '카탈로그를 고치거나 git 을 건드리지 않는다(탐지 전용)');
   }
+}
+
+console.log('(k) 브랜드 표기 통일 — 같은 대상만 묶고, 다른 법인은 묶지 않는다');
+{
+  check(normalizeBrand('ECOVACS') === '에코백스', '영문 → 한글 음차');
+  check(normalizeBrand('KODAK') === '코닥', 'KODAK → 코닥');
+  check(normalizeBrand('씨제이제일제당') === 'CJ제일제당', '음차 → 통용 표기');
+  check(normalizeBrand('삼성') === '삼성전자', '약칭 → 정식명');
+  check(normalizeBrand('쿠쿠') === '쿠쿠', '사전에 없으면 그대로');
+}
+{
+  // 이름이 겹쳐도 다른 법인·제품군이면 묶지 않는다. 묶으면 정보가 뭉개진다.
+  for (const [a, b] of [['종근당', '종근당건강'], ['대상', '대상웰라이프'],
+                        ['롯데', '롯데칠성'], ['삼양', '삼양식품'], ['아디다스', '아디다스골프']]) {
+    check(normalizeBrand(a) !== normalizeBrand(b), `'${a}' 와 '${b}' 는 별개로 둔다`);
+  }
+}
+{
+  const out = normalizeBrands(['ECOVACS', '에코백스', '삼성', '삼성전자', '쿠쿠']);
+  check(out.length === 3, '표준화 후 중복 제거', JSON.stringify(out));
+  check(out.filter((x) => x === '에코백스').length === 1, '에코백스가 하나로');
+  check(!out.includes('ECOVACS') && !out.includes('삼성'), '별칭 표기는 남지 않는다');
+}
+{
+  // 이 동의어 처리가 없어서 매 회차 "새 브랜드 ECOVACS" 가 올라왔다(2026-08-23).
+  const current = { brands: ['에코백스'], cats: [] };
+  const d = computeDelta(current, { confirmed: ['ECOVACS', '쿠쿠'], cats: [], textLen: 9000 }, () => []);
+  check(!d.newBrands.includes('ECOVACS'), '표기만 다른 브랜드는 델타가 아니다');
+  check(d.newBrands.includes('쿠쿠'), '진짜 새 브랜드는 여전히 잡힌다', JSON.stringify(d.newBrands));
+}
+{
+  // 별칭의 표준형이 사전 자체에 다시 별칭으로 등록돼 있으면 순환·미수렴이 생긴다.
+  const bad = Object.values(BRAND_ALIASES).filter((v) => v in BRAND_ALIASES);
+  check(bad.length === 0, '표준형이 다시 별칭으로 등록되지 않았다', JSON.stringify(bad));
+}
+
+console.log('(l) 카탈로그 데이터 계약 — 렌더가 모르는 값이 들어가 있지 않은가');
+{
+  const root = path.join(__dirname, '..', '..');
+  const cat = JSON.parse(fs.readFileSync(path.join(root, 'data', 'online_catalog.json'), 'utf-8'));
+  const plat = JSON.parse(fs.readFileSync(path.join(root, 'data', 'online_platforms.json'), 'utf-8'));
+
+  // taxonomy 에 정의된 id 전부(대분류 + 소분류). 소분류까지 봐야 한다 —
+  // 2026-08-23 에 'meat-chicken'(실제 id 는 meat-poultry)이 6개 몰에 들어가 있었고,
+  // 대분류만 검사하던 탓에 'meat' 로 시작한다는 이유로 통과하고 있었다.
+  const defined = new Set();
+  for (const t of cat.taxonomy) {
+    defined.add(t.id);
+    for (const s of t.subs || []) defined.add(s.id);
+  }
+  const unknown = [];
+  for (const it of cat.items) for (const c of it.cats) if (!defined.has(c)) unknown.push(`${it.id}:${c}`);
+  check(unknown.length === 0, 'taxonomy 에 없는 cats 가 없다', JSON.stringify(unknown.slice(0, 8)));
+
+  // 소분류 id 는 부모 대분류를 접두로 갖는다(렌더가 이 규칙에 기대지는 않지만, 어긋나면 오타 신호)
+  const misprefixed = [];
+  for (const t of cat.taxonomy) for (const s of t.subs || []) {
+    if (!s.id.startsWith(t.id + '-')) misprefixed.push(`${t.id}/${s.id}`);
+  }
+  check(misprefixed.length === 0, '소분류 id 가 부모 접두를 따른다', JSON.stringify(misprefixed));
+
+  // 카탈로그 항목은 플랫폼 목록에 실재해야 한다(online.html 이 '고아 id' 로 경고하는 조건)
+  const platIds = new Set(plat.items.map((p) => p.id));
+  const orphan = cat.items.map((i) => i.id).filter((id) => !platIds.has(id));
+  check(orphan.length === 0, '카탈로그 id 가 모두 플랫폼 목록에 있다', JSON.stringify(orphan));
+
+  // 브랜드 표기가 표준형인가 — 별칭이 데이터에 남아 있으면 필터가 갈라진다
+  const stray = [];
+  for (const it of cat.items) for (const b of it.brands) if (normalizeBrand(b) !== b) stray.push(`${it.id}:${b}`);
+  check(stray.length === 0, '데이터에 별칭 표기가 남아 있지 않다', JSON.stringify(stray.slice(0, 8)));
+
+  // 확인 못 한 항목의 날짜를 올리지 않았는가 — 화면 스탬프가 이 값으로 계산된다
+  const okDates = cat.items.filter((i) => i.survey_status !== 'partial').map((i) => i.surveyed_on);
+  const latest = okDates.reduce((m, d) => (d > m ? d : m), okDates[0]);
+  const liars = cat.items.filter((i) => i.survey_status === 'partial' && i.surveyed_on === latest);
+  check(liars.length === 0, 'partial 항목이 최신 확인일을 달고 있지 않다', JSON.stringify(liars.map((i) => i.id)));
 }
 
 console.log();

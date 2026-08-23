@@ -174,6 +174,45 @@ function analyze(raw, dict = BRAND_DICT) {
 }
 
 /**
+ * 브랜드 표기 통일 사전 — 같은 브랜드가 몰마다 다르게 적히는 것을 하나로 모은다.
+ *
+ * 넣는 기준은 좁다. **같은 대상임이 분명한 표기 차이만** 넣는다:
+ *   ① 영문/한글 음차 (ECOVACS ↔ 에코백스)
+ *   ② 약칭/정식명이 온누리 맥락에서 명백히 같은 것 (삼성 → 삼성전자 감사 페스티벌)
+ *
+ * 넣지 않는 것 — 이름이 겹쳐도 **다른 법인이거나 다른 제품군**인 경우:
+ *   종근당 / 종근당건강, 대상 / 대상웰라이프, 롯데 / 롯데칠성,
+ *   삼양 / 삼양식품, 아디다스 / 아디다스골프
+ * 이런 걸 묶으면 "종근당 골라서 봤더니 건강기능식품만 나오는" 식으로 정보가 뭉개진다.
+ * 통합은 되돌리기 어려운 방향이라, 확실하지 않으면 두 표기를 그대로 둔다.
+ *
+ * 표준 표기는 "이용자가 검색창에 칠 법한 쪽"으로 골랐다.
+ */
+const BRAND_ALIASES = {
+  // 영문 → 한글 음차
+  ECOVACS: '에코백스',
+  KODAK: '코닥',
+  NEXTU: '넥스트유',
+  Freewell: '프리웰',
+  // 한글 음차 → 널리 쓰이는 표기
+  씨제이제일제당: 'CJ제일제당',
+  // 약칭 → 정식명(온누리 실측 문맥에서 대상이 하나로 확정되는 것만)
+  삼성: '삼성전자',
+  LG: 'LG전자',
+  매일: '매일유업',
+};
+
+/** 브랜드 표기를 표준형으로 바꾼다(사전에 없으면 그대로). */
+function normalizeBrand(name) {
+  return BRAND_ALIASES[name] || name;
+}
+
+/** 브랜드 배열을 표준화하고 중복을 없앤다(입력 순서 유지). */
+function normalizeBrands(list) {
+  return [...new Set((list || []).map(normalizeBrand))];
+}
+
+/**
  * 사이트 카테고리 문구 → taxonomy id 매핑.
  *
  * 몰마다 카테고리 이름이 다르다("정육"·"축산"·"육류"·"소고기"). 같은 축으로 묶어야
@@ -189,7 +228,7 @@ const CAT_RULES = [
   ['fish-dried', /건어물|해조|김\/|김·|미역|다시마|멸치|황태|굴비|건해산/],
   ['meat-beef', /소고기|쇠고기|한우|육우|우육/],
   ['meat-pork', /돼지|돈육|한돈|삼겹|목살/],
-  ['meat-chicken', /닭|오리|계란|알류|양고기/],
+  ['meat-poultry', /닭|오리|계란|알류|양고기/],
   ['meat', /축산|정육|육류/],
   ['food', /가공식품|반찬|김치|젓갈|장류|간편식|즉석|밀키트|면\b|라면|통조림|양념|오일|조미|과자|간식|떡|베이커리|잼|유제품|우유|두유|음료|생수|커피|차\b|주류|전통주|꿀|조청|분식|만두|냉동식품|델리|선식|누룽지|전통식품|축산가공|농산가공|수산가공/],
   ['health', /건강식품|홍삼|인삼|수삼|녹용|비타민|영양제|건강기능|건강즙|건강액|다이어트|이너뷰티|유산균|프로폴리스|헬스보충|영양보충|약초/],
@@ -261,9 +300,11 @@ function localStamp(d = new Date()) {
  * @param {(cats:string[])=>string[]} mapCats  사이트 카테고리 → taxonomy id 매핑
  */
 function computeDelta(current, analyzed, mapCats) {
-  const curB = new Set(current.brands || []);
+  // 양쪽 다 표준 표기로 맞춘 뒤 비교한다. 안 그러면 'ECOVACS' 가 '에코백스' 와
+  // 다른 값으로 잡혀 매 회차 "새 브랜드"로 올라온다(2026-08-23 실제로 그랬다).
+  const curB = new Set(normalizeBrands(current.brands));
   const curC = new Set(current.cats || []);
-  const seenB = [...new Set([...(analyzed.confirmed || []), ...(analyzed.brandDirectory || [])])];
+  const seenB = normalizeBrands([...(analyzed.confirmed || []), ...(analyzed.brandDirectory || [])]);
   const seenC = mapCats ? mapCats(analyzed.cats || []) : [];
   return {
     newBrands: seenB.filter((b) => !curB.has(b)),
@@ -298,5 +339,5 @@ const BRAND_DICT = [
 
 // 브라우저(Playwright evaluate)와 Node(test) 양쪽에서 쓸 수 있게 내보낸다.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, localDate, localStamp, mapCats, CAT_RULES, COLLECT_SNIPPET, BRAND_DICT, WORDISH };
+  module.exports = { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, localDate, localStamp, mapCats, normalizeBrand, normalizeBrands, BRAND_ALIASES, CAT_RULES, COLLECT_SNIPPET, BRAND_DICT, WORDISH };
 }
