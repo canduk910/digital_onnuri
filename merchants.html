@@ -320,6 +320,9 @@
   .iwg-head b{ color:var(--accent-press); }
   .iwg-addr{ font-size:11.5px; color:var(--text-sub); margin:2px 0 8px; line-height:1.4; }
   .iwg-list{ max-height:230px; overflow-y:auto; display:flex; flex-direction:column; margin-top:8px; }
+  /* 모바일 지도는 min(46dvh,400px) 라 팝업(그룹 12곳 ≈ 347px)이 지도를 거의 가린다.
+     목록을 줄여 지도가 함께 보이게 한다 — 항목은 스크롤로 계속 볼 수 있다. */
+  @media (max-width:959px){ .iwg-list{ max-height:150px; } }
   .iwg-item{ display:flex; align-items:center; justify-content:space-between; gap:10px;
     padding:8px 0; border-top:1px solid var(--border); }
   .iwg-item .iwg-l{ min-width:0; }
@@ -1868,7 +1871,10 @@
     infoWin = new naver.maps.InfoWindow({ borderWidth: 1, borderColor: "#E6E6E6", backgroundColor: "#fff", anchorSize: new naver.maps.Size(0, 0), pixelOffset: new naver.maps.Point(0, -6) });
     // 지도를 움직이면(줌·이동) 현재 화면 기준으로 도트/클러스터를 자동 갱신
     naver.maps.Event.addListener(mapObj, "idle", function () {
-      if (SKIP_IDLE_ONCE) { SKIP_IDLE_ONCE = false; return; }   // 프로그램적 fit 직후 1회 생략
+      // 사용자가 움직인 것이 아닌 지도 이동은 재렌더하지 않는다 — ①프로그램적 fitBounds
+      // ②팝업이 화면에 들어오도록 SDK 가 자동으로 미는 pan(모바일에서 팝업이 지도를 거의 채운다).
+      // ②를 놓치면 그 idle 이 400ms 뒤 viewportRender → clearMarkers 로 이어져 방금 연 팝업이 사라진다.
+      if (SKIP_IDLE_ONCE) { SKIP_IDLE_ONCE = false; return; }
       clearTimeout(viewportTimer);
       viewportTimer = setTimeout(viewportRender, 400);
       schedulePatchCounts();   // lib이 idle마다 클러스터를 멤버 수로 다시 그리므로, 그 뒤 가맹점 수로 재정정
@@ -2000,10 +2006,7 @@
       + '<div class="iw-addr">' + esc(r.addr || "") + (r.market ? " · " + esc(r.market) : "") + '</div>'
       + (pay ? '<div class="iw-pay">' + pay + '</div>' : "")
       + mapActions(r) + '</div>';
-    infoWin.setContent(html);
-    if (anchor instanceof naver.maps.Marker) infoWin.open(mapObj, anchor);
-    else infoWin.open(mapObj, new naver.maps.LatLng(r.lat, r.lng));
-    setTimeout(wirePanoBtns, 0);
+    openInfoWindow(html, (anchor instanceof naver.maps.Marker) ? anchor : new naver.maps.LatLng(r.lat, r.lng));
   }
 
   // 동일좌표(같은 건물) 여러 가맹점 — 그 위치의 전체 목록 팝업(온누리 '선택 위치 가맹점'과 동일 UX).
@@ -2021,6 +2024,15 @@
       + '<div class="iwg-addr">' + esc(group[0].addr || "") + '</div>'
       + mapActions(group[0])
       + '<div class="iwg-list">' + items + '</div></div>';
+    openInfoWindow(html, anchor);
+  }
+
+  /* 팝업 열기 창구 — 여는 경로(개별·그룹)가 모두 같은 보호를 받게 한다.
+     모바일은 지도(≈388px)에 견줘 팝업이 커서(그룹 12곳이면 347px) SDK 가 지도를 자동으로
+     민다. 그 pan 이 idle 을 정확히 1회 발생시키고(실측), 400ms 뒤 viewportRender →
+     clearMarkers 가 방금 연 팝업을 닫아버렸다. 그 1회를 사용자 조작이 아닌 것으로 표시한다. */
+  function openInfoWindow(html, anchor) {
+    SKIP_IDLE_ONCE = true;
     infoWin.setContent(html);
     infoWin.open(mapObj, anchor);
     setTimeout(wirePanoBtns, 0);
