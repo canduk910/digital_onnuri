@@ -1840,6 +1840,8 @@
   // 뷰포트 자동 지도(2026-08-12): 지도는 항상 "필터 ∩ 현재 화면"을 스스로 판단해
   // 3,000곳 이하면 개별 도트, 초과면 클러스터를 그린다. 별도 모드·버튼 없음.
   var viewportTimer = null, viewportSeq = 0, SKIP_IDLE_ONCE = false, listByMapTimer = null;
+  var popupOpenedAt = 0;         // 마지막으로 팝업을 연 시각 — clearMarkers 가 방금 연 팝업을 지키는 기준
+  var POPUP_GRACE_MS = 1500;     // 팝업이 민 지도의 재렌더는 400ms 뒤에 온다 — 그보다 넉넉히 잡는다
   // '이 지도 범위로 목록 보기' 토글. 켜면 리스트가 현재 지도 화면 bounds로 스코프되고, 지도 이동 시 따라 갱신된다.
   function toggleListByMap() {
     LIST_BY_MAP = !LIST_BY_MAP;
@@ -1871,10 +1873,7 @@
     infoWin = new naver.maps.InfoWindow({ borderWidth: 1, borderColor: "#E6E6E6", backgroundColor: "#fff", anchorSize: new naver.maps.Size(0, 0), pixelOffset: new naver.maps.Point(0, -6) });
     // 지도를 움직이면(줌·이동) 현재 화면 기준으로 도트/클러스터를 자동 갱신
     naver.maps.Event.addListener(mapObj, "idle", function () {
-      // 사용자가 움직인 것이 아닌 지도 이동은 재렌더하지 않는다 — ①프로그램적 fitBounds
-      // ②팝업이 화면에 들어오도록 SDK 가 자동으로 미는 pan(모바일에서 팝업이 지도를 거의 채운다).
-      // ②를 놓치면 그 idle 이 400ms 뒤 viewportRender → clearMarkers 로 이어져 방금 연 팝업이 사라진다.
-      if (SKIP_IDLE_ONCE) { SKIP_IDLE_ONCE = false; return; }
+      if (SKIP_IDLE_ONCE) { SKIP_IDLE_ONCE = false; return; }   // 프로그램적 fit 직후 1회 생략
       clearTimeout(viewportTimer);
       viewportTimer = setTimeout(viewportRender, 400);
       schedulePatchCounts();   // lib이 idle마다 클러스터를 멤버 수로 다시 그리므로, 그 뒤 가맹점 수로 재정정
@@ -1955,7 +1954,11 @@
     mapMarkers = [];
     // 리스트 행 클릭은 지도를 이동(morph)시키고, 그 idle이 마커를 다시 그리며 여기서 InfoWindow를 닫아
     // 방금 연 팝업이 사라졌다. KEEP_INFO_ONCE면 그 1회(=morph 직후 재렌더)만 팝업을 유지한다.
-    if (infoWin) { if (KEEP_INFO_ONCE) { KEEP_INFO_ONCE = false; } else infoWin.close(); }
+    if (infoWin) {
+      if (KEEP_INFO_ONCE) KEEP_INFO_ONCE = false;
+      else if (Date.now() - popupOpenedAt < POPUP_GRACE_MS) { /* 방금 연 팝업 — 팝업 자신이 민 지도 때문에 닫지 않는다 */ }
+      else infoWin.close();
+    }
   }
 
   function cIcon(cls) {
@@ -2029,10 +2032,15 @@
 
   /* 팝업 열기 창구 — 여는 경로(개별·그룹)가 모두 같은 보호를 받게 한다.
      모바일은 지도(≈388px)에 견줘 팝업이 커서(그룹 12곳이면 347px) SDK 가 지도를 자동으로
-     민다. 그 pan 이 idle 을 정확히 1회 발생시키고(실측), 400ms 뒤 viewportRender →
-     clearMarkers 가 방금 연 팝업을 닫아버렸다. 그 1회를 사용자 조작이 아닌 것으로 표시한다. */
+     민다. 그 pan 이 idle → 400ms 뒤 viewportRender → clearMarkers 로 이어져 방금 연 팝업을
+     닫아버렸다(PC 는 지도가 780px 라 pan 이 없어 멀쩡했다 — 대조 실측).
+
+     idle 자체를 건너뛰는 방식은 쓰지 않는다. 팝업 뒤에 오는 첫 idle 이 팝업 pan 이 아닐 수
+     있어서다 — 딥링크 착지는 morph 로 지도를 옮긴 뒤 팝업을 여는데, 그 morph 의 idle 을
+     먹어버리면 마커가 아예 그려지지 않는다(실제로 그렇게 깨졌다).
+     그래서 재렌더는 그대로 두고, **방금 연 팝업만** 닫지 않는다. */
   function openInfoWindow(html, anchor) {
-    SKIP_IDLE_ONCE = true;
+    popupOpenedAt = Date.now();
     infoWin.setContent(html);
     infoWin.open(mapObj, anchor);
     setTimeout(wirePanoBtns, 0);
