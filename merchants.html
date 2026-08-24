@@ -138,12 +138,34 @@
   #panoView .pano-msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     color:var(--text-faint); font-size:13.5px; text-align:center; padding:20px; }
   .pano-hint { padding:10px 16px 12px; font-size:11.5px; color:var(--text-faint); line-height:1.5; }
+  /* 파노라마 안 '지정 위치' 표시(2026-08-24) — 가맹점 좌표를 현재 시선에 투영해 그린다.
+     클릭은 통과시킨다(pointer-events:none): 지면 화살표와 드래그를 가리면 안 된다. */
+  #panoView .pano-target { position:absolute; z-index:5; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%); }
+  #panoView .pano-target[hidden] { display:none; }
+  .pt-label { max-width:190px; padding:4px 10px; border-radius:var(--r-sm); background:rgba(11,12,14,.82);
+    color:#fff; font-size:11.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    box-shadow:0 2px 8px rgba(20,22,26,.45); }
+  .pt-label i { font-style:normal; font-weight:500; opacity:.72; margin-left:5px; }
+  .pt-stem { width:2px; height:16px; background:#fff; box-shadow:0 0 3px rgba(20,22,26,.7); }
+  .pt-pin { width:14px; height:14px; border-radius:50%; background:var(--accent); border:3px solid #fff;
+    box-shadow:0 0 0 2px var(--accent), 0 2px 10px rgba(20,22,26,.5); }
+  /* 지정 위치가 시야 밖일 때 — 어느 쪽으로 돌리면 되는지 가장자리에서 알려준다 */
+  #panoView .pano-edge { position:absolute; top:50%; transform:translateY(-50%); z-index:5; pointer-events:none;
+    display:flex; align-items:center; gap:6px; max-width:46%; padding:6px 11px; border-radius:20px;
+    background:rgba(11,12,14,.72); color:#fff; font-size:11.5px; font-weight:700;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 2px 8px rgba(20,22,26,.4); }
+  #panoView .pano-edge[hidden] { display:none; }
+  #panoView .pano-edge.left { left:10px; }
+  #panoView .pano-edge.right { right:10px; }
   .pano-resize { position:absolute; right:0; bottom:0; width:22px; height:22px; cursor:nwse-resize; touch-action:none; z-index:6;
     background:linear-gradient(135deg, transparent 55%, var(--border-2) 55%, var(--border-2) 65%, transparent 65%, transparent 75%, var(--border-2) 75%, var(--border-2) 85%, transparent 85%); }
   /* 거리뷰 모드 — 메인 지도 위 '현재 보는 위치+방향' 마커. 부채꼴(콘)이 파노라마 시선 방향(pov.pan)을 따라 회전 */
-  .street-spot-wrap { width:44px; height:44px; position:relative; transition:transform .15s ease; will-change:transform; }
-  .street-cone { position:absolute; left:50%; bottom:50%; transform:translateX(-50%); width:0; height:0;
-    border-left:15px solid transparent; border-right:15px solid transparent; border-top:22px solid rgba(242,107,29,.38); }
+  .street-spot-wrap { width:88px; height:88px; position:relative; transition:transform .15s ease; will-change:transform; }
+  /* 시야 부채꼴 — conic-gradient 로 그린 원호(2026-08-24, 이전에는 border 삼각형이었다).
+     0deg 가 12시이고 시계방향이라, 정북을 중심에 두려면 시야각의 절반만큼 앞당겨 시작한다. */
+  .street-cone { position:absolute; left:50%; top:50%; width:88px; height:88px; transform:translate(-50%,-50%);
+    border-radius:50%; background:conic-gradient(from -34deg, rgba(242,107,29,.38) 0deg 68deg, transparent 68deg); }
   .street-spot { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
     width:18px; height:18px; border-radius:50%; background:var(--accent); border:3px solid #fff;
     box-shadow:0 0 0 2px var(--accent), 0 2px 8px rgba(20,22,26,.45); }
@@ -539,7 +561,7 @@
       <button class="modal-close" id="panoClose" type="button" aria-label="닫기">✕</button>
     </div>
     <div id="panoView"></div>
-    <p class="pano-hint">거리뷰가 열려 있는 동안 <b>메인 지도의 파란 길</b>을 누르면 그 지점 거리뷰로 이동합니다(주황 원 = 현재 보는 위치). 파노라마 안에서는 드래그로 둘러보고, 화살표로 도로를 따라 걸을 수 있습니다.</p>
+    <p class="pano-hint">거리뷰가 열려 있는 동안 <b>메인 지도의 파란 길</b>을 누르면 그 지점 거리뷰로 이동합니다(주황 부채꼴 = 현재 보는 위치와 방향). 파노라마 안에서는 드래그로 둘러보고, <b>지면 화살표</b>를 누르면 도로를 따라 이동합니다. 주황 핀은 선택한 가맹점의 <b>대략 위치</b>입니다 — 대표좌표가 건물 단위라 점포 입구와 다를 수 있고, 시야 밖이면 가장자리에 방향만 표시됩니다.</p>
     <div class="pano-resize" id="panoResize" title="드래그로 크기 조절" aria-label="거리뷰 창 크기 조절"></div>
   </div>
 
@@ -908,7 +930,7 @@
     if (!spotMarker) {
       spotMarker = new naver.maps.Marker({ map: mapObj, position: pos, zIndex: 300,
         icon: { content: '<div class="street-spot-wrap"><div class="street-cone"></div><div class="street-spot"></div></div>',
-                anchor: new naver.maps.Point(22, 22) } });
+                anchor: new naver.maps.Point(44, 44) } });
     } else { spotMarker.setMap(mapObj); spotMarker.setPosition(pos); }
     setTimeout(updateSpotDir, 0);
   }
@@ -938,6 +960,91 @@
       if (w && pov) w.style.transform = "rotate(" + (pov.pan || 0) + "deg)";
     } catch (e) {}
   }
+  /* ── 파노라마 안 '지정 위치' 표시 (2026-08-24) ────────────────────────────────
+     거리뷰를 열어도 어느 건물이 그 가맹점인지 알 수 없다는 제보에서 출발했다.
+     SDK 의 Marker·InfoWindow 는 map 으로 Panorama 를 받아주긴 하지만 **투영되지 않는다**
+     (DOM 이 -9999px 에 방치된다 — 실측). 그래서 projection.fromCoordToOffset 으로
+     화면 중심 기준 오프셋을 직접 구해 오버레이를 얹는다.
+     대상이 시야 밖이면 SDK 가 (-9999,-9999) 센티넬을 주므로 그것으로 숨김을 판정한다. */
+  var panoTarget = null;      // { pos, name } — 가맹점 경유로 열었을 때만 채운다
+  var panoTargetRaf = 0;
+  var OFFSCREEN = -9000;      // 센티넬 판정 임계(정상 오프셋이 이만큼 음수일 수 없다)
+
+  function ensurePanoOverlay() {
+    var view = el("panoView");
+    if (!view) return null;
+    var box = view.querySelector(".pano-target");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "pano-target"; box.hidden = true;
+      box.innerHTML = '<div class="pt-label"></div><div class="pt-stem"></div><div class="pt-pin"></div>';
+      view.appendChild(box);
+      ["left", "right"].forEach(function (side) {
+        var e = document.createElement("div");
+        e.className = "pano-edge " + side; e.hidden = true;
+        e.innerHTML = side === "left"
+          ? '<span aria-hidden="true">◀</span><span class="pe-name"></span>'
+          : '<span class="pe-name"></span><span aria-hidden="true">▶</span>';
+        view.appendChild(e);
+      });
+    }
+    return box;
+  }
+
+  function updatePanoTarget() {   // pov_changed 는 드래그 중 연달아 온다 — 프레임당 한 번만 그린다
+    if (panoTargetRaf) return;
+    panoTargetRaf = requestAnimationFrame(function () { panoTargetRaf = 0; drawPanoTarget(); });
+  }
+
+  function drawPanoTarget() {
+    var view = el("panoView");
+    var box = view && view.querySelector(".pano-target");
+    if (!box) return;
+    var L = view.querySelector(".pano-edge.left"), R = view.querySelector(".pano-edge.right");
+    function hideAll() { box.hidden = true; if (L) L.hidden = true; if (R) R.hidden = true; }
+    if (!panoTarget || !panoObj) return hideAll();
+
+    var proj, off;
+    try { proj = panoObj.getProjection(); off = proj.fromCoordToOffset(panoTarget.pos); }
+    catch (e) { return hideAll(); }
+
+    if (off && off.x > OFFSCREEN && off.y > OFFSCREEN) {
+      // 시야 안 — 중심에서 오프셋만큼 떨어진 지점에 얹는다
+      if (L) L.hidden = true; if (R) R.hidden = true;
+      box.style.left = (view.clientWidth / 2 + off.x) + "px";
+      box.style.top = (view.clientHeight / 2 + off.y) + "px";
+      box.hidden = false;
+      return;
+    }
+    // 시야 밖 — 어느 쪽으로 돌리면 되는지만 알려준다
+    box.hidden = true;
+    var right = true;
+    try {
+      var tp = proj.fromCoordToPov(panoTarget.pos).pan, cp = (panoObj.getPov() || {}).pan || 0;
+      right = ((((tp - cp) % 360) + 540) % 360 - 180) > 0;   // -180~180 으로 정규화
+    } catch (e) {}
+    if (L) L.hidden = right;
+    if (R) R.hidden = !right;
+  }
+
+  function setPanoTarget(lat, lng, name) {
+    // 지도 구석 토글로 연 거리뷰에는 '지정 위치'가 없다(그 지점이 곧 현재 위치다)
+    panoTarget = (name && isFinite(lat) && isFinite(lng))
+      ? { pos: new naver.maps.LatLng(lat, lng), name: name } : null;
+    var box = ensurePanoOverlay();
+    if (!box) return;
+    var lab = box.querySelector(".pt-label");
+    // 대표좌표는 건물 단위라 점포 입구가 아니다 — 라벨에서 그 사실을 숨기지 않는다
+    if (lab) lab.innerHTML = panoTarget ? esc(name) + '<i>대략 위치</i>' : "";
+    var view = el("panoView");
+    ["left", "right"].forEach(function (side) {
+      var e = view && view.querySelector(".pano-edge." + side);
+      var n = e && e.querySelector(".pe-name");
+      if (n) n.textContent = panoTarget ? name : "";
+    });
+    drawPanoTarget();
+  }
+
   function updateStreetBtn(on) {
     var b = el("streetBtn");
     if (b) { b.classList.toggle("on", !!on); b.setAttribute("aria-pressed", on ? "true" : "false"); }
@@ -991,7 +1098,7 @@
       panoObj = new naver.maps.Panorama(view, {
         position: pos,
         pov: { pan: 0, tilt: 0, fov: 100 },
-        flightSpot: false,
+        flightSpot: true,        // 지면 이동 화살표 — 누르면 그 방향 촬영점으로 이동(pano_changed 로 지도 마커 동기화)
         zoomControl: true
       });
       naver.maps.Event.addListener(panoObj, "init", function () { inited = true; clearTimeout(panoTimer); });
@@ -1003,11 +1110,17 @@
         if (!panoObj) return;
         setSpot(panoObj.getPosition());   // 마커가 없으면(구석 토글 진입) 여기서 생성
         updatePanoDate();
+        updatePanoTarget();               // 이동하면 지정 위치가 보이는 방향·거리가 달라진다
       });
       // 시선을 돌리면(드래그) 지도 마커의 시야 콘도 따라 회전
-      naver.maps.Event.addListener(panoObj, "pov_changed", updateSpotDir);
-      naver.maps.Event.addListener(panoObj, "init", updatePanoDate);
+      naver.maps.Event.addListener(panoObj, "pov_changed", function () {
+        updateSpotDir(); updatePanoTarget();
+      });
+      naver.maps.Event.addListener(panoObj, "init", function () {
+        updatePanoDate(); updatePanoTarget();
+      });
     } catch (e) { showNoPano(view); }
+    setPanoTarget(lat, lng, name);   // 파노라마 생성 뒤에 얹는다(view.innerHTML="" 로 지워지므로)
     enterStreetMode(pos);
     // 주변에 파노라마가 없으면 init이 오지 않는다 — 타임아웃 폴백으로 안내
     panoTimer = setTimeout(function () {
@@ -1016,8 +1129,10 @@
   }
   function closePano() {
     clearTimeout(panoTimer);
+    if (panoTargetRaf) { cancelAnimationFrame(panoTargetRaf); panoTargetRaf = 0; }
+    panoTarget = null;
     el("panoModal").hidden = true;
-    el("panoView").innerHTML = "";
+    el("panoView").innerHTML = "";     // 오버레이도 함께 사라진다(다음 열 때 재생성)
     var pd = el("panoDate"); if (pd) pd.textContent = "";
     panoObj = null;
     exitStreetMode();
