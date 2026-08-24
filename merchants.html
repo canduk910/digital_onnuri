@@ -1687,7 +1687,8 @@
       if (r.card === "Y") pay += '<span class="pay card">카드</span>';
       if (r.qr === "Y") pay += '<span class="pay qr">QR</span>';
       if (!pay) pay = '<span class="pay none">앱 결제 미확인</span>';
-      h += '<tr class="row-link" data-lat="' + (r.lat || "") + '" data-lng="' + (r.lng || "") + '" tabindex="0">'
+      h += '<tr class="row-link" data-lat="' + (r.lat || "") + '" data-lng="' + (r.lng || "")
+        + '" data-name="' + esc(r.name || "") + '" tabindex="0">'
         + '<td class="name"><button type="button" class="fav-btn' + (isFav(r) ? " on" : "") + '" data-ri="' + i
         + '" title="즐겨찾기" aria-label="즐겨찾기 토글">' + (isFav(r) ? "★" : "☆") + '</button>'
         + esc(r.name) + brandTag + (state.sort === "dist" ? distLabel(r) : "") + '</td>'
@@ -2125,7 +2126,10 @@
         if (!mapReady && !initMap()) return;
         KEEP_INFO_ONCE = true;   // 이동(morph) 직후 재렌더에서 이 팝업을 닫지 않는다
         mapObj.morph(new naver.maps.LatLng(lat, lng), 16);
-        var name = tr.querySelector(".name") ? tr.querySelector(".name").textContent : "";
+        // 셀 textContent 를 그대로 쓰면 즐겨찾기 ☆/★ 와 브랜드·거리 태그가 이름에 섞인다
+        // (거리뷰 제목·지정 위치 라벨까지 오염됐다). 행에 심어 둔 순수 상호명을 쓴다.
+        var name = tr.getAttribute("data-name")
+          || (tr.querySelector(".name") ? tr.querySelector(".name").textContent.replace(/^[★☆]\s*/, "") : "");
         openInfo(null, { lat: lat, lng: lng, name: name, cat: "", addr: tr.querySelector(".addr") ? tr.querySelector(".addr").textContent.replace(/·.*$/, "").trim() : "", market: "" });
       }
       tr.addEventListener("click", focus);
