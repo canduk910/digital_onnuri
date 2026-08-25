@@ -26,6 +26,8 @@
     mermaid: "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"
   };
   var HINTS = [
+    "온누리로 로봇청소기를 사고 싶어.",
+    "다이소 중에 온누리되는데 있어?",
     "잔액 환불은 어떻게 하나요?",
     "노량진동에 GS25 가맹점 있나요?",
     "카드형 결제 흐름을 그려서 설명해줘",
@@ -217,7 +219,9 @@
     fab.classList.toggle("open", open);
     if (fabLabel) fabLabel.hidden = open;
     fab.setAttribute("aria-label", open ? "챗봇 닫기" : "온누리 가이드 챗봇 열기");
-    if (open) { ensureLibs().then(rerenderAll); if (focus) input.focus(); scrollEnd(); }
+    // 이력이 있으면 마지막 답변을 보여주고, 인사 화면(이력 없음)은 맨 위에서 시작한다.
+    // 예시 질문 칩이 늘면 인사말이 body 밖으로 밀려나기 때문(모바일 60dvh 패널에서 먼저 드러남).
+    if (open) { ensureLibs().then(rerenderAll); if (focus) input.focus(); if (history.length) scrollEnd(); else body.scrollTop = 0; }
   }
   function toggle() {
     var open = !panel.classList.contains("open");

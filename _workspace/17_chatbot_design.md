@@ -27,6 +27,7 @@
 | onnuri_voucher_guide | onnuri.gift/voucher 채록 정제 | 공식 | rag_corpus/*.md 수기 갱신 |
 | onnuri_notices | 공지 중 정책 관련(할인율 7%·수납기관·유효기간·자동충전 등) | 공식 | 동일. 이미지 공지는 제목 팩트만(본문 추측 금지) |
 | semas_program_guide | semas.or.kr 4페이지(안내·지류·디지털·구매및사용) 정제 | 공식 | 동일. 옛 체계(제로페이·BC 무기명) 서술 제외 원칙 |
+| onnuri_customer_center | 온누리 고객센터(1670-1600) 유선 확인 사항 — 공식 문서 미기재분 | 공식 채널(유선) | rag_corpus/onnuri_customer_center.md 수기 갱신. **답변에 확인일·유선 확인임을 반드시 병기**(공식 FAQ와 출처 등급이 다름) |
 | internal_policy_analysis | _workspace/01_policy_analysis.md | 내부 검증 | 원본 문서 갱신 시 자동 반영 |
 | offline_categories / online_platforms / online_catalog | data/*.json (SSOT) | 실측 | JSON 갱신 시 자동 반영 |
 

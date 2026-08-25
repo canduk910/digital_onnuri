@@ -70,6 +70,7 @@
   .rules td { padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:top; line-height:1.6; }
   .rules td:first-child { font-weight:700; white-space:nowrap; }
   .rules td .hl { color:var(--accent-press); font-weight:800; }
+  .rules td .src { display:block; margin-top:4px; font-size:12.5px; color:var(--text-sub); }
 
   .foot-note { margin-top:34px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-faint); line-height:1.7; }
   .foot-note strong { color:var(--text-sub); }
@@ -90,14 +91,14 @@
     <span class="sb-logo-txt">코스콤 디지털온누리 가이드</span>
   </a>
   <nav class="sb-nav" aria-label="사이트 메뉴">
+    <div class="sb-group">가맹점 스마트 검색</div>
+    <a class="sb-item" href="merchants.html">오프라인 가맹점 찾기</a>
+    <a class="sb-item" href="online.html">온라인 사용처 찾기</a>
     <div class="sb-group">사용 가이드</div>
     <a class="sb-item" href="index.html#offline">오프라인 사용처</a>
     <a class="sb-item" href="index.html#online">온라인 가맹 플랫폼</a>
     <a class="sb-item active" href="payment.html" aria-current="page">결제 방법</a>
     <a class="sb-item" href="terms.html">용어·유의사항</a>
-    <div class="sb-group">가맹점 스마트 검색</div>
-    <a class="sb-item" href="merchants.html">오프라인 가맹점 찾기</a>
-    <a class="sb-item" href="online.html">온라인 사용처 찾기</a>
     <div class="sb-group">소식</div>
     <a class="sb-item" href="news.html">온누리 뉴스</a>
     <div class="sb-group">피드백</div>
@@ -234,7 +235,8 @@
       <table class="rules">
         <tbody>
         <tr><td>할인율</td><td><span class="hl">7%</span> (2026-03-01 시행 공식 공지 기준 · 법인구매는 할인 없음)</td></tr>
-        <tr><td>충전 한도</td><td>월 최대 <span class="hl">200만 원</span> (공식 FAQ 기준 — 예산에 따라 변동 가능)</td></tr>
+        <tr><td>충전 한도</td><td>월 최대 <span class="hl">200만 원</span> — <b>본인이 직접 충전(구매)하는 금액</b> 기준 (공식 FAQ·소진공 '개인 구매한도' 기준 — 예산에 따라 변동 가능)</td></tr>
+        <tr><td>정책자금 지급분</td><td>정책자금으로 <b>지급받은</b> 상품권은 위 <span class="hl">200만 원 한도에 포함되지 않습니다</span> — 지급분이 있어도 매월 200만 원을 따로 충전할 수 있습니다. <span class="src">온누리 고객센터 유선 확인 2026-08-25 — 공식 FAQ에는 없는 안내라 이 항목만 출처가 다릅니다.</span></td></tr>
         <tr><td>충전 취소</td><td>충전 후 <span class="hl">7일 이내·미사용</span> 시 앱에서 취소 가능</td></tr>
         <tr><td>잔액 환불</td><td>7일 경과 또는 일부 사용 시, <span class="hl">60% 이상 사용</span>해야 잔액 환불 가능</td></tr>
         <tr><td>결제 취소</td><td>결제일로부터 <span class="hl">7일 이내</span> 가맹점주에게 요청</td></tr>
@@ -244,14 +246,14 @@
     </section>
 
     <div class="foot-note">
-      <strong>출처</strong> — 온누리상품권 공식 홈페이지(onnuri.gift) 이용방법·FAQ·공지(2026-08-11 수집), 소상공인시장진흥공단 안내, 공식 온라인 전통시장관 '온누리시장' 카드형 안내(잔액 부족 예시·카드사 목록), 롯데카드 공지(실적 포함·서비스 미적용). 카드 실적·혜택은 카드사 정책 변경 시 달라질 수 있습니다.<br>
+      <strong>출처</strong> — 온누리상품권 공식 홈페이지(onnuri.gift) 이용방법·FAQ·공지(2026-08-11 수집), 소상공인시장진흥공단 안내, 공식 온라인 전통시장관 '온누리시장' 카드형 안내(잔액 부족 예시·카드사 목록), 롯데카드 공지(실적 포함·서비스 미적용), 온누리 고객센터 유선 확인(2026-08-25 — 정책자금 지급분의 충전 한도 제외). 카드 실적·혜택은 카드사 정책 변경 시 달라질 수 있습니다.<br>
       ※ 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong>정확하지 않을 수 있습니다</strong> — 내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.
     </div>
   </div>
 </main>
 
 <script src="shell.js?v=6"></script>
-<script src="chat-widget.js?v=9" defer></script>
+<script src="chat-widget.js?v=11" defer></script>
 <script src="config.js?v=1"></script>
 </body>
 </html>

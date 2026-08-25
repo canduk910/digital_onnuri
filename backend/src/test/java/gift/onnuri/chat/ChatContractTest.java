@@ -61,4 +61,22 @@ class ChatContractTest {
         assertTrue(p.contains("대괄호"), "라벨 문법 가드(파싱 실패 방지)");
         assertTrue(p.contains("억지 그림 금지"), "단순 사실 답변엔 그림 강요 금지");
     }
+
+    /**
+     * 출처 등급 병기 지시(2026-08-25)를 고정한다.
+     * 코퍼스에는 공식 FAQ와 등급이 다른 원천(onnuri_customer_center = 고객센터 유선 확인,
+     * 공식 문서 미기재)이 섞여 있다. 이 지시가 빠지면 챗봇이 유선 확인 사항을 공식 안내처럼
+     * 단정해 계산대·충전 시점의 오판을 만든다.
+     */
+    @Test
+    void 시스템_프롬프트는_출처_등급이_다른_근거를_밝히도록_지시한다() {
+        RagRepository rag = org.mockito.Mockito.mock(RagRepository.class);
+        org.mockito.Mockito.when(rag.minCollectedOn()).thenReturn(null);
+        OpenAiClient ai = org.mockito.Mockito.mock(OpenAiClient.class);
+        org.mockito.Mockito.when(ai.mapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        String p = new ChatService(ai, rag, null).systemPrompt();
+        assertTrue(p.contains("onnuri_customer_center"), "유선 확인 원천을 이름으로 식별");
+        assertTrue(p.contains("고객센터 유선 확인"), "답변에 붙일 출처 표기 문구");
+        assertTrue(p.contains("공식 홈페이지에는 없는"), "공식 문서 미기재 사실을 밝히도록");
+    }
 }
