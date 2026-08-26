@@ -30,7 +30,7 @@
     "다이소 중에 온누리되는데 있어?",
     "잔액 환불은 어떻게 하나요?",
     "노량진동에 GS25 가맹점 있나요?",
-    "카드형 결제 흐름을 그려서 설명해줘",
+    "카드연결하면 온누리상품권 써도 카드실적 인정돼요?",
     "온라인에서 애플 제품 살 수 있나요?"
   ];
 
@@ -279,21 +279,49 @@
     body.appendChild(d);
     scrollEnd();
   }
-  // 액션 분기(2026-08-11 도입, 2026-08-26 라벨 "자동모드"): 토글 ON이고 검색 페이지 액션이면 —
-  // 같은 페이지: 확인 없이 즉시 필터·지도 이동 / 다른 페이지: 답변 완료 후 자동 이동.
-  // 토글 OFF 또는 가이드 액션: 기존 확인 카드.
+  // 백엔드 navigate 가 보내는 page 5종. 위젯이 이 표에 없는 page 를 받으면 확인 카드로 떨어진다.
+  var PAGE_INFO = {
+    merchants: { file: "merchants.html", name: "가맹점 찾기" },
+    online:    { file: "online.html",    name: "온라인 사용처" },
+    payment:   { file: "payment.html",   name: "결제 방법" },
+    terms:     { file: "terms.html",     name: "용어·유의사항" },
+    guide:     { file: "index.html",     name: "사용 가이드" }
+  };
+  function onPage(file) {
+    var p = location.pathname;
+    if (file === "index.html") return p === "/" || p.indexOf("index.html") !== -1;
+    return p.indexOf(file) !== -1;
+  }
+  // 액션 분기(2026-08-11 도입). 토글 ON이면 navigate 가 가리키는 페이지로 확인 없이 이동한다.
+  //   같은 검색 페이지    → 이동 없이 그 자리에서 필터·지도 적용
+  //   이미 목적지 페이지  → 이동하지 않고 알림만(같은 문서 재로드는 무의미)
+  //   그 외              → 답변 완료 후 자동 이동
+  // 토글 OFF: 기존 확인 카드.
+  // 2026-08-26: 종전에는 merchants·online 2종만 자동 이동해 payment·terms·guide 는 토글과
+  // 무관하게 카드만 떴다. 라벨이 "지도 바로 이동"일 때는 맞았지만 "자동모드"로 넓힌 문구와
+  // 어긋나 결함이 됐다(사용자 제보 — 카드 실적 질문이 결제 페이지로 안 감).
   function handleAction(a) {
+    if (!autoMapOn()) { appendAction(a); return; }
+    var info = PAGE_INFO[a.page];
+    if (!info) { appendAction(a); return; }   // 모르는 page 는 사용자가 판단하도록 카드로
     var isSearch = a.page === "merchants" || a.page === "online";
-    if (!isSearch || !autoMapOn()) { appendAction(a); return; }
-    var target = a.page === "online" ? "online.html" : "merchants.html";
-    var onTarget = location.pathname.indexOf(target) !== -1;
-    if (onTarget && typeof window.onnuriApplyChatFilter === "function") {
+    if (isSearch && onPage(info.file) && typeof window.onnuriApplyChatFilter === "function") {
       window.onnuriApplyChatFilter(a.params || {});
       appendNote("지도·목록을 이동했습니다 — " + (a.label || ""));
       return;
     }
+    if (!isSearch && onPage(info.file)) {
+      var hash = (a.params || {}).hash;
+      if (hash && location.hash !== "#" + hash) {   // 같은 문서 안 해시 이동은 재로드가 아니다
+        location.hash = hash;
+        appendNote("이 페이지의 해당 항목으로 이동했습니다 — " + (a.label || info.name));
+      } else {
+        appendNote("지금 보고 계신 " + info.name + " 화면입니다 — " + (a.label || ""));
+      }
+      return;
+    }
     pendingNav = a;   // 스트리밍 중 이탈하면 답이 끊기므로 done에서 이동
-    appendNote("답변 완료 후 " + (a.page === "online" ? "온라인 사용처" : "가맹점 찾기") + " 화면으로 이동합니다…");
+    appendNote("답변 완료 후 " + info.name + " 화면으로 이동합니다…");
   }
 
   function appendAction(a) {

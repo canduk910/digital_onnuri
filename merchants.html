@@ -258,10 +258,16 @@
   .loc-btn svg{ display:block; }
   .my-loc-dot{ width:18px; height:18px; border-radius:50%; background:#1a73e8; border:3px solid #fff; box-shadow:0 0 0 2px rgba(26,115,232,.4), 0 1px 3px rgba(0,0,0,.3); }
 
-  /* 브랜드 검색 트리거 버튼 */
-  .brand-open{ display:inline-flex; align-items:center; gap:6px; cursor:pointer; text-align:left; color:var(--text); background:#fff; }
-  .brand-open:hover{ border-color:var(--accent); color:var(--accent); }
-  .brand-open.on{ border-color:var(--accent); color:var(--accent); font-weight:700; }
+  /* 브랜드 검색 트리거 — 칩 줄 맨 앞. 178종 전체로 가는 유일한 통로라 칩과 같은 크기·오렌지 강조로 둔다
+     (2026-08-26: 종전에는 칩 아래 별도 줄의 20px 버튼이라 칩에 파묻혀 보이지 않았다). */
+  .brand-find{ display:inline-flex; align-items:center; gap:6px; font-family:inherit; cursor:pointer;
+    font-size:13px; font-weight:700; border-radius:var(--r-sm); padding:6px 12px;
+    color:var(--accent-press); background:var(--accent-soft); border:1px solid var(--accent); transition:.15s ease; }
+  .brand-find:hover{ background:var(--accent); color:#fff; }
+  .brand-find:hover .bf-more{ background:rgba(255,255,255,.25); color:#fff; }
+  .brand-find svg{ display:block; flex:none; }
+  .brand-find .bf-more{ font-size:11px; font-weight:800; padding:1px 6px; border-radius:999px;
+    background:rgba(242,107,29,.16); color:var(--accent-press); font-variant-numeric:tabular-nums; }
   /* 브랜드 검색 팝업 */
   .modal[hidden]{ display:none; }
   .modal{ position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; }
@@ -451,13 +457,6 @@
     <div class="aux-row">
       <div class="aux-group" id="brandChips" aria-label="브랜드 선택"></div>
       <div class="aux-group">
-        <span class="chip-label">브랜드 검색</span>
-        <button class="sel brand-open" id="brandOpen" type="button" aria-haspopup="dialog" aria-label="브랜드 검색 열기">
-          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2"></line></svg>
-          <span id="brandOpenLabel">브랜드 전체</span>
-        </button>
-      </div>
-      <div class="aux-group">
         <span class="chip-label">시장 유형</span>
         <select class="sel" id="selMtype" aria-label="시장 유형 선택"></select>
       </div>
@@ -580,7 +579,7 @@
 <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=x79smqla3u&submodules=panorama"></script>
 <script src="lib/MarkerClustering.js"></script>
 <script src="shell.js?v=6"></script>
-<script src="chat-widget.js?v=12" defer></script>
+<script src="chat-widget.js?v=13" defer></script>
 <script src="config.js"></script>
 <script>
 (function () {
@@ -1572,10 +1571,23 @@
     var ranked = SNAP.facetBrand.slice().sort(function (a, b) {
       return b.count - a.count || (grk(a.key) - grk(b.key)) || a.key.localeCompare(b.key, "ko");
     }).map(function (c) { return [c.key, c.count]; });
-    // 칩은 대표 브랜드만 노출 → 전체가 아님을 짧게 안내(오해 방지). 숨은 브랜드가 있을 때만.
-    var brandHint = ranked.length > BRAND_TOPN
-      ? '<span class="chip-hint">대표 브랜드만 · 전체는 <b>브랜드 검색</b></span>' : '';
-    var bc = el("brandChips"); bc.innerHTML = '<span class="chip-label">브랜드</span>' + brandHint;
+    var bc = el("brandChips"); bc.innerHTML = '<span class="chip-label">브랜드</span>';
+    // 브랜드 검색 트리거를 칩 줄 맨 앞에 둔다(2026-08-26). 칩은 대표 브랜드만 노출하므로
+    // 숨은 종 수를 배지로 붙여 "이게 전부가 아니다"를 버튼 자체가 말하게 한다(부분노출 안내).
+    var hiddenBrands = Math.max(0, ranked.length - BRAND_TOPN);
+    var bf = document.createElement("button");
+    bf.type = "button"; bf.id = "brandOpen";
+    bf.className = "brand-find";   // 선택 상태는 칩이 표시한다 — 버튼은 항상 '검색 통로'로 중립 유지
+    bf.setAttribute("aria-haspopup", "dialog");
+    bf.setAttribute("aria-label", "브랜드 검색 열기 — 이름으로 찾기");
+    bf.innerHTML =
+      '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+      '<circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle>' +
+      '<line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2"></line></svg>' +
+      '<span id="brandOpenLabel">브랜드 검색</span>' +
+      (hiddenBrands ? '<span class="bf-more">+' + nf(hiddenBrands) + '종</span>' : '');
+    bf.onclick = openBrandModal;   // 버튼은 렌더마다 재생성 — 초기 1회 바인딩은 유실되므로 여기서 붙인다
+    bc.appendChild(bf);
     function addBrandChip(key, label, cnt) {
       var b = document.createElement("button");
       b.className = "chip" + ((key === "전체" ? state.brand === "전체" : multiHas(state.brand, key)) ? " active" : "");
@@ -1590,9 +1602,6 @@
     if (state.brand !== "전체" && !shownBrands.some(function (p) { return p[0] === state.brand; })) {
       addBrandChip(state.brand, state.brand, null);
     }
-    // 브랜드 검색 트리거 버튼 라벨(선택 상태 반영). 목록은 팝업에서 검색.
-    var bo = el("brandOpenLabel"); if (bo) bo.textContent = state.brand === "전체" ? "브랜드 전체" : state.brand;
-    var boBtn = el("brandOpen"); if (boBtn) boBtn.className = "sel brand-open" + (state.brand !== "전체" ? " on" : "");
     // 시장 유형(보조, 드롭다운) — D15. 서버 facet(base 컨텍스트)에서 유형 목록.
     var mt = el("selMtype");
     var cur = state.mtype;
@@ -2389,8 +2398,7 @@
     // 거리뷰 — 플로팅 패널(이동·크기조절). 팝업 버튼 자체는 wirePanoBtns가 직접 바인딩.
     el("panoClose").addEventListener("click", closePano);
     initPanoFloat();
-    // 브랜드 검색 팝업
-    el("brandOpen").addEventListener("click", openBrandModal);
+    // 브랜드 검색 팝업 (열기 버튼은 renderBrandChips 가 만들 때 바인딩)
     el("bmClose").addEventListener("click", closeBrandModal);
     el("brandModal").addEventListener("click", function (e) { if (e.target.getAttribute("data-close")) closeBrandModal(); });
     el("bmCat").addEventListener("change", function (e) { bmState.cat = e.target.value; loadBrandModalList(); });

@@ -167,7 +167,7 @@ public class ChatService {
     private String navigate(JsonNode a, Consumer<ChatEvents.NavigateAction> onAction) {
         String page = text(a, "page");
         if (page == null || !List.of("merchants", "online", "guide", "payment", "terms").contains(page)) {
-            return "page는 merchants|online|guide 중 하나여야 한다.";
+            return "page는 merchants|online|guide|payment|terms 중 하나여야 한다.";
         }
         Map<String, String> params = new HashMap<>();
         String pj = text(a, "params");
