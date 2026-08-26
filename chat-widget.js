@@ -38,7 +38,7 @@
   var busy = false;
   var libsReady = null;   // Promise
   var mermaidSeq = 0;
-  var AUTOMAP_KEY = "onnuri_chat_automap";   // 지도 바로 이동 토글 (기본 ON)
+  var AUTOMAP_KEY = "onnuri_chat_automap";   // 자동모드 토글 (기본 ON). 키 이름은 옛 라벨("지도 바로 이동") 유지 — 바꾸면 기존 설정이 초기화된다
   var CLOSED_KEY = "onnuri_chat_closed";     // 기본 열림(2026-08-15) — 사용자가 닫으면 세션 동안 유지
   var pendingNav = null;                      // 자동 이동 예약(답변 완료 후 실행)
   function autoMapOn() { return localStorage.getItem(AUTOMAP_KEY) !== "0"; }
@@ -120,11 +120,11 @@
       '<div class="cw-resize" title="드래그로 크기 조절 · 더블클릭 초기화"></div>' +
       '<div class="cw-head"><span class="cw-head-dot"></span>' +
       '<span class="cw-head-tit">온누리 가이드 챗</span>' +
-      '<span class="cw-head-sub">공식 출처 기반 안내<br>AI 답변 — 결제 전 확인 권장</span>' +
+      '<span class="cw-head-sub"><span>공식 출처 기반 안내</span><span>AI 답변 — 결제 전 확인 권장</span></span>' +
       '<button class="cw-close" type="button" aria-label="닫기">×</button></div>' +
       '<div class="cw-body"></div>' +
-      '<div class="cw-opts"><label class="cw-switch"><input type="checkbox" id="cwAutoMap"><span></span>지도 바로 이동</label>' +
-      '<span class="cw-opts-hint">위치 문의 시 확인 없이 지도·목록을 이동합니다</span></div>' +
+      '<div class="cw-opts"><label class="cw-switch"><input type="checkbox" id="cwAutoMap"><span></span>자동모드</label>' +
+      '<span class="cw-opts-hint">문의 시 추가 확인 없이 답변에 해당하는 페이지로 이동해 조회를 실행합니다</span></div>' +
       '<div class="cw-input"><textarea rows="1" placeholder="예: 환불 어떻게 하나요?" aria-label="질문 입력"></textarea>' +
       '<button class="cw-send" type="button" aria-label="보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>' +
       '<div class="cw-disclaim">AI가 생성한 답변으로 오류가 있을 수 있습니다 · 개인정보를 입력하지 마세요</div>';
@@ -279,7 +279,7 @@
     body.appendChild(d);
     scrollEnd();
   }
-  // 액션 분기(2026-08-11 지도 바로 이동): 토글 ON이고 검색 페이지 액션이면 —
+  // 액션 분기(2026-08-11 도입, 2026-08-26 라벨 "자동모드"): 토글 ON이고 검색 페이지 액션이면 —
   // 같은 페이지: 확인 없이 즉시 필터·지도 이동 / 다른 페이지: 답변 완료 후 자동 이동.
   // 토글 OFF 또는 가이드 액션: 기존 확인 카드.
   function handleAction(a) {

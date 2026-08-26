@@ -6,7 +6,7 @@
 <title>온라인 사용처 찾기 — 코스콤 디지털온누리 가이드</title>
 <link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">
 <link rel="stylesheet" href="shell.css?v=8">
-<link rel="stylesheet" href="chat-widget.css?v=10">
+<link rel="stylesheet" href="chat-widget.css?v=12">
 <style>
   /* ===== 디자인 시스템 (merchants.html과 동일 토큰) ===== */
   /* 공통 셸(토큰·사이드바·상단바·폭토글)은 shell.css — 이 블록은 온라인 검색 페이지 전용 스타일만 (ADR-9) */
@@ -185,7 +185,7 @@
   </main>
 
 <script src="shell.js?v=6"></script>
-<script src="chat-widget.js?v=11" defer></script>
+<script src="chat-widget.js?v=12" defer></script>
 <script src="config.js"></script>
 <script src="online-source.js?v=1"></script>
 <script>
@@ -417,7 +417,7 @@
 
   function renderAll() { renderKindTabs(); renderCatChips(); renderBrandChips(); render(); }
 
-  // 챗 위젯 '지도 바로 이동'(ON) 훅 — 페이지 이동 없이 현재 화면 필터를 즉시 적용.
+  // 챗 위젯 '자동모드'(ON, 옛 이름 '지도 바로 이동') 훅 — 페이지 이동 없이 현재 화면 필터를 즉시 적용.
   window.onnuriApplyChatFilter = function (p) {
     p = p || {};
     state.kind = "전체"; state.cat = "전체"; state.sub = "전체"; state.brand = "전체"; state.q = "";

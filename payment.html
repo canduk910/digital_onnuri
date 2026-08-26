@@ -6,7 +6,7 @@
 <title>결제 방법 — 코스콤 디지털온누리 가이드</title>
 <link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">
 <link rel="stylesheet" href="shell.css?v=8">
-<link rel="stylesheet" href="chat-widget.css?v=9">
+<link rel="stylesheet" href="chat-widget.css?v=12">
 <style>
   /* 결제 방법 상세 페이지 전용 스타일 — 공통 셸은 shell.css (ADR-9) */
   .page-head { position:relative; margin-bottom:26px; padding-top:6px; }
@@ -49,6 +49,12 @@
   .point .p-main .hl { color:var(--accent-press); }
   .point .p-sub { margin-top:8px; font-size:13px; color:var(--text-sub); line-height:1.65; }
   .point .p-sub b { color:var(--text); }
+  /* 실증 캡처 — 실제 화면을 근거로 보여준다(2026-08-26). 폭은 컨테이너에 맞추고 세로 비율 유지. */
+  .point .p-shot { margin-top:12px; }
+  .point .p-shot img { display:block; width:100%; max-width:460px; height:auto; border:1px solid var(--border);
+    border-radius:var(--r-sm); background:#fff; }
+  .point .p-shot figcaption { margin-top:6px; font-size:12.5px; color:var(--text-sub); line-height:1.6; }
+  .point .p-shot figcaption b { color:var(--text); }
   .point.warn { background:var(--warn-soft); border-color:#EAD9B8; border-left-color:var(--warn); }
   .point.warn .p-label { color:var(--warn); }
   .point.warn .p-main .hl { color:var(--warn); }
@@ -168,12 +174,20 @@
         <div class="p-label">Point 1 — 결제는 카드로, 대금은 상품권에서</div>
         <div class="p-main">결제 승인은 <span class="hl">등록한 카드로 정상 진행</span>되고, 대금은 <span class="hl">상품권 충전 잔액에서 차감</span>됩니다.</div>
         <div class="p-sub">공식 안내 표현으로 "보유 카드를 등록해 <b>카드결제 방식과 동일하게</b> 사용"하는 구조입니다. 계산대에서 점주도 일반 카드 결제와 똑같이 처리합니다 — 온누리 가맹점이면 잔액이 먼저 빠지고, 아니면 그냥 카드 결제가 됩니다.</div>
+        <figure class="p-shot">
+          <img src="assets/proof_approval_sms.jpg" alt="카드사 승인 문자 두 건. 위: 2026년 8월 8일 21시 19분, 하나카드 '온누리승인' 15,000원 일시불, 마린약국, 누적 0원. 아래: 8월 9일 5시 32분, 같은 카드 '승인' 23,700원 일시불, 주식회사쏘카, 누적 1,972,931원." loading="lazy" width="917" height="831">
+          <figcaption>실제 승인 문자 — 온누리 결제도 <b>같은 카드에서 승인 문자가 똑같이</b> 옵니다. 다른 점은 문구가 <b>"온누리승인"</b>이라는 것(아래는 같은 카드의 일반 결제). 차감 알림이 아예 없다면 그 점포는 미가맹이라는 뜻입니다.</figcaption>
+        </figure>
       </div>
 
       <div class="point">
         <div class="p-label">Point 2 — 카드 실적 인정 여부</div>
-        <div class="p-main">카드 승인이 정상 발생하므로 <span class="hl">전월 실적에 포함될 수 있습니다</span> — 단, <span class="hl">카드사별로 정책이 다릅니다.</span></div>
-        <div class="p-sub"><b>롯데카드는 공식 공지로 확인됨</b>: 개인 신용·체크카드의 온누리상품권 결제 시 <b>전월실적 포함, 카드서비스(할인 등 혜택)는 미적용</b>. 다른 카드사는 공식 공지를 확인하지 못했습니다 — 실적·적립 인정 여부는 <b>이용 중인 카드사 앱·고객센터에서 직접 확인</b>하세요. (확인된 것만 적는다는 원칙에 따라, 타사도 된다고 단정하지 않습니다)</div>
+        <div class="p-main">카드 승인이 정상 발생하므로 <span class="hl">대부분의 카드사에서 전월 실적으로 인정</span>됩니다.</div>
+        <div class="p-sub"><b>확인된 곳</b> — 롯데카드는 공식 공지(개인 신용·체크카드의 온누리상품권 결제 시 <b>전월실적 포함, 카드서비스(할인 등 혜택)는 미적용</b>), 하나카드는 아래 실제 실적 화면으로 확인했습니다(2026-08-08 결제분). 다만 <b>혜택(할인·적립)은 실적과 별개로 제외</b>되는 경우가 있으니, 실적·적립 조건은 이용 중인 카드사 앱에서 한 번 확인해 두면 좋습니다.</div>
+        <figure class="p-shot">
+          <img src="assets/proof_card_benefit.jpg" alt="카드사 앱의 실적 충족 상세내역 화면. 마린약국, 2026.08.08, 15,000원, 오른쪽에 '실적포함' 표시." loading="lazy" width="1179" height="362">
+          <figcaption>카드사 앱 '실적 충족 상세내역' — 온누리 결제 건이 <b>실적포함</b>으로 잡혀 있습니다. 참고로 <b>승인 문자의 "누적"에는 이 건이 0원으로 찍혔지만</b>(위 캡처), 실적 집계에는 들어갔습니다 — <b>문자만 보고 실적이 안 잡혔다고 판단하지 마세요.</b></figcaption>
+        </figure>
       </div>
 
       <div class="point warn">
@@ -246,14 +260,14 @@
     </section>
 
     <div class="foot-note">
-      <strong>출처</strong> — 온누리상품권 공식 홈페이지(onnuri.gift) 이용방법·FAQ·공지(2026-08-11 수집), 소상공인시장진흥공단 안내, 공식 온라인 전통시장관 '온누리시장' 카드형 안내(잔액 부족 예시·카드사 목록), 롯데카드 공지(실적 포함·서비스 미적용), 온누리 고객센터 유선 확인(2026-08-25 — 정책자금 지급분의 충전 한도 제외). 카드 실적·혜택은 카드사 정책 변경 시 달라질 수 있습니다.<br>
+      <strong>출처</strong> — 온누리상품권 공식 홈페이지(onnuri.gift) 이용방법·FAQ·공지(2026-08-11 수집), 소상공인시장진흥공단 안내, 공식 온라인 전통시장관 '온누리시장' 카드형 안내(잔액 부족 예시·카드사 목록), 롯데카드 공지(실적 포함·서비스 미적용), 온누리 고객센터 유선 확인(2026-08-25 — 정책자금 지급분의 충전 한도 제외), 하나카드 승인 문자·실적 충족 상세내역 실측(2026-08-08 결제분 — 캡처는 이용자 제공). 카드 실적·혜택은 카드사 정책 변경 시 달라질 수 있습니다.<br>
       ※ 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong>정확하지 않을 수 있습니다</strong> — 내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.
     </div>
   </div>
 </main>
 
 <script src="shell.js?v=6"></script>
-<script src="chat-widget.js?v=11" defer></script>
+<script src="chat-widget.js?v=12" defer></script>
 <script src="config.js?v=1"></script>
 </body>
 </html>

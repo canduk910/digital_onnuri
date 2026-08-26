@@ -23,8 +23,10 @@
 .cw-head { flex:none; display:flex; align-items:center; gap:10px; padding:14px 16px;
   border-bottom:1px solid var(--border, #E5E6E8); background:var(--pat-stripe, none), var(--bg, #fff); }
 .cw-head-dot { width:8px; height:8px; border-radius:50%; background:var(--accent, #F26B1D); flex:none; }
-.cw-head-tit { font-family:var(--font-display, inherit); font-size:14px; font-weight:700; color:var(--text, #0B0C0E); }
+.cw-head-tit { font-family:var(--font-display, inherit); font-size:14px; font-weight:700; color:var(--text, #0B0C0E); white-space:nowrap; }
 .cw-head-sub { font-size:10.5px; color:var(--text-faint, #989DA5); margin-left:auto; text-align:right; line-height:1.35; }
+/* 서브는 두 문장 = 두 줄. 옛 <br> 대신 span 으로 나눠 모바일에서 한 줄로 합칠 수 있게 한다(2026-08-26). */
+.cw-head-sub > span { display:block; white-space:nowrap; }
 
 /* ── 메시지 영역 ── */
 .cw-body { flex:1; overflow-y:auto; padding:16px 14px; display:flex; flex-direction:column; gap:12px;
@@ -84,9 +86,9 @@
 .cw-note { align-self:center; font-size:11.5px; color:var(--text-faint, #989DA5); text-align:center; }
 .cw-note.err { color:#B3261E; }
 
-/* ── 옵션줄 (지도 바로 이동 토글) ── */
+/* ── 옵션줄 (자동모드 토글) ── */
 .cw-opts { flex:none; display:flex; align-items:center; gap:8px; padding:7px 14px; border-top:1px solid var(--border, #E5E6E8); background:var(--bg, #fff); }
-.cw-switch { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text, #0B0C0E); cursor:pointer; user-select:none; }
+.cw-switch { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text, #0B0C0E); cursor:pointer; user-select:none; white-space:nowrap; flex:none; }
 .cw-switch input { position:absolute; opacity:0; }
 .cw-switch span { width:30px; height:17px; border-radius:999px; background:var(--border-2, #D3D5D9); position:relative; transition:background .15s ease; flex:none; }
 .cw-switch span::after { content:""; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:#fff; transition:transform .15s ease; }
@@ -118,6 +120,14 @@
   .cw-fab { right:14px; bottom:14px; }
   .cw-fab.open { display:none; }           /* 열림 중엔 헤더 닫기 버튼 사용 */
   .cw-head .cw-close { display:flex; }     /* 베이스 display:none은 위(모바일 규칙보다 앞)에 있어야 한다 */
+  /* 좁은 패널(80vw)에서는 제목·면책 문구가 헤더 한 줄에 못 들어가 낱말 단위로 쪼개졌다(2026-08-26).
+     헤더를 2행으로 나눠 1행은 제목+닫기, 2행은 면책 문구를 전체 폭에 한 줄로 둔다. */
+  .cw-head { flex-wrap:wrap; row-gap:4px; padding-bottom:10px; }
+  .cw-head-tit { margin-right:auto; }
+  .cw-head-sub { order:3; flex-basis:100%; margin-left:0; text-align:left; font-size:9.5px; }
+  .cw-head-sub > span { display:inline; }
+  .cw-head-sub > span + span::before { content:" · "; }
+  .cw-opts { align-items:flex-start; }
 }
 
 @media (prefers-reduced-motion:reduce){ .cw-fab, .cw-msg.bot.cw-typing::after { transition:none; animation:none; } }

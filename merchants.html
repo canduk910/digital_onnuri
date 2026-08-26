@@ -6,7 +6,7 @@
 <title>가맹점 찾기 — 코스콤 디지털온누리 가이드</title>
 <link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">
 <link rel="stylesheet" href="shell.css?v=8">
-<link rel="stylesheet" href="chat-widget.css?v=10">
+<link rel="stylesheet" href="chat-widget.css?v=12">
 <style>
   /* 공통 셸(토큰·사이드바·상단바·폭토글)은 shell.css — 이 블록은 가맹점 검색 페이지 전용 스타일만 (ADR-9) */
 
@@ -580,7 +580,7 @@
 <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=x79smqla3u&submodules=panorama"></script>
 <script src="lib/MarkerClustering.js"></script>
 <script src="shell.js?v=6"></script>
-<script src="chat-widget.js?v=11" defer></script>
+<script src="chat-widget.js?v=12" defer></script>
 <script src="config.js"></script>
 <script>
 (function () {
@@ -2337,7 +2337,7 @@
     return chain.then(function () { state.page = 1; renderRegionSelects(); return refresh("all"); });
   }
 
-  // 챗 위젯 '지도 바로 이동'(ON) 훅 — 페이지 이동 없이 현재 화면의 필터·지도를 즉시 이동한다.
+  // 챗 위젯 '자동모드'(ON, 옛 이름 '지도 바로 이동') 훅 — 페이지 이동 없이 현재 화면의 필터·지도를 즉시 이동한다.
   // 지역(시도)이 다르면 selectSido로 갈아탄 뒤 나머지 필터를 적용한다.
   window.onnuriApplyChatFilter = function (p) {
     p = p || {};
