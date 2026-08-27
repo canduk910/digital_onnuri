@@ -138,19 +138,43 @@ def load_curated():
     return chunks
 
 
+# 원본 채록은 손대지 않는다(공식 FAQ가 실제로 그렇게 말한다는 것 자체가 사실). 다만 상위 출처인
+# 정책 변경 공지와 어긋나는 항목은 청크에 정정을 덧붙인다 — 붙이지 않으면 그 청크만 검색됐을 때
+# 챗봇이 낡은 값을 그대로 답한다(2026-08-27: FAQ '월 최대 200만 원 충전'이 정책 변경 전 값).
+# 키는 질문 문자열의 부분 일치.
+FAQ_CORRECTIONS = {
+    "충전 한도가 있나요": (
+        "※ 정정(2026-08-27 확인) — 위 FAQ 답변은 2026-01-01 정책 변경 이전 기준으로 갱신되지 않았다. "
+        "공식 공지 「2026년 온누리상품권 할인 판매 및 정책 변경 안내」(2025-12-31 게시, 2026-01-01 시행)에 따르면 "
+        "개인·디지털 기준 **구매(충전)한도는 월 100만 원**이고, **200만 원은 보유한도**(잔액으로 갖고 있을 수 있는 상한)다. "
+        "충전 한도를 묻는 질문에는 월 100만 원으로 답하고, 200만 원은 보유한도로 구분해 안내한다."
+    ),
+}
+
+
 def load_faq():
     d = json.load(open(RAW_FAQ, encoding="utf-8"))
     chunks = []
+    applied = set()
     for it in d["items"]:
         if it["cat"] == "축제·공연정보":   # 챗봇 범위 밖(행사 홍보)
             continue
+        body = f"Q. {it['q']}\nA. {it['a'].strip()}"
+        for key, note in FAQ_CORRECTIONS.items():
+            if key in it["q"]:
+                body += "\n\n" + note
+                applied.add(key)
         chunks.append({
             "source": "onnuri_faq",
             "section": f"공식 FAQ({it['cat']}) > {it['q'][:150]}",
-            "content": f"Q. {it['q']}\nA. {it['a'].strip()}",
+            "content": body,
             "url": "https://www.onnuri.gift/faq",
             "collected_on": "2026-08-11",
         })
+    missed = set(FAQ_CORRECTIONS) - applied
+    if missed:   # FAQ 재수집으로 질문 문구가 바뀌면 정정이 조용히 사라진다 — 즉시 드러낸다.
+        raise SystemExit(f"[FAIL] FAQ 정정 대상을 찾지 못했습니다: {sorted(missed)} "
+                         f"— 질문 문구가 바뀌었는지 확인하고 FAQ_CORRECTIONS 키를 갱신하세요.")
     return chunks
 
 

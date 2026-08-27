@@ -79,4 +79,23 @@ class ChatContractTest {
         assertTrue(p.contains("고객센터 유선 확인"), "답변에 붙일 출처 표기 문구");
         assertTrue(p.contains("공식 홈페이지에는 없는"), "공식 문서 미기재 사실을 밝히도록");
     }
+
+    /**
+     * 낡은 근거 회피 지시(2026-08-27)를 고정한다.
+     * 코퍼스에는 공식 FAQ 원본 채록이 그대로 들어 있고, 그중 충전 한도 항목은 2026-01-01
+     * 정책 변경 전 값(월 200만 원)이다. 최신 공지를 우선하라는 지시가 빠지면 챗봇이
+     * 낡은 한도를 그대로 답해 이용자가 충전 시점에 한도 초과로 막힌다.
+     */
+    @Test
+    void 시스템_프롬프트는_최신_공지를_FAQ보다_우선하도록_지시한다() {
+        RagRepository rag = org.mockito.Mockito.mock(RagRepository.class);
+        org.mockito.Mockito.when(rag.minCollectedOn()).thenReturn(null);
+        OpenAiClient ai = org.mockito.Mockito.mock(OpenAiClient.class);
+        org.mockito.Mockito.when(ai.mapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        String p = new ChatService(ai, rag, null).systemPrompt();
+        assertTrue(p.contains("정정"), "검색 결과에 붙은 정정 표기를 따르도록");
+        assertTrue(p.contains("최신 공지"), "출처 간 우선순위 규칙");
+        assertTrue(p.contains("구매(충전)한도"), "한도 두 종류를 구분해 답하도록");
+        assertTrue(p.contains("보유한도"), "보유한도 개념 명시");
+    }
 }
