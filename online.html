@@ -248,10 +248,24 @@
   }
   function itemBrands(item) { return (CATALOG[item.id] || {}).brands || []; }
 
+  // 내부 상태 state.kind 는 탭 라벨("전체"/"쇼핑"/"배달")인데, 외부에서 들어오는 kind 는
+  // 영문 코드("shopping"/"delivery")다(챗 navigate params·URL 파라미터). 정규화를 거치지 않으면
+  // filtered() 비교가 어긋나 결과가 0곳이 된다 — 2026-08-27 실제 결함. 입력은 반드시 이 창구를 지난다.
+  function normKind(v) {
+    if (v === "shopping" || v === "쇼핑") return "쇼핑";
+    if (v === "delivery" || v === "배달") return "배달";
+    return null;
+  }
+
   function filtered() {
     var q = state.q.trim().toLowerCase();
     return PLATFORMS.filter(function (p) {
-      if (state.kind !== "전체" && (state.kind === "쇼핑" ? p.kind !== "shopping" : p.kind !== "delivery")) return false;
+      if (state.kind !== "전체") {
+        // 삼항으로 쓰면 예상 밖 값이 조용히 "배달"로 취급된다(위 결함의 증폭 경로). 명시 비교로 둔다.
+        var wantKind = state.kind === "쇼핑" ? "shopping" : state.kind === "배달" ? "delivery" : null;
+        if (wantKind === null) { state.kind = "전체"; }   // 방어: 정규화를 안 거친 값이 들어와도 전체로 되돌린다
+        else if (p.kind !== wantKind) return false;
+      }
       if (state.nationwideOnly && p.region_limited) return false;
       var catActive = state.cat !== "전체" || state.sub !== "전체" || state.brand !== "전체";
       if (catActive && p.kind === "delivery") return false; // 물품·브랜드 축은 쇼핑몰 대상
@@ -422,7 +436,7 @@
     p = p || {};
     state.kind = "전체"; state.cat = "전체"; state.sub = "전체"; state.brand = "전체"; state.q = "";
     var qi = el("q"); if (qi) qi.value = "";
-    if (p.kind === "shopping" || p.kind === "delivery") state.kind = p.kind;
+    var nk = normKind(p.kind); if (nk) state.kind = nk;
     if (p.cat) {
       TAXONOMY.forEach(function (t) {
         if (t.id === p.cat || t.label === p.cat) state.cat = t.id;
@@ -511,7 +525,7 @@
         o = { kind: p.get("kind"), cat: p.get("cat"), brand: p.get("brand"), q: p.get("q") };
       } catch (e) { return; }
     }
-    if (o.kind === "shopping" || o.kind === "delivery") state.kind = o.kind;
+    var ok = normKind(o.kind); if (ok) state.kind = ok;
     if (o.cat) {
       TAXONOMY.forEach(function (t) {
         if (t.id === o.cat || t.label === o.cat) state.cat = t.id;
