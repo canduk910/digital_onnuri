@@ -7,7 +7,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, localDate, localStamp, normalizeBrand, normalizeBrands, BRAND_ALIASES, COLLECT_SNIPPET, BRAND_DICT } = require('./survey_probe.js');
+const { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, localDate, localStamp, mapCats, normalizeBrand, normalizeBrands, BRAND_ALIASES, CAT_RULES, COLLECT_SNIPPET, BRAND_DICT } = require('./survey_probe.js');
 
 let pass = 0, fail = 0;
 function check(cond, label, detail) {
@@ -292,6 +292,137 @@ console.log('(l) 카탈로그 데이터 계약 — 렌더가 모르는 값이 �
   const latest = okDates.reduce((m, d) => (d > m ? d : m), okDates[0]);
   const liars = cat.items.filter((i) => i.survey_status === 'partial' && i.surveyed_on === latest);
   check(liars.length === 0, 'partial 항목이 최신 확인일을 달고 있지 않다', JSON.stringify(liars.map((i) => i.id)));
+}
+
+console.log('(m) 소분류 세분화 — 2026-08-27 신설. 실측 로그(15_online_catalog_report.md)의 GNB 문구를 그대로 쓴다.');
+{
+  const cases = [
+    ['김치/반찬', 'food-kimchi'],
+    ['젓갈', 'food-banchan'],
+    ['밀키트', 'food-mealkit'],
+    ['양념', 'food-sauce'],
+    ['유제품', 'food-dairy'],
+    ['음료/커피', 'food-drink'],
+    ['면/통조림', 'food-noodle'],
+    ['과자', 'food-snack'],
+    ['베이커리', 'food-bakery'],
+    ['홍삼/인삼', 'health-ginseng'],
+    ['비타민', 'health-supplement'],
+    ['주방용품', 'living-kitchen'],
+    ['생활용품', 'living-clean'],
+    ['홈인테리어(가구·조명·침구)', 'living-interior'],
+    ['잡화/만물', 'living-goods'],
+    ['생활/주방/계절/미용가전', 'appliance-home'],
+    ['계절가전', 'appliance-season'],
+    ['컴퓨터·모바일', 'appliance-digital'],
+    ['드론', 'appliance-camera'],
+    ['스포츠·레저(캠핑/낚시)', 'hobby-sports'],
+    ['도서/문구', 'hobby-book'],
+    ['완구·취미', 'hobby-toy'],
+    ['반려동물', 'hobby-pet'],
+    ['견과(아몬드·호두·땅콩 등)', 'agri-nut'],
+    ['김/해조류', 'fish-seaweed'],
+  ];
+  for (const [text, want] of cases) {
+    const got = mapCats([text]);
+    check(got.includes(want), `"${text}" → ${want}`, '실제: ' + JSON.stringify(got));
+  }
+}
+
+console.log('(n) 소분류가 잡히면 부모 단독 id 는 빠진다 — meat 뿐 아니라 모든 대분류에');
+{
+  check(!mapCats(['김치']).includes('food'), 'food-kimchi 가 잡히면 food 단독 제외');
+  check(!mapCats(['주방용품']).includes('living'), 'living-kitchen 이 잡히면 living 단독 제외');
+  check(!mapCats(['드론']).includes('appliance'), 'appliance-camera 가 잡히면 appliance 단독 제외');
+  check(mapCats(['가공식품']).includes('food'), '소분류가 안 잡히면 부모 food 유지(정보 손실 방지)');
+}
+
+console.log('(o) 스포츠 축 분리 — 입는 것은 패션, 용품·활동은 취미');
+{
+  check(mapCats(['스포츠의류']).includes('fashion-sports'), '스포츠의류 → fashion-sports');
+  check(mapCats(['캠핑/낚시']).includes('hobby-sports'), '캠핑/낚시 → hobby-sports');
+  check(!mapCats(['캠핑/낚시']).includes('fashion-sports'), '캠핑은 패션으로 잡히지 않는다');
+}
+
+console.log('(p) 데이터 계약 — CAT_RULES 의 소분류 id 는 부모 접두를 지킨다');
+{
+  const ids = CAT_RULES.map(([id]) => id);
+  const tops = ids.filter((i) => !i.includes('-'));
+  const bad = ids.filter((i) => i.includes('-') && !tops.includes(i.split('-')[0]));
+  check(bad.length === 0, '모든 소분류 id 가 정의된 대분류 접두를 쓴다', '위반: ' + bad.join(', '));
+}
+
+console.log('(q) 수집 스니펫은 textContent 로 걷는다 — 숨은 메가메뉴 하위가 소분류 근거다');
+{
+  check(/a\.textContent/.test(COLLECT_SNIPPET),
+        '카테고리 수집이 textContent 를 쓴다',
+        'innerText 로 되돌아가면 display:none 인 하위 메뉴가 통째로 빠진다(2026-08-27 실측 43→132개)');
+  check(!/const t = \(a\.innerText/.test(COLLECT_SNIPPET),
+        '카테고리 수집에 innerText 를 쓰지 않는다');
+  check(/document\.body\.innerText/.test(COLLECT_SNIPPET),
+        '본문 text 는 innerText 유지 — 브랜드 매칭은 보이는 텍스트 기준이어야 오탐이 적다');
+}
+
+console.log('(r) 소분류 오탐 — 2026-08-27 전수 채록에서 실제로 걸린 것들. 지어낸 예 아님.');
+{
+  const notHave = (text, id) => {
+    const got = mapCats([text]);
+    check(!got.includes(id), `"${text}" 는 ${id} 가 아니다`, '실제: ' + JSON.stringify(got));
+  };
+  // '가전' 이 '특가전' 에 걸려 반찬·쿠폰 카테고리가 가전으로 잡혔다(가장 광범위한 오탐).
+  notHave('할인쿠폰/특가전', 'appliance');
+  notHave('반찬 특가전', 'appliance');
+  notHave('디지털온누리상품권 사용처', 'appliance');
+  notHave('2026 디지털전통시장', 'appliance');
+  // '조류' 가 '해조류' 에, '펫' 이 '카펫' 에 걸렸다.
+  notHave('건어물/해조류', 'hobby-pet');
+  notHave('김/미역/해조류', 'hobby-pet');
+  notHave('카펫/러그', 'hobby-pet');
+  // 반려동물 먹이·영양제가 사람 간식·건강식품으로 잡혔다.
+  notHave('강아지 간식', 'food-snack');
+  notHave('고양이 간식', 'food-snack');
+  notHave('강아지 영양제', 'health-supplement');
+  notHave('고양이 영양제', 'health-supplement');
+  notHave('화분영양제/비료', 'health-supplement');
+  notHave('네일영양제', 'health-supplement');
+  // 로얄젤리는 간식이 아니라 건강식품이다.
+  notHave('프로폴리스/로얄젤리', 'food-snack');
+  // '조미' 가 '무조미김/조미김'(= 김) 에 걸렸다.
+  notHave('무조미김', 'food-sauce');
+  notHave('조미김', 'food-sauce');
+  // '면' 계열이 면도용품에 걸렸다.
+  notHave('드라이기/면도기/이미용가전', 'food-noodle');
+  notHave('구강/세안/면도', 'food-noodle');
+  // 브랜드명 '오리온' 의 '오리'.
+  notHave('오리온', 'meat-poultry');
+  // 위생 마스크는 뷰티가 아니다.
+  notHave('여성용품/마스크/의약외품', 'beauty');
+  // 패션잡화는 생활잡화가 아니다.
+  notHave('패션잡화', 'living-goods');
+  notHave('의류/잡화', 'living-goods');
+  notHave('가방/모자/잡화', 'living-goods');
+}
+
+console.log('(s) 오탐을 고쳐도 정탐은 살아 있어야 한다');
+{
+  const have = (text, id) => {
+    const got = mapCats([text]);
+    check(got.includes(id), `"${text}" → ${id} 유지`, '실제: ' + JSON.stringify(got));
+  };
+  have('가전·디지털', 'appliance');
+  have('생활가전', 'appliance-home');
+  have('반려동물', 'hobby-pet');
+  have('강아지 사료', 'hobby-pet');
+  have('관상어/수족관', 'hobby-pet');
+  have('과자/간식', 'food-snack');
+  have('비타민/영양제', 'health-supplement');
+  have('양념/오일', 'food-sauce');
+  have('면/통조림', 'food-noodle');
+  have('닭/오리', 'meat-poultry');
+  have('스킨케어', 'beauty');
+  have('생활잡화', 'living-goods');
+  have('건어물/해조류', 'fish-seaweed');
+  have('조미김', 'fish-seaweed');
 }
 
 console.log();
