@@ -275,8 +275,24 @@ def embed_batch(texts, api_key):
     return [e["embedding"] for e in sorted(d["data"], key=lambda x: x["index"])]
 
 
+# collected_on 은 DB 가 varchar(10) — 형식이 어긋나면 임베딩을 다 태운 뒤 INSERT 에서 터진다.
+# (실제 사고 2026-08-27: frontmatter 에 인라인 주석을 달았더니 파서가 값에 붙여 읽어 145건 임베딩 후 실패.
+#  parse_frontmatter 는 YAML 이 아니라 단순 split 이므로 주석을 잘라주지 않는다.)
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def validate_chunks(chunks):
+    bad = [(c["source"], repr(c.get("collected_on"))) for c in chunks
+           if c.get("collected_on") and not DATE_RE.match(str(c["collected_on"]))]
+    if bad:
+        raise SystemExit("[FAIL] collected_on 형식 오류(YYYY-MM-DD 여야 함): "
+                         + ", ".join(f"{s} -> {v}" for s, v in sorted(set(bad)))
+                         + "\n  frontmatter 에 인라인 주석(#)을 달지 마세요 — 값에 딸려 들어갑니다.")
+
+
 def load_db(chunks, api_key):
     import psycopg
+    validate_chunks(chunks)
     url = os.environ.get("DB_URL", "postgresql://onnuri:onnuri@localhost:5432/onnuri")
     vecs = []
     B = 64
@@ -302,6 +318,17 @@ def selftest():
     meta = {"source": "t", "url": "u", "collected_on": "2026-01-01"}
     ch = chunk_markdown(meta, md)
     assert all(len(c["content"]) <= CHUNK_MAX + 250 for c in ch), "청크 상한 초과"
+
+    # collected_on 형식 가드(2026-08-27 사고) — frontmatter 인라인 주석이 값에 딸려 들어가면
+    # 임베딩을 다 태운 뒤 DB varchar(10) 에서 터진다. 적재 전에 잡혀야 한다.
+    validate_chunks([{"source": "t", "collected_on": "2026-01-01"}])   # 정상은 통과
+    validate_chunks([{"source": "t", "collected_on": ""}])             # 빈 값은 허용(url 없는 소스)
+    try:
+        validate_chunks([{"source": "t", "collected_on": '2026-08-11"   # 주석'}])
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("collected_on 형식 오류를 잡지 못했다")
     assert any(c["section"] == "A" for c in ch), "섹션 경로 소실"
     assert any(c["section"] == "A > B" for c in ch), "하위 섹션 경로 소실"
     big = [c for c in ch if c["section"] == "A > B"]
@@ -324,6 +351,7 @@ if __name__ == "__main__":
         print(f"  {k}: {v}")
     lens = sorted(len(c["content"]) for c in chunks)
     print(f"  길이 min/중앙/max: {lens[0]}/{lens[len(lens)//2]}/{lens[-1]}")
+    validate_chunks(chunks)   # dry-run 에서도 잡아 준다 — 서버에서 임베딩 후 터지기 전에
     if "--dry-run" in sys.argv:
         sys.exit(0)
     key = os.environ.get("OPENAI_API_KEY")
