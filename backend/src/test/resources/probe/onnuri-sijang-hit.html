@@ -1,0 +1,2356 @@
+<!-- fixture: onnuri-sijang / hit / q=로봇청소기 / https://www.onnuri-mall.co.kr/product/search?searchNm={q} / 수집 2026-08-31 -->
+<!DOCTYPE html>
+<html lagn="ko" 
+      xmlns="http://www.w3.org/1999/xhtml">
+
+    <head>
+        <title>온누리시장</title>
+        <meta charset="UTF-8" />
+			
+        	
+        	<meta name="description" content="전통시장 및 상점가의 모든 제품을 만나는 곳! 디지털 온누리상품권 10% 할인, 40% 연말 소득공제, 농할대전 30% 할인까지. 온누리시장과 함께 신선한 상품을 빠르게 받아보세요.">
+        	
+        <!-- config fragment 사용 -->
+        
+
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1" />
+		<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+		
+		<link rel="stylesheet" href="/static/css/reset.css" media="all" />
+		<link rel="stylesheet" href="/static/css/common.css" media="all" />
+		<link rel="stylesheet" href="/static/css/contents.css?202405311" media="all" />
+		<link rel="stylesheet" href="/static/css/component.css" media="all" />
+
+		<link rel="stylesheet" href="/static/css/lib/animated.css" media="all" />
+		<link rel="stylesheet" href="/static/css/lib/font.css" media="all" />
+		<link rel="stylesheet" href="/static/css/lib/jquery-ui.css" media="all" />
+		<link rel="stylesheet" href="/static/css/lib/root.css" media="all" />
+
+		<link type="text/css" rel="stylesheet" href="http://login.benecafe.co.kr/static/both/swiper/swiper.min.css">
+		<link rel="stylesheet" href="/static/css/search.css" media="all" />
+		<link rel="stylesheet" href="/static/css/update-w.css" media="all" />
+		<link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+		
+		
+		
+		
+		
+
+        <!-- favicon fragment 사용 -->
+        
+
+        
+            <link rel="icon" type="image/x-icon" href="/static/images/favicon/store/onnuri/favicon.ico">
+            <link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon/store/onnuri/favicon-32x32.png">
+            <link rel="icon" type="image/png" sizes="16x16" href="/static/images/favicon/store/onnuri/favicon-16x16.png">
+            <link rel="apple-touch-icon" sizes="180x180" href="/static/images/favicon/store/onnuri/apple-touch-icon.png">
+            <link rel="manifest" href="/static/images/favicon/store/onnuri/site.webmanifest">
+        
+
+        
+    
+
+		
+		
+		
+		
+		
+		
+		
+		 <!-- SheetJS -->
+		 <!-- FileSaver savaAs 이용 -->
+        
+
+        <!-- Content Page의 CSS fragment 삽입 -->
+        
+
+        <!-- Content Page의 script fragment 삽입 -->
+        
+        
+     
+    </head>
+    
+    <body class="main">
+    
+   		<!-- header fragment 사용 -->
+       	
+        <!-- ####################################################
+        ### 2021.12.14 김재우
+        ### 탑배너 영역
+        ### 01프로모션(PRMTN_ON), 02기획전(SPDP_NO), 03상품(PROD_NO), 04전시카테고리(DISP_CAT_NO), 05이벤트(EVT_NO), 06URL(CNTS_URL)
+        ### (링크 첨부시 참조)
+        ######################################################-->
+
+        
+            
+                <div id="topBanner" class="topBanner" style="background:#FF5422">
+                    <div class="ineerBox tc flex alignCenter justifyCenter">
+                        
+                        
+                        
+                        
+                        
+                        <a href   = "https://www.onnuri-mall.co.kr">
+                            <img src="https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/BANNER/2026/07/24/QkFOTkVSLzIwMjYvMDcvMjQ-4095dd5b-5f9b-4456-9564-346bd73a412a" alt="" />
+                        </a>
+                    </div>
+                    <a class="btnClose" onclick="popClose()">팝업 닫기</a>
+                </div>
+            
+        
+
+        
+        <!-- 금호타이어 포인트 정보 조회 -->
+            
+
+        <!-- 우리은행  탑배너 -->
+        
+
+        <header id="headerWrap" style="height: auto;">
+            
+      
+            <!-- ####################################################
+            ### 기본 Header 영역
+            ######################################################-->
+         
+            <div id="header">
+                <div class="section">
+                    <input type="hidden" value="BGP">
+                    <a href="#" class="allMenuScroll"><i>전체메뉴</i></a>
+                    <h1 class="logo">
+                        <a href="/">온누리시장</a>
+                        
+                        
+                        
+<!--                        <a href="/" th:if="${cmpyNo eq 'KA8'}" th:style="'background: url(' + @{/static/images/common/logo_kumho_2.png} + ') no-repeat center center / 100%; width: 167px; height: 55px;'">온누리시장</a>-->
+                    </h1>
+
+                    <form autocomplete="off" method="GET" name="searchForm" id="searchForm" action="/product/search">
+                        
+                            <div class="headerSearch">
+                                <input type="text" name="searchNm" id="searchNm" maxlength="100" placeholder="산지의 신선함을 그대로, 오늘출발 상품은?" onkeyup="searchSuggest(this);"/>
+                                <button class="btnSearch" type="button" onclick="prodSearch(this)"><i>검색</i></button>
+                            </div>
+                        
+                        
+                        <div id="my-list" style="display:none;">
+                            <ul id="konanRecommend">
+                            </ul>
+                        </div>
+
+                    </form>
+
+                    <div class="headerBanner">
+                        <a href="/custom/onnuriDigitalVC" class="flex" style="height:57px; align-items:center;">
+                            <img src="../static/images/main/onnuri_icon_80_57.png" alt="" style="width:auto; height:100%; max-height:57px;" />
+                            <div class="textBox ml10">
+                                <p class="fz12 bold fcRed">새로워진 디지털온누리상품권</p>
+                                <p class="bold">이렇게 사용하세요!</p>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="headerIcon">
+                        
+                            <a href="/login/login" class="btnLogin">로그인</a>
+                            
+                        
+
+                        <!--예산 관련 부분-->
+                        
+
+                        <!-- 우리원마켓 -->
+                        
+
+                        <!-- 타 서비스 -->
+                        
+                            
+                        
+
+                        <a href="/order/cart?cartTpCd=10" class="btnCart">
+                           <span class="count">0</span>장바구니
+                        </a>
+                        <a href="/custom/customList" class="btnCust">고객센터</a>
+                        
+                            <a href="https://www.etbs.co.kr/inquiry/merchandise/onnuri" class="btnInquiry" target="_blank">입점문의</a>
+                        
+                    </div>
+                </div>
+            </div>
+         
+        	<div class="headerMenu">
+            	<div class="section">
+
+	                <!-- ####################################################
+	                ### 카테고리 영역
+	                ######################################################-->
+	                <a href="#" class="allMenu">
+	                    <i></i>전체 카테고리
+	                </a>
+
+					<div class="allMenuBox" id="gnbCategoryArea" style="z-index: 10;">
+					</div>
+					<!-- gnb메뉴 캐시 적용 -->
+            		<!-- <th:block th:utext="${@gnbCacheService.getCachedGnbHtml(channelTp, cmpyNo, svrTpCd, gatewayCd, menuDispTpCd)}"></th:block> -->
+            		
+	               <!-- ####################################################
+	               ### 2021.12.08 김재우
+	               ### 마케팅 메뉴 영역
+	               ### 01프로모션(PRMTN_ON), 02기획전(SPDP_NO), 03상품(PROD_NO), 04전시카테고리(DISP_CAT_NO), 05이벤트(EVT_NO), 06URL(CNTS_URL)
+	               ### (링크 첨부시 참조)
+	               ######################################################-->
+	                <div class="quickMenu">
+	                    
+	                    
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "https://www.onnuri-mall.co.kr/mobile/custom/gohyangon">고향사랑기부제⭐</a>
+	                        
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "https://www.onnuri-mall.co.kr/custom/paldogangsan">온누리 팔도강산🧳</a>
+	                        
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "/spdp/onnuriSpdpDetail?spdpNo=246">선물하기💝</a>
+	                        
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "/product/list?dispCatNo=100102768">💚농축산물 특가대전💚</a>
+	                        
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "/product/list?dispCatNo=100102763">🤩다있다!만물상회🤩</a>
+	                        
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "/spdp/onnuriSpdpDetail?spdpNo=240">오늘출발📦</a>
+	                        
+	                    
+				        </div>
+				    </div>
+            		
+			    <div id="ssoInfoPopup" class="layerPopWrap addressPopWrap"><div class="popup_wrap"></div></div>
+            </div>
+         
+
+        <div>
+            
+            <div id="popupChgMbrId" class="layerPopWrap">
+	<div class="popup_wrap">
+		<input type="hidden" name="chgMbrNo" id="chgMbrNo" value="">
+		<div class="layerPopCont" tabindex="0" style="height: 450px;">
+			<h1>온누리시장에서 사용 하실 ID를 입력해주세요.</h1>
+			<div class="popCont">
+				<div class="formBox" style="width: 99%;">
+					<label for="chgMbrId" class="tit">아이디 입력</label>
+					<div class="inputBox">
+						<input type="text" name="chgMbrId" id="chgMbrId" maxlength="16" placeholder="6~16자 이내의 영문 대/소문자,숫자,특수문자(_),(-)만 사용가능"
+						       onkeyup="gfn_inputFn.cleanTrim(this)">
+					</div>
+					<div class="tit" id="idChkResult" value=""></div>
+					<div class="btnGroup mt30">
+						<a href="javascript:void(0)" class="button line" onclick="ssoFn.chgMbrIdChk()">중복확인</a>
+					</div>
+					<div class="btnGroup mt10">
+						<a href="javascript:void(0)" class="button" onclick="ssoFn.changeMemberId()">확인</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+        </div>
+         
+      
+         
+         
+         <!-- 금호타이어 별도 style 적용 -->
+         
+      
+         <!-- 우리은행  별도 style 적용 -->
+          
+            
+         
+         <!-- //헤더영역 -->
+         
+         
+       <!-- Global site tag (gtag.js) - Google Analytics -->
+       
+	   
+         
+      </header>
+   
+   	
+	    <!-- 
+	        content fragment 사용 
+	        현재 layout을 사용하는 content fragment의 내용을 삽입한다.
+	    -->
+        
+        
+        
+	        
+	
+	
+	<!-- 컨텐츠 영역 -->          
+	<section id="container">
+		<div class="section">
+		
+			<form name="searchOptionForm" id="searchOptionForm">
+				<input type="hidden" name="listCount" id="listCount" value="40"/>
+				<input type="hidden" name="orderList" id="orderList" value="addispm10(Y) desc, recommcnt desc"/>
+				
+				
+				<!-- ####################################################
+				### 검색 영역
+				######################################################-->
+				<div class="searchDetailWrap">
+					<div class="popularSearch">
+						<p class="tit">인기검색어</p>
+						<!-- <p class="time">21.11.1 16시 기준</p> -->
+						<div class="wordList" id="popularList">
+						</div>
+					</div>
+					
+					<div class="searchDetailBox" style="display:block;">
+						<!-- 전통시장 아직 데이터 없음 -->
+						<div class="box">
+							<div class="left">
+								<p class="tit">소속시장</p>
+								<a href="#" class="btnAll">전체보기</a>
+							</div>
+							<div class="right">
+								<div class="formBox">
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="mrktNoCheckBox" name="mrktNoChk" id="719" 
+																										   value="719"
+																										   data-mrkt-nm="서울남성역골목시장"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="719"><i></i>
+												서울남성역골목시장
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="mrktNoCheckBox" name="mrktNoChk" id="103" 
+																										   value="103"
+																										   data-mrkt-nm="대명여울빛거리시장"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="103"><i></i>
+												대명여울빛거리시장
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="mrktNoCheckBox" name="mrktNoChk" id="601" 
+																										   value="601"
+																										   data-mrkt-nm="구리전통시장"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="601"><i></i>
+												구리전통시장
+											</label>
+										</div>
+									
+								</div>
+							</div>
+						</div>
+						<div class="box">
+							<div class="left">
+								<p class="tit">브랜드</p>
+							</div>
+							<div class="right">
+								<div class="formBox">
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="201" 
+																										   value="201"
+																										   data-brnd-nm="기타"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="201"><i></i>
+												기타
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="530" 
+																										   value="530"
+																										   data-brnd-nm="필립스"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="530"><i></i>
+												필립스
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="929" 
+																										   value="929"
+																										   data-brnd-nm="비스카"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="929"><i></i>
+												비스카
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="913" 
+																										   value="913"
+																										   data-brnd-nm="보랄"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="913"><i></i>
+												보랄
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="349" 
+																										   value="349"
+																										   data-brnd-nm="스위스밀리터리"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="349"><i></i>
+												스위스밀리터리
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="1028" 
+																										   value="1028"
+																										   data-brnd-nm="기펠"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="1028"><i></i>
+												기펠
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="431" 
+																										   value="431"
+																										   data-brnd-nm="아이클레보"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="431"><i></i>
+												아이클레보
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="2150" 
+																										   value="2150"
+																										   data-brnd-nm="보만"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="2150"><i></i>
+												보만
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="20158" 
+																										   value="20158"
+																										   data-brnd-nm="슈미트"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="20158"><i></i>
+												슈미트
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="12736" 
+																										   value="12736"
+																										   data-brnd-nm="레오폴디"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="12736"><i></i>
+												레오폴디
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="23594" 
+																										   value="23594"
+																										   data-brnd-nm="보만"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="23594"><i></i>
+												보만
+											</label>
+										</div>
+									
+										<div class="checkbox small">
+											<input type="checkbox" class="brndNoCheckBox" name="brndNoChk" id="448" 
+																										   value="448"
+																										   data-brnd-nm="에브리봇"
+																										   onchange="prodOptionSearch('click')"/>
+											<label for="448"><i></i>
+												에브리봇
+											</label>
+										</div>
+									
+								</div>
+							</div>
+						</div>
+						<div class="box">
+							<div class="left">
+								<p class="tit">가격</p>
+							</div>
+							<div class="right">
+								<div class="formBox searchBox">
+									<div class="inputBox small">
+										<input type="text" 
+												name="minPrice" 
+												id="minPrice" 
+												onkeyup="gfn_inputFn.numberComma(this);" 
+												oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');" 
+												maxLength="10" />
+									</div>
+									<span>~</span>
+									<div class="inputBox small">
+										<input type="text" 
+												name="maxPrice" 
+												id="maxPrice" 
+												onkeyup="gfn_inputFn.numberComma(this);" 
+												oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');" 
+												maxLength="10" />
+									</div>
+									<button type="button" id="search" class="btnSearch" onclick="prodOptionSearch('click')">검색</button>
+								</div>
+							</div>
+						</div>
+						
+						<div class="box">
+							<div class="left">
+								<p class="tit">혜택</p>
+							</div>
+							<div class="right">
+								<div class="formBox">
+									<div class="checkbox small">
+										<input type="checkbox" class="onrCertCheckBox" name="onrCertYnChk" id="onrCertYnChk" value="Y" onchange="prodOptionSearch('benefit')"/>
+										<label for="onrCertYnChk"><i></i>
+											디지털 온누리상품권
+										</label>
+									</div>
+								</div>
+							</div>
+						</div>
+		
+						<div class="optionList">
+							<p class="tit">선택한 옵션</p>
+							<div class="labelG">
+								<p class="label" id="searchNmOption"><span>로봇청소기</span></p>
+								<input type="hidden" name="searchNmed" value="로봇청소기" />
+								<input type="hidden" name="brndNo" id="brndNo"/>
+								<input type="hidden" name="mrktNo" id="mrktNo"/>
+								<input type="hidden" name="onrCertYn" id="onrCertYn"/>
+							</div>
+							<a onclick="deleteOption(this, 'optionReset')" class="btnReset">초기화</a>
+						</div>
+					</div>
+					<a class="btnSearchText on">상세검색</a>
+				</div>
+		
+		
+				<div class="productTopBox">
+					<p class="infoText">
+						<strong class="bold">로봇청소기</strong>
+						<span id="totalCount" class="ml5">상품 127개</span> 
+						<!-- 상품 <th:block th:text="${#numbers.formatInteger(totalCount?.total_count, 0, 'COMMA')}">갯수</th:block>개 -->
+					</p>
+					<div class="right">
+						<div class="optionList">
+							<a id="optionOrderView" href="#">인기순</a>
+							<div class="view">
+								<a onclick="searchListOrderBy('popular')">인기순</a>
+								<a onclick="searchListOrderBy('row')">낮은가격순</a>
+								<a onclick="searchListOrderBy('higher')">높은가격순</a>
+								<a onclick="searchListOrderBy('newProd')">신규등록순</a>
+							</div>
+						</div>
+						<div class="optionList">
+							<a id="optionListCountView" href="#">40개씩 보기</a>
+							<div class="view">
+								<a onclick="searchListCount('10')">10개씩 보기</a>
+								<a onclick="searchListCount('20')">20개씩 보기</a>
+								<a onclick="searchListCount('30')">30개씩 보기</a>
+								<a onclick="searchListCount('40')">40개씩 보기</a>
+							</div>
+						</div>
+		
+						<div class="viewBox">
+							<a onclick="listView()" class="btnList">리스트로 보기</a>
+							<a onclick="boxView()" class="btnGrid on">박스형태로 보기</a>
+						</div>
+					</div>
+				</div>
+			</form>
+			
+			<!-- ####################################################
+			### 목록 영역
+			######################################################-->
+			<div id="searchListKn" data-total-cnt="127">
+				<!-- 리스트형태변환 : listView 클래스 추가 -->
+				<div id="productSearchList" class="productList col4 mt20">
+					<div class="list">
+						<a href="/product/detail?prodNo=1000390405&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2025/12/16/UFJPRC8yMDI1LzEyLzE2-1768dae9-88c7-44d3-a0cf-190c6a01c4a0);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000390405&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[보랄] 스마트 파워봇 로봇청소기 BR-R1W
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											990,000원
+											
+										</p>
+										
+										282,800원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000390405"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000288552&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2024/07/29/UFJPRC8yMDI0LzA3LzI5-550f4a5f-a312-4b02-a2d5-f74315cd9391);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000288552&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[보만] 스팀청소기 화이트 / SM1341W
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											297,000원
+											
+										</p>
+										
+										96,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000288552"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001672529&amp;dispCatNo=100100109" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/07/09/UFJPRC8yMDI2LzA3LzA5-f4ee71dd-4042-41ee-b87b-37f368a45375);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001672529&amp;dispCatNo=100100109">
+									
+									<p class="text">
+										<strong></strong>
+										(온누리) [보랄] 스마트 파워봇 로봇청소기 BR-R1W
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											990,000원
+											
+										</p>
+										
+										294,400원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001672529"
+																			  data-disp-cat-no="100100109">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001931823&amp;dispCatNo=100100109" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/08/04/UFJPRC8yMDI2LzA4LzA0-07bb49a5-3c14-4586-a9ff-655cf1da94a2);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001931823&amp;dispCatNo=100100109">
+									
+									<p class="text">
+										<strong></strong>
+										[NB] 스마트 파워봇 로봇청소기 NB-R1W-B
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											990,000원
+											
+										</p>
+										
+										308,200원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001931823"
+																			  data-disp-cat-no="100100109">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000411728&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/02/25/UFJPRC8yMDI2LzAyLzI1-6d4a9260-7388-40c7-a23e-689c2fa6dca3);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000411728&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										보랄 Z10 AI 로봇청소기 BR-R10W
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											3,456,000원
+											
+										</p>
+										
+										1,152,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000411728"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000390426&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2025/12/16/UFJPRC8yMDI1LzEyLzE2-2b1d4c6e-9302-43eb-8cf0-4532ef264a0c);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000390426&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[비스카] UFO 로봇청소기 HNZ-R5000VC
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											90,000원
+											
+										</p>
+										
+										29,300원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000390426"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000411727&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/02/25/UFJPRC8yMDI2LzAyLzI1-49ae8117-7d2b-4f05-8895-63b711a7faf1);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000411727&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										보랄 스마트 파워봇 로봇청소기 BR-R1W  
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											966,000원
+											
+										</p>
+										
+										322,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000411727"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001372925&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/06/12/UFJPRC8yMDI2LzA2LzEy-d2f7231f-a284-40d0-a07b-448d85958f23);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001372925&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[보만] 로봇청소기 RC1723G
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											609,000원
+											
+										</p>
+										
+										211,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001372925"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001422607&amp;dispCatNo=100100108" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/06/17/UFJPRC8yMDI2LzA2LzE3-0c1c7187-920a-475b-b649-32dd61ef1d5f);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001422607&amp;dispCatNo=100100108">
+									
+									<p class="text">
+										<strong></strong>
+										보랄 스마트 파워봇 로봇청소기 BR-R1W
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											890,000원
+											
+										</p>
+										
+										311,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001422607"
+																			  data-disp-cat-no="100100108">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001450417&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/03/23/UFJPRC8yMDI2LzAzLzIz-a8666a3f-11db-4ecb-8f50-83c067bcd152);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001450417&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[미라스] 맥스 초경량 무선청소기 MS-2400VT_A / 핸드&amp;스틱형 겸용
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											129,000원
+											
+										</p>
+										
+										48,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001450417"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000340139&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2025/03/11/UFJPRC8yMDI1LzAzLzEx-9497f413-eee3-41f7-aa22-89d0fd10b64f);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000340139&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[보랄] 스마트 파워봇 로봇청소기 BR-R1W
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											890,000원
+											
+										</p>
+										
+										335,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000340139"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000287475&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2024/07/12/UFJPRC8yMDI0LzA3LzEy-6f5a9b46-52c1-401b-bc1d-a5e2de491f80);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000287475&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[보랄] 무선 물걸레 청소기 BR-H803RF
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											399,000원
+											
+										</p>
+										
+										158,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000287475"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000389074&amp;dispCatNo=100100109" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2025/12/09/UFJPRC8yMDI1LzEyLzA5-b05ed9d4-ecdf-4233-bb71-2b6d58c902a2);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000389074&amp;dispCatNo=100100109">
+									
+									<p class="text">
+										<strong></strong>
+										최신형 에브리봇 AI 올인원 로봇청소기 Q11
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											1,680,000원
+											
+										</p>
+										
+										799,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000389074"
+																			  data-disp-cat-no="100100109">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000268670&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2024/01/29/UFJPRC8yMDI0LzAxLzI5-1eb5da75-4b28-4ccb-9e12-2bc8fd6a8ea8);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000268670&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[보만] 로봇청소기(그레이) RC1723G  / LG배터리 레이저센서 3중필터 장착
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											499,000원
+											
+										</p>
+										
+										215,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000268670"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000355332&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2025/05/28/UFJPRC8yMDI1LzA1LzI4-f8805bb1-83be-451c-90b1-48362531b09d);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000355332&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										셰퍼 듀얼 클린 로봇청소기 JSK-21079
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											279,000원
+											
+										</p>
+										
+										131,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000355332"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000266441&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2024/01/11/UFJPRC8yMDI0LzAxLzEx-4c94a523-bf20-4c14-8fdf-c3c950d3780a);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000266441&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[보만] 대형 충전식청소기 BLDC모터 화이트 / WC2551W
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											599,000원
+											
+										</p>
+										
+										259,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000266441"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000266442&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2024/01/11/UFJPRC8yMDI0LzAxLzEx-7ca862e0-2d81-443b-a662-f4d4e042ddce);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000266442&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[보만] 대형 충전식청소기 BLDC모터 그레이 / WC2552G
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											599,000원
+											
+										</p>
+										
+										259,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000266442"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000389075&amp;dispCatNo=100100109" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2025/12/09/UFJPRC8yMDI1LzEyLzA5-d5bbe7fa-1040-4d9d-b769-49f38d19cd0e);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000389075&amp;dispCatNo=100100109">
+									
+									<p class="text">
+										<strong></strong>
+										에브리봇 AI 올인원로봇청소기 Q9 2025년 최신형 업그레이드
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											1,380,000원
+											
+										</p>
+										
+										649,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000389075"
+																			  data-disp-cat-no="100100109">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001513970&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/06/25/UFJPRC8yMDI2LzA2LzI1-dd9aa25e-7168-499d-9c20-8d58e866f174);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001513970&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										에브리봇 NEW 프리미엄 온디바이스 AI 인공지능 올인원 로봇청소기 14.4V Q-9
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											1,499,000원
+											
+										</p>
+										
+										729,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001513970"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000270006&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2024/02/20/UFJPRC8yMDI0LzAyLzIw-abc49be6-f697-49ed-a656-3cfd407674a3);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000270006&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[기펠] 자이로센서 로봇청소기 GFR-1121G
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											350,000원
+											
+										</p>
+										
+										190,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000270006"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001513971&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/06/25/UFJPRC8yMDI2LzA2LzI1-cc0f06ae-9d78-4129-b3dd-501feb6becc0);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001513971&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										에브리봇 NEW 프리미엄 온디바이스 AI 인공지능 올인원 로봇청소기 14.4V Q-11
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											1,799,000원
+											
+										</p>
+										
+										929,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001513971"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000389541&amp;dispCatNo=100100109" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2025/12/09/UFJPRC8yMDI1LzEyLzA5-23750995-2414-4ceb-b276-e32d93b0ed71);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000389541&amp;dispCatNo=100100109">
+									
+									<p class="text">
+										<strong></strong>
+										★초특가★에브리봇 침구 로봇청소기 X1 침대청소기
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											298,000원
+											
+										</p>
+										
+										259,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000389541"
+																			  data-disp-cat-no="100100109">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000348750&amp;dispCatNo=100100114" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2025/04/29/UFJPRC8yMDI1LzA0LzI5-2d58cb8b-8721-4830-8ff5-3b2a30e30e87);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000348750&amp;dispCatNo=100100114">
+									
+									<p class="text">
+										<strong></strong>
+										보랄 AI 로봇 청소기 BR-R10W 스마트센서 Z10
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											2,150,500원
+											
+										</p>
+										
+										1,265,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000348750"
+																			  data-disp-cat-no="100100114">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000663928&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/03/23/UFJPRC8yMDI2LzAzLzIz-a8666a3f-11db-4ecb-8f50-83c067bcd152);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000663928&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[미라스] 맥스 초경량 무선청소기 MS-2400VT_A / 핸드&amp;스틱형 겸용
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											129,000원
+											
+										</p>
+										
+										78,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000663928"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001513963&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/06/25/UFJPRC8yMDI2LzA2LzI1-a3e536da-02de-4975-be69-5527152670fb);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001513963&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										에브리봇 프리미엄 엣지 윈도우2 창문전용 로봇청소기 650mAh WS-400
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											399,000원
+											
+										</p>
+										
+										248,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001513963"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000390325&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2025/12/16/UFJPRC8yMDI1LzEyLzE2-aa793d7a-4b09-4bfc-b917-89840ad30694);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000390325&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[보랄] AI Z10 로봇청소기 BR-R10W
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											1,500,000원
+											
+										</p>
+										
+										1,010,800원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000390325"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001456757&amp;dispCatNo=100100109" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/06/19/UFJPRC8yMDI2LzA2LzE5-af756bb6-e020-4f67-b8d6-3d23f4696cec);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001456757&amp;dispCatNo=100100109">
+									
+									<p class="text">
+										<strong></strong>
+										에브리봇 로봇청소기 Q3 Turbo Plus 밸런스
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											498,000원
+											
+										</p>
+										
+										359,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001456757"
+																			  data-disp-cat-no="100100109">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000919211&amp;dispCatNo=100100109" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/04/16/UFJPRC8yMDI2LzA0LzE2-986c12cd-0b0d-4644-a749-3811661fedaf);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000919211&amp;dispCatNo=100100109">
+									
+									<p class="text">
+										<strong></strong>
+										에브리봇 물걸레로봇청소기 쓰리스핀 슬림 TS450
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											500,000원
+											
+										</p>
+										
+										349,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000919211"
+																			  data-disp-cat-no="100100109">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000405839&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/02/24/UFJPRC8yMDI2LzAyLzI0-f9e15697-2316-43ba-b9d5-d34ecc957ad3);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000405839&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[디라이프] 클린아이 로봇 청소기 (리모컨 포함) PIK-RV550
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											350,000원
+											
+										</p>
+										
+										250,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000405839"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001672530&amp;dispCatNo=100100109" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/07/09/UFJPRC8yMDI2LzA3LzA5-5e87c6d3-9a32-47c3-877a-b5e65a017705);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001672530&amp;dispCatNo=100100109">
+									
+									<p class="text">
+										<strong></strong>
+										(온누리) [보랄] Z10 AI 로봇청소기 BR-R10W
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											1,500,000원
+											
+										</p>
+										
+										1,053,100원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001672530"
+																			  data-disp-cat-no="100100109">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1002065302&amp;dispCatNo=100100115" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/08/13/UFJPRC8yMDI2LzA4LzEz-362a6024-32ab-453e-adb3-89b3d705f954);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1002065302&amp;dispCatNo=100100115">
+									
+									<p class="text">
+										<strong></strong>
+										LG 코드제로 물걸레패드 8개_무선청소기 로봇 청소기 A9 A9S M9 물걸레키트 리필 호환
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											28,000원
+											
+										</p>
+										
+										19,700원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1002065302"
+																			  data-disp-cat-no="100100115">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001513964&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/06/25/UFJPRC8yMDI2LzA2LzI1-94256adf-bee0-4719-82e7-0bc99143d0a2);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001513964&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										에브리봇 프리미엄 이노베이션 침구전용 로봇청소기 2,600mAh X-1
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											399,000원
+											
+										</p>
+										
+										288,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001513964"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001791209&amp;dispCatNo=100102065" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/07/23/UFJPRC8yMDI2LzA3LzIz-02da5cb4-5885-424a-a8a3-02f232cbfff0);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001791209&amp;dispCatNo=100102065">
+									
+									<p class="text">
+										<strong></strong>
+										씽크대 호스연결 30mm 교체 로봇청소기 배수 부속 Y자 부품 설치
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											2,398원
+											
+										</p>
+										
+										1,750원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001791209"
+																			  data-disp-cat-no="100102065">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1002065301&amp;dispCatNo=100100115" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/08/13/UFJPRC8yMDI2LzA4LzEz-eb2c840e-0f9c-426a-8f84-0279f402d2ed);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1002065301&amp;dispCatNo=100100115">
+									
+									<p class="text">
+										<strong></strong>
+										LG 코드제로 물걸레패드 4개_무선청소기 로봇 청소기 A9 A9S M9 물걸레키트 리필 호환
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											16,000원
+											
+										</p>
+										
+										11,700원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1002065301"
+																			  data-disp-cat-no="100100115">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001603056&amp;dispCatNo=100102065" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/07/03/UFJPRC8yMDI2LzA3LzAz-92446304-a683-4623-af23-7f9dc215f676);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001603056&amp;dispCatNo=100102065">
+									
+									<p class="text">
+										<strong></strong>
+										로봇청소기 문턱 발판 단차 제거 경사판 ABS 무장애 이동 가이드
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											29,942원
+											
+										</p>
+										
+										22,120원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001603056"
+																			  data-disp-cat-no="100102065">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1000339104&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2025/03/07/UFJPRC8yMDI1LzAzLzA3-eb9d548d-56ba-4221-9fa7-cd4e6929b359);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1000339104&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										[기펠] 자이로 센서 로봇 청소기 GFR-1121G
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											350,000원
+											
+										</p>
+										
+										260,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1000339104"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001931824&amp;dispCatNo=100100109" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/08/04/UFJPRC8yMDI2LzA4LzA0-7e0824a9-b6f6-4583-9a4e-677948830afe);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001931824&amp;dispCatNo=100100109">
+									
+									<p class="text">
+										<strong></strong>
+										[NB] Z10 AI 로봇청소기 NB-R10W-B
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											1,500,000원
+											
+										</p>
+										
+										1,103,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001931824"
+																			  data-disp-cat-no="100100109">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001513965&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/06/25/UFJPRC8yMDI2LzA2LzI1-84e89c20-9c38-48cf-9d98-ad197205940b);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001513965&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										에브리봇 프리미엄 엣지2 물걸레 로봇청소기 2,150mAh RS-350
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											399,000원
+											
+										</p>
+										
+										298,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001513965"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1001513967&amp;dispCatNo=100100107" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/06/25/UFJPRC8yMDI2LzA2LzI1-4234e60d-da88-4af7-a4f3-a906b04c136a);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1001513967&amp;dispCatNo=100100107">
+									
+									<p class="text">
+										<strong></strong>
+										에브리봇 프리미엄 쓰리스핀 EVO 물걸레 로봇청소기 3,000mAh TS-402M
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											549,000원
+											
+										</p>
+										
+										419,000원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1001513967"
+																			  data-disp-cat-no="100100107">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+					<div class="list">
+						<a href="/product/detail?prodNo=1002020842&amp;dispCatNo=100102065" class="imgBox">
+							<span class="img" style="background-image:url(https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/PROD/2026/08/07/UFJPRC8yMDI2LzA4LzA3-b387ad48-fa78-4d52-8ecd-248e9b555fa7);"></span>
+							<!-- <span class="labelImg right type1_1">타임세일</span>
+							<span class="labelImg left type2_1">타임세일</span> -->
+							<button class="goPayBtn" onclick=""></button>
+							
+						</a>
+						<div class="listInfoBox">
+							<div class="textBox">
+								<a href="/product/detail?prodNo=1002020842&amp;dispCatNo=100102065">
+									
+									<p class="text">
+										<strong></strong>
+										로봇청소기 문턱 경사 경사판 경사발판
+									</p>
+									<p class="money">
+										<p class="mt10 fz14" style="color: #888; text-decoration: line-through;">
+											29,469원
+											
+										</p>
+										
+										22,230원
+									</p>
+									
+									<p class="star">0 (0)</p>
+									
+								</a>
+								<a href="javascript:void(0);" class="btnCart" onclick="cartSearch(this)"
+																			  data-prod-no="1002020842"
+																			  data-disp-cat-no="100102065">장바구니 담기</a>
+								<div class="addTxt">
+									<span></span>
+								</div>
+							</div>
+							<div class="labelGroup">
+								<!-- <span class="label red">MD추천</span>
+								<span class="label blue">무료배송</span> -->
+							</div>
+						</div>
+					</div>
+				</div>
+		
+				<!-- 데이터 없을경우 -->
+				
+				<!-- //데이터 없을경우 -->
+			</div>
+		</div>
+	</section>
+	<aside class="asideMenu">
+		<a href="#" class="btnTop">맨위로</a>
+	</aside>
+	<!-- //컨텐츠 영역 -->
+	
+	<!-- ####################################################
+	### 팝업 영역
+	######################################################-->
+	
+	<!-- 옵션 선택 팝업  -->
+	<div id="optionSelectedPopup" class="layerPopWrap"></div>
+
+        
+	    <!--<th:block layout:fragment="content"></th:block>-->
+
+        <!-- footer fragment 사용 -->
+        <footer id="footerWrap">
+    	
+		<div id="footer" >
+	    	<div class="section">
+					<div class="footerLink">
+					<a href="/custom/privacyPolicy" class="bold">개인정보처리방침</a>
+					<a href="/custom/termsOfUse">이용약관</a>
+					
+						
+					<a href="/custom/noticeList?brdSeq=1">공지사항</a>
+					
+					<!--생생쇼핑 -->
+					
+					<a href="/mypage/productQna">상품Q&A</a>
+					
+					<a href="http://www.etbs.co.kr/inquiry/merchandise/onnuri" target="_blank">입점 및 제휴문의</a>
+					
+					
+					
+					
+				</div>
+	    		
+				<div class="textBox">
+					
+                        <div class="left">
+                            <p class="tit"><img src="https://login.benecafe.co.kr/static/pc/images/flogo.png"></p>
+                            <p class="text">서울특별시 강남구 강남대로 556 16층 (논현동, 이투데이빌딩)</p>
+                            <p class="text">대표자:송동진 ㅣ 개인정보 보호책임자:IT부문 박정용 부문장</p>
+                            <p class="text">사업자등록번호:104-81-56237 ㅣ 통신판매신고번호 : 제 강남-12684호</p>
+                            <p class="text">건강기능식품 판매업 : 제 2017-0105867 호</p>
+                            <p class="copy">COPYRIGHTⒸ이제너두(주) ALL RIGHTS RESERVED.</p>
+                        </div>
+					
+					
+					<div class="right flex">
+							<div>
+								<p class="tit2">고객센터  1899-6680</p>
+								
+								
+								
+								<p class="text">평일 09:00-18:00 토,일요일 및 공휴일 휴무</p>
+								
+								
+                                <!-- #66828 우리원 ISMS 마크 삭제요청-->
+                                
+                                    <div class="mt10" style="display: flex; align-items: center;">
+										<a href="javascript:window.open('https://image.benecafe.co.kr/cdnetbs/inwork/images/icon/2026_onnuri_isms_img.png','window팝업', 'width=550, height=780, menubar=no, status=no, toolbar=no')" style="display: block; font-size:15px; margin-left: 10px;">
+											<div class="flex"><img style="width:60px; height:60px;" src="/static/images/common/isms_img.png"></div>
+										</a>
+										
+										<a href="javascript:window.open('https://www.eprivacy.or.kr/front/certifiedSiteMark/certifiedSiteMarkPopup.do?certCmd=EP&certNum=2026-EP-R009', 'seal', 'width=527,height=720,location=no,status=no,scrollbars=no')" style="display: block; font-size:15px; margin-left: 10px; cursor:pointer;">
+											<div class="flex"><img style="width:42px; height:42px;" src="https://www.eprivacy.or.kr/images/mng/sub/mark1_eprivacy_plus.png"></div>
+										</a>
+										<a href="javascript:window.open('https://image.benecafe.co.kr/cdnetbs/inwork/images/icon/2026_onnuri_ssl_img.png','window팝업', 'width=550, height=780, menubar=no, status=no, toolbar=no')" style="display: block; font-size:15px; margin-left: 10px;">
+											<div class="flex"><img style="width:90px; height:45px;" src="/static/images/common/ssl_img.png"></div>
+										</a>
+                                    </div>
+                                
+							</div>
+							
+							<div class="btn">
+							</div>
+							
+							
+					</div>
+					
+				</div>
+                
+			</div>
+	    </div>
+    </footer>
+    </body>
+
+</html>

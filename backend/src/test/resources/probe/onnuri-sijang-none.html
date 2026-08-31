@@ -1,0 +1,461 @@
+<!-- fixture: onnuri-sijang / none / q=zzqqxyw12345 / https://www.onnuri-mall.co.kr/product/search?searchNm={q} / 수집 2026-08-31 -->
+<!DOCTYPE html>
+<html lagn="ko" 
+      xmlns="http://www.w3.org/1999/xhtml">
+
+    <head>
+        <title>온누리시장</title>
+        <meta charset="UTF-8" />
+			
+        	
+        	<meta name="description" content="전통시장 및 상점가의 모든 제품을 만나는 곳! 디지털 온누리상품권 10% 할인, 40% 연말 소득공제, 농할대전 30% 할인까지. 온누리시장과 함께 신선한 상품을 빠르게 받아보세요.">
+        	
+        <!-- config fragment 사용 -->
+        
+
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1" />
+		<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+		
+		<link rel="stylesheet" href="/static/css/reset.css" media="all" />
+		<link rel="stylesheet" href="/static/css/common.css" media="all" />
+		<link rel="stylesheet" href="/static/css/contents.css?202405311" media="all" />
+		<link rel="stylesheet" href="/static/css/component.css" media="all" />
+
+		<link rel="stylesheet" href="/static/css/lib/animated.css" media="all" />
+		<link rel="stylesheet" href="/static/css/lib/font.css" media="all" />
+		<link rel="stylesheet" href="/static/css/lib/jquery-ui.css" media="all" />
+		<link rel="stylesheet" href="/static/css/lib/root.css" media="all" />
+
+		<link type="text/css" rel="stylesheet" href="http://login.benecafe.co.kr/static/both/swiper/swiper.min.css">
+		<link rel="stylesheet" href="/static/css/search.css" media="all" />
+		<link rel="stylesheet" href="/static/css/update-w.css" media="all" />
+		<link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+		
+		
+		
+		
+		
+
+        <!-- favicon fragment 사용 -->
+        
+
+        
+            <link rel="icon" type="image/x-icon" href="/static/images/favicon/store/onnuri/favicon.ico">
+            <link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon/store/onnuri/favicon-32x32.png">
+            <link rel="icon" type="image/png" sizes="16x16" href="/static/images/favicon/store/onnuri/favicon-16x16.png">
+            <link rel="apple-touch-icon" sizes="180x180" href="/static/images/favicon/store/onnuri/apple-touch-icon.png">
+            <link rel="manifest" href="/static/images/favicon/store/onnuri/site.webmanifest">
+        
+
+        
+    
+
+		
+		
+		
+		
+		
+		
+		
+		 <!-- SheetJS -->
+		 <!-- FileSaver savaAs 이용 -->
+        
+
+        <!-- Content Page의 CSS fragment 삽입 -->
+        
+
+        <!-- Content Page의 script fragment 삽입 -->
+        
+        
+     
+    </head>
+    
+    <body class="main">
+    
+   		<!-- header fragment 사용 -->
+       	
+        <!-- ####################################################
+        ### 2021.12.14 김재우
+        ### 탑배너 영역
+        ### 01프로모션(PRMTN_ON), 02기획전(SPDP_NO), 03상품(PROD_NO), 04전시카테고리(DISP_CAT_NO), 05이벤트(EVT_NO), 06URL(CNTS_URL)
+        ### (링크 첨부시 참조)
+        ######################################################-->
+
+        
+            
+                <div id="topBanner" class="topBanner" style="background:#FF5422">
+                    <div class="ineerBox tc flex alignCenter justifyCenter">
+                        
+                        
+                        
+                        
+                        
+                        <a href   = "https://www.onnuri-mall.co.kr">
+                            <img src="https://image.benecafe.co.kr/cdnetbs/xanadumall/upload/BANNER/2026/07/24/QkFOTkVSLzIwMjYvMDcvMjQ-4095dd5b-5f9b-4456-9564-346bd73a412a" alt="" />
+                        </a>
+                    </div>
+                    <a class="btnClose" onclick="popClose()">팝업 닫기</a>
+                </div>
+            
+        
+
+        
+        <!-- 금호타이어 포인트 정보 조회 -->
+            
+
+        <!-- 우리은행  탑배너 -->
+        
+
+        <header id="headerWrap" style="height: auto;">
+            
+      
+            <!-- ####################################################
+            ### 기본 Header 영역
+            ######################################################-->
+         
+            <div id="header">
+                <div class="section">
+                    <input type="hidden" value="BGP">
+                    <a href="#" class="allMenuScroll"><i>전체메뉴</i></a>
+                    <h1 class="logo">
+                        <a href="/">온누리시장</a>
+                        
+                        
+                        
+<!--                        <a href="/" th:if="${cmpyNo eq 'KA8'}" th:style="'background: url(' + @{/static/images/common/logo_kumho_2.png} + ') no-repeat center center / 100%; width: 167px; height: 55px;'">온누리시장</a>-->
+                    </h1>
+
+                    <form autocomplete="off" method="GET" name="searchForm" id="searchForm" action="/product/search">
+                        
+                            <div class="headerSearch">
+                                <input type="text" name="searchNm" id="searchNm" maxlength="100" placeholder="산지의 신선함을 그대로, 오늘출발 상품은?" onkeyup="searchSuggest(this);"/>
+                                <button class="btnSearch" type="button" onclick="prodSearch(this)"><i>검색</i></button>
+                            </div>
+                        
+                        
+                        <div id="my-list" style="display:none;">
+                            <ul id="konanRecommend">
+                            </ul>
+                        </div>
+
+                    </form>
+
+                    <div class="headerBanner">
+                        <a href="/custom/onnuriDigitalVC" class="flex" style="height:57px; align-items:center;">
+                            <img src="../static/images/main/onnuri_icon_80_57.png" alt="" style="width:auto; height:100%; max-height:57px;" />
+                            <div class="textBox ml10">
+                                <p class="fz12 bold fcRed">새로워진 디지털온누리상품권</p>
+                                <p class="bold">이렇게 사용하세요!</p>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="headerIcon">
+                        
+                            <a href="/login/login" class="btnLogin">로그인</a>
+                            
+                        
+
+                        <!--예산 관련 부분-->
+                        
+
+                        <!-- 우리원마켓 -->
+                        
+
+                        <!-- 타 서비스 -->
+                        
+                            
+                        
+
+                        <a href="/order/cart?cartTpCd=10" class="btnCart">
+                           <span class="count">0</span>장바구니
+                        </a>
+                        <a href="/custom/customList" class="btnCust">고객센터</a>
+                        
+                            <a href="https://www.etbs.co.kr/inquiry/merchandise/onnuri" class="btnInquiry" target="_blank">입점문의</a>
+                        
+                    </div>
+                </div>
+            </div>
+         
+        	<div class="headerMenu">
+            	<div class="section">
+
+	                <!-- ####################################################
+	                ### 카테고리 영역
+	                ######################################################-->
+	                <a href="#" class="allMenu">
+	                    <i></i>전체 카테고리
+	                </a>
+
+					<div class="allMenuBox" id="gnbCategoryArea" style="z-index: 10;">
+					</div>
+					<!-- gnb메뉴 캐시 적용 -->
+            		<!-- <th:block th:utext="${@gnbCacheService.getCachedGnbHtml(channelTp, cmpyNo, svrTpCd, gatewayCd, menuDispTpCd)}"></th:block> -->
+            		
+	               <!-- ####################################################
+	               ### 2021.12.08 김재우
+	               ### 마케팅 메뉴 영역
+	               ### 01프로모션(PRMTN_ON), 02기획전(SPDP_NO), 03상품(PROD_NO), 04전시카테고리(DISP_CAT_NO), 05이벤트(EVT_NO), 06URL(CNTS_URL)
+	               ### (링크 첨부시 참조)
+	               ######################################################-->
+	                <div class="quickMenu">
+	                    
+	                    
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "https://www.onnuri-mall.co.kr/mobile/custom/gohyangon">고향사랑기부제⭐</a>
+	                        
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "https://www.onnuri-mall.co.kr/custom/paldogangsan">온누리 팔도강산🧳</a>
+	                        
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "/spdp/onnuriSpdpDetail?spdpNo=246">선물하기💝</a>
+	                        
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "/product/list?dispCatNo=100102768">💚농축산물 특가대전💚</a>
+	                        
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "/product/list?dispCatNo=100102763">🤩다있다!만물상회🤩</a>
+	                        
+	                    
+	                        
+	                        
+	                        
+	                        
+	
+	                        
+	                        <a href = "/spdp/onnuriSpdpDetail?spdpNo=240">오늘출발📦</a>
+	                        
+	                    
+				        </div>
+				    </div>
+            		
+			    <div id="ssoInfoPopup" class="layerPopWrap addressPopWrap"><div class="popup_wrap"></div></div>
+            </div>
+         
+
+        <div>
+            
+            <div id="popupChgMbrId" class="layerPopWrap">
+	<div class="popup_wrap">
+		<input type="hidden" name="chgMbrNo" id="chgMbrNo" value="">
+		<div class="layerPopCont" tabindex="0" style="height: 450px;">
+			<h1>온누리시장에서 사용 하실 ID를 입력해주세요.</h1>
+			<div class="popCont">
+				<div class="formBox" style="width: 99%;">
+					<label for="chgMbrId" class="tit">아이디 입력</label>
+					<div class="inputBox">
+						<input type="text" name="chgMbrId" id="chgMbrId" maxlength="16" placeholder="6~16자 이내의 영문 대/소문자,숫자,특수문자(_),(-)만 사용가능"
+						       onkeyup="gfn_inputFn.cleanTrim(this)">
+					</div>
+					<div class="tit" id="idChkResult" value=""></div>
+					<div class="btnGroup mt30">
+						<a href="javascript:void(0)" class="button line" onclick="ssoFn.chgMbrIdChk()">중복확인</a>
+					</div>
+					<div class="btnGroup mt10">
+						<a href="javascript:void(0)" class="button" onclick="ssoFn.changeMemberId()">확인</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+        </div>
+         
+      
+         
+         
+         <!-- 금호타이어 별도 style 적용 -->
+         
+      
+         <!-- 우리은행  별도 style 적용 -->
+          
+            
+         
+         <!-- //헤더영역 -->
+         
+         
+       <!-- Global site tag (gtag.js) - Google Analytics -->
+       
+	   
+         
+      </header>
+   
+   	
+	    <!-- 
+	        content fragment 사용 
+	        현재 layout을 사용하는 content fragment의 내용을 삽입한다.
+	    -->
+        
+        
+        
+	        
+	
+	
+	<!-- 컨텐츠 영역 -->          
+	<section id="container">
+		<div class="section">
+		
+			<form name="searchOptionForm" id="searchOptionForm">
+				<input type="hidden" name="listCount" id="listCount" value="40"/>
+				<input type="hidden" name="orderList" id="orderList" value="addispm10(Y) desc, recommcnt desc"/>
+				
+				
+				<!-- ####################################################
+				### 검색 영역
+				######################################################-->
+				<div class="searchDetailWrap">
+					<div class="popularSearch">
+						<p class="tit">인기검색어</p>
+						<!-- <p class="time">21.11.1 16시 기준</p> -->
+						<div class="wordList" id="popularList">
+						</div>
+					</div>
+					
+					
+					
+				</div>
+		
+		
+				
+			</form>
+			
+			<!-- ####################################################
+			### 목록 영역
+			######################################################-->
+			<div id="searchListKn" data-total-cnt="0">
+				<!-- 리스트형태변환 : listView 클래스 추가 -->
+				
+		
+				<!-- 데이터 없을경우 -->
+				<div class="dataNone mt20">
+					<i></i>
+					<p class="fz22 fc222 bold tc">검색하신 '<strong  class="bold fcGreen2">zzqqxyw12345</strong>'에 대한 검색결과가 없습니다.</p>
+					
+					<p class="mt8 fz14 fc666 tc">다른 검색어를 입력하시거나 철자와 띄어쓰기를 확인해 보세요.</p>
+				</div>
+				<!-- //데이터 없을경우 -->
+			</div>
+		</div>
+	</section>
+	<aside class="asideMenu">
+		<a href="#" class="btnTop">맨위로</a>
+	</aside>
+	<!-- //컨텐츠 영역 -->
+	
+	<!-- ####################################################
+	### 팝업 영역
+	######################################################-->
+	
+	<!-- 옵션 선택 팝업  -->
+	<div id="optionSelectedPopup" class="layerPopWrap"></div>
+
+        
+	    <!--<th:block layout:fragment="content"></th:block>-->
+
+        <!-- footer fragment 사용 -->
+        <footer id="footerWrap">
+    	
+		<div id="footer" >
+	    	<div class="section">
+					<div class="footerLink">
+					<a href="/custom/privacyPolicy" class="bold">개인정보처리방침</a>
+					<a href="/custom/termsOfUse">이용약관</a>
+					
+						
+					<a href="/custom/noticeList?brdSeq=1">공지사항</a>
+					
+					<!--생생쇼핑 -->
+					
+					<a href="/mypage/productQna">상품Q&A</a>
+					
+					<a href="http://www.etbs.co.kr/inquiry/merchandise/onnuri" target="_blank">입점 및 제휴문의</a>
+					
+					
+					
+					
+				</div>
+	    		
+				<div class="textBox">
+					
+                        <div class="left">
+                            <p class="tit"><img src="https://login.benecafe.co.kr/static/pc/images/flogo.png"></p>
+                            <p class="text">서울특별시 강남구 강남대로 556 16층 (논현동, 이투데이빌딩)</p>
+                            <p class="text">대표자:송동진 ㅣ 개인정보 보호책임자:IT부문 박정용 부문장</p>
+                            <p class="text">사업자등록번호:104-81-56237 ㅣ 통신판매신고번호 : 제 강남-12684호</p>
+                            <p class="text">건강기능식품 판매업 : 제 2017-0105867 호</p>
+                            <p class="copy">COPYRIGHTⒸ이제너두(주) ALL RIGHTS RESERVED.</p>
+                        </div>
+					
+					
+					<div class="right flex">
+							<div>
+								<p class="tit2">고객센터  1899-6680</p>
+								
+								
+								
+								<p class="text">평일 09:00-18:00 토,일요일 및 공휴일 휴무</p>
+								
+								
+                                <!-- #66828 우리원 ISMS 마크 삭제요청-->
+                                
+                                    <div class="mt10" style="display: flex; align-items: center;">
+										<a href="javascript:window.open('https://image.benecafe.co.kr/cdnetbs/inwork/images/icon/2026_onnuri_isms_img.png','window팝업', 'width=550, height=780, menubar=no, status=no, toolbar=no')" style="display: block; font-size:15px; margin-left: 10px;">
+											<div class="flex"><img style="width:60px; height:60px;" src="/static/images/common/isms_img.png"></div>
+										</a>
+										
+										<a href="javascript:window.open('https://www.eprivacy.or.kr/front/certifiedSiteMark/certifiedSiteMarkPopup.do?certCmd=EP&certNum=2026-EP-R009', 'seal', 'width=527,height=720,location=no,status=no,scrollbars=no')" style="display: block; font-size:15px; margin-left: 10px; cursor:pointer;">
+											<div class="flex"><img style="width:42px; height:42px;" src="https://www.eprivacy.or.kr/images/mng/sub/mark1_eprivacy_plus.png"></div>
+										</a>
+										<a href="javascript:window.open('https://image.benecafe.co.kr/cdnetbs/inwork/images/icon/2026_onnuri_ssl_img.png','window팝업', 'width=550, height=780, menubar=no, status=no, toolbar=no')" style="display: block; font-size:15px; margin-left: 10px;">
+											<div class="flex"><img style="width:90px; height:45px;" src="/static/images/common/ssl_img.png"></div>
+										</a>
+                                    </div>
+                                
+							</div>
+							
+							<div class="btn">
+							</div>
+							
+							
+					</div>
+					
+				</div>
+                
+			</div>
+	    </div>
+    </footer>
+    </body>
+
+</html>

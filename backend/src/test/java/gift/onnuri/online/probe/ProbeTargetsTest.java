@@ -1,0 +1,57 @@
+package gift.onnuri.online.probe;
+
+import org.junit.jupiter.api.Test;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * 규칙 사전 자체의 계약. 코드 상수와 데이터(플랫폼 목록)가 어긋나면 조용히 엉뚱한 몰을 친다.
+ */
+class ProbeTargetsTest {
+
+    @Test
+    void 여섯_곳이며_모두_실측일과_robots_검토일을_가진다() {
+        assertEquals(6, ProbeTargets.ALL.size());
+        for (ProbeTarget t : ProbeTargets.ALL) {
+            assertNotNull(t.measuredOn(), t.platformId() + " measuredOn 없음");
+            assertNotNull(t.robotsCheckedOn(), t.platformId() + " robotsCheckedOn 없음 — "
+                    + "robots.txt 를 확인하지 않은 몰을 대상에 넣을 수 없다");
+            assertTrue(t.searchUrlTemplate().contains("{q}"), t.platformId() + " — {q} 자리 없음");
+            assertNotNull(t.canaryPresentQuery(), t.platformId() + " 카나리아 질의 없음");
+        }
+    }
+
+    @Test
+    void robots가_차단한_몰은_대상에_없다() {
+        // 온누리굿데이·인더마켓은 Disallow: / + Allow: /$ — 기술적으로는 되지만 조회하지 않는다.
+        assertFalse(ProbeTargets.ids().contains("onnuri-goodday"));
+        assertFalse(ProbeTargets.ids().contains("inthemarket-onnuri"));
+    }
+
+    @Test
+    void 대상_id가_모두_플랫폼_목록에_있다() throws Exception {
+        Path p = Path.of("../data/online_platforms.json");
+        assertTrue(Files.exists(p), "플랫폼 목록을 찾지 못했다: " + p.toAbsolutePath()
+                + " — 파일이 없다고 skip 하면 경계면 검증이 사라진다");
+        String json = Files.readString(p);
+        for (String id : ProbeTargets.ids()) {
+            assertTrue(json.contains("\"" + id + "\""),
+                    id + " 가 online_platforms.json 에 없다 — 없는 몰을 조회하려 하고 있다");
+        }
+    }
+
+    @Test
+    void 사전을_비운_몰은_그_이유가_코드에_적혀_있다() throws Exception {
+        // 등급 C(onnuri-chance·onnuri-market)는 근거 없이 비우면 다음 사람이 실수로 채운다.
+        String src = Files.readString(Path.of("src/main/java/gift/onnuri/online/probe/ProbeTargets.java"));
+        assertTrue(src.contains("이용약관 문구"), "온누리마켓을 비운 이유(약관 오탐)가 없다");
+        assertTrue(src.contains("원산지 데이터 없음"), "온누리찬스를 비운 이유가 없다");
+        List<ProbeTarget> empty = ProbeTargets.ALL.stream()
+                .filter(t -> t.noneMarkersBound().isEmpty() && t.noneMarkersPlain().isEmpty()).toList();
+        assertEquals(2, empty.size(), "등급 C 는 실측 기준 2곳이다");
+    }
+}
