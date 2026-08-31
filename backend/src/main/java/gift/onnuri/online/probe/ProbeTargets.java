@@ -46,6 +46,8 @@ public final class ProbeTargets {
             P("<a href=\"[^\"]*item\\.php\\?it_id=\\d+\"[^>]*>([^<]+)</a>");
     private static final java.util.regex.Pattern T_GONGGONG = // <h4 class="nl-name"><b>상품명</b>
             P("<h4 class=\"nl-name\">\\s*<b>([^<]+)</b>");
+    private static final java.util.regex.Pattern T_KKUK =      // <p class="pro_title">상품명</p>
+            P("<p class=\"pro_title\">([^<]+)</p>");
     private static final java.util.regex.Pattern T_EPOST =    // <div class="goods_text"><p class="tit">상품명</p>
             P("<div class=\"goods_text\">\\s*<p class=\"tit\">\\s*([^<]+?)\\s*</p>");
 
@@ -114,7 +116,28 @@ public final class ProbeTargets {
                     StandardCharsets.UTF_8, Scope.MALL_WIDE,
                     List.of(),
                     List.of("고객님께서 찾으시는 검색결과가 없습니다", "해당하는 상품이 없습니다"),
-                    false, 2, T_EPOST, 0, "김치", 0, MEASURED, ROBOTS)
+                    false, 2, T_EPOST, 0, "김치", 0, MEASURED, ROBOTS),
+
+            // 2026-09-01 추가. 4단계에서 "?keyword= 로 검색된다"고 판단해 링크만 줬으나,
+            // 재조사해 보니 그 URL 은 **검색이 실행되지 않는다** — 브라우저로 열어도 검색창이
+            // 비고 결과가 기본 목록 20개로 고정이다. 당시 센 "김치 7회"는 카테고리 메뉴의
+            // '김치·반찬'이었다(1단계에서 세운 "에코를 상품으로 오인하지 않는다"를 스스로 어긴 것).
+            // 실제 폼을 제출해 보니 keytype 이 필수였다.
+            // robots.txt: User-agent:* → Allow: /, 금지는 /api·/login 등. /search 는 허용.
+            //   (GPTBot·ChatGPT-User·OAI-SearchBot 만 전면 차단 — 우리 UA 는 해당 없음)
+            // 없음 실측: `등록된 상품이 없습니다.` — 있음 응답에는 없다(온누리마켓 같은
+            //   약관 상시 노출이 아님을 대조 확인) → 등급 B
+            // 실측: 김치 상품 50 · 로봇청소기 17 · 없는 말 0(56KB vs 93KB)
+            new ProbeTarget("kkuk-ai-onnuri-mall",
+                    "https://onnuri.ai/search?k_order=3&page_num=50"
+                            + "&keytype=productname%3Aproductcode%3Acomment&keyword={q}",
+                    StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
+                    List.of(),
+                    List.of("등록된 상품이 없습니다"),
+                    // echoesQuery=false — 검색어가 href·input value 에는 박히지만 **화면 텍스트로는
+                    // 되뿌리지 않는다**(카나리아가 선언 true 와 실측 false 의 차이를 잡아 정정).
+                    // 덕분에 토큰 0 판정을 쓸 수 있어 '없다'를 확정할 수단이 하나 더 있다.
+                    false, 5, T_KKUK, 0, "김치", 0, MEASURED, LocalDate.of(2026, 9, 1))
     );
 
     /**
@@ -125,16 +148,12 @@ public final class ProbeTargets {
      * 근거는 2026-08-31 22곳 전수 실현성 조사(_workspace/19_online_probe.md 1절).
      */
     public static final String EX_ROBOTS   = "robots-blocked";     // 몰이 자동 조회를 막아 뒀다
-    public static final String EX_RULES    = "rules-unverified";   // 검색은 되나 판정 규칙 미실측
     public static final String EX_NO_FETCH = "no-static-search";   // 정적 응답에 결과가 실리지 않는다
 
     private static final java.util.Map<String, String> EXCLUSION = java.util.Map.of(
             // 기술적으로는 되지만 robots.txt 가 `Disallow: /` 다. 되는 것과 해도 되는 것은 다르다.
             "onnuri-goodday", EX_ROBOTS,
-            "inthemarket-onnuri", EX_ROBOTS,
-            // `?keyword=` 로 검색되는 것은 확인했으나("김치" 7회) 없음-문구를 실측하지 않았다.
-            // 링크는 주고 판정은 하지 않는다 — 근거 없는 판정보다 링크가 낫다.
-            "kkuk-ai-onnuri-mall", EX_RULES);
+            "inthemarket-onnuri", EX_ROBOTS);
 
     /** 조회 대상이 아닌 이유. 조사에서 개별 사유를 특정하지 못한 곳은 정적 조회 불가로 본다. */
     public static String exclusionReason(String platformId) {

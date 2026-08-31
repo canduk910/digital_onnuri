@@ -117,7 +117,7 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "search_url_template": "https://onnuri.ai/search?keyword={q}"
+      "search_url_template": "https://onnuri.ai/search?k_order=3&page_num=50&keytype=productname%3Aproductcode%3Acomment&keyword={q}"
     },
     {
       "id": "gongyoung-shopping",

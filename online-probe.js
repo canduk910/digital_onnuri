@@ -42,14 +42,12 @@
     "parse-changed": "페이지 구조가 바뀐 듯",
     // 조회하지 않은 이유(ProbeTargets.exclusionReason). 사유를 대야 링크를 눌러 볼 근거가 된다.
     "robots-blocked": "몰이 자동 조회를 막아 둠",
-    "rules-unverified": "확인 규칙 미실측",
     "no-static-search": "자동 조회가 안 되는 구조",
     "not-a-probe-target": "자동 확인 대상 아님"
   };
   /** 접힌 섹션 안에서 한 번 더 풀어 쓴다 — 배지만으로는 뜻이 안 통한다. */
   var REASON_LONG = {
     "robots-blocked": "이 몰은 robots.txt로 자동 조회를 막아 뒀습니다. 링크로 들어가 직접 검색하는 것은 정상 이용입니다.",
-    "rules-unverified": "검색은 되지만 결과를 판정할 규칙을 아직 세우지 못했습니다.",
     "no-static-search": "검색 결과가 화면에서만 만들어져 자동으로 읽을 수 없습니다."
   };
 
@@ -152,7 +150,7 @@
       var r = h.reason || "not-a-probe-target";
       (groups[r] = groups[r] || []).push(h.name);
     });
-    var order = ["no-static-search", "robots-blocked", "rules-unverified"];
+    var order = ["no-static-search", "robots-blocked"];
     var keys = order.filter(function (k) { return groups[k]; })
       .concat(Object.keys(groups).filter(function (k) { return order.indexOf(k) === -1; }));
     if (!keys.length) return "";

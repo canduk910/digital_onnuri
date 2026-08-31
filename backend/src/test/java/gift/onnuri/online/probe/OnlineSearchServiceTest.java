@@ -81,7 +81,6 @@ class OnlineSearchServiceTest {
         // robots 대상이 아니므로, 사유를 밝혀야 이용자가 링크를 눌러 볼 근거가 생긴다.
         assertEquals(ProbeTargets.EX_ROBOTS, ProbeTargets.exclusionReason("onnuri-goodday"));
         assertEquals(ProbeTargets.EX_ROBOTS, ProbeTargets.exclusionReason("inthemarket-onnuri"));
-        assertEquals(ProbeTargets.EX_RULES, ProbeTargets.exclusionReason("kkuk-ai-onnuri-mall"));
         assertEquals(ProbeTargets.EX_NO_FETCH, ProbeTargets.exclusionReason("onnuri-5iljang"));
         // 조회 대상 6곳에는 제외 사유가 붙을 일이 없다 — 붙으면 목록이 어긋난 것이다.
         for (ProbeTarget t : ProbeTargets.ALL) {
@@ -103,12 +102,14 @@ class OnlineSearchServiceTest {
     void 조회_대상이_아니어도_검색URL이_있으면_그리로_보낸다() {
         // 4단계에서 22곳에 search_url_template 을 넣었다 — 확인하지 않은 몰도
         // 홈이 아니라 그 몰의 검색 결과로 바로 갈 수 있어야 한다.
-        var r = svc(List.of(p("kkuk-ai-onnuri-mall", "꾹AI온누리몰", "shopping",
-                "https://onnuri.ai/", "https://onnuri.ai/search?keyword={q}")), true)
+        // 조회 대상이 아닌 몰로 예시를 든다(꾹AI 는 2026-09-01 조회 대상이 됐다).
+        var r = svc(List.of(p("onnuri-goodday", "온누리굿데이", "shopping",
+                "https://www.onnurigood.com/",
+                "https://www.onnurigood.com/?pn=product.search.list&search_word={q}")), true)
                 .search(ProbeQuery.of("김치"));
         ProbeHit h = r.items().get(0);
         assertEquals(Verdict.NOT_PROBED, h.status());
-        assertTrue(h.searchUrl().startsWith("https://onnuri.ai/search?keyword="),
+        assertTrue(h.searchUrl().startsWith("https://www.onnurigood.com/?pn="),
                 "검색 URL 이 있는데 홈으로 보냈다: " + h.searchUrl());
         assertFalse(h.searchUrl().contains("{q}"), "치환되지 않았다");
     }

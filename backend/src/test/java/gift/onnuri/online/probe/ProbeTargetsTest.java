@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class ProbeTargetsTest {
 
     @Test
-    void 여섯_곳이며_모두_실측일과_robots_검토일을_가진다() {
-        assertEquals(6, ProbeTargets.ALL.size());
+    void 조회대상이_모두_실측일과_robots_검토일을_가진다() {
+        assertEquals(7, ProbeTargets.ALL.size());   // 2026-09-01 꾹AI온누리몰 추가
         for (ProbeTarget t : ProbeTargets.ALL) {
             assertNotNull(t.measuredOn(), t.platformId() + " measuredOn 없음");
             assertNotNull(t.robotsCheckedOn(), t.platformId() + " robotsCheckedOn 없음 — "
