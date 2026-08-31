@@ -125,7 +125,7 @@ public class OnlineSearchService {
             } else {
                 f.cancel(true);
                 items.add(new ProbeHit(p.id(), p.name(), Verdict.UNKNOWN, null,
-                        ProbeOutcome.TIMEOUT, null, List.of(), null,
+                        ProbeOutcome.TIMEOUT, null, List.of(), false, null,
                         t.mallWide(), searchUrlFor(t, p, q), now));
             }
         }
@@ -138,18 +138,20 @@ public class OnlineSearchService {
         if (!o.fetched()) {
             // 왜 못 받았는지를 판정으로 뭉개지 않는다 — 이용자에게 사유를 보여준다.
             return new ProbeHit(p.id(), p.name(), Verdict.UNKNOWN, null, o.reason(),
-                    null, List.of(), null, t.mallWide(), url, now);
+                    null, List.of(), false, null, t.mallWide(), url, now);
         }
         Verdict v = ProbeJudge.judge(t, o.html(), q);
         String reason = Verdict.UNKNOWN.equals(v.status()) ? "parse-changed" : null;
         return new ProbeHit(p.id(), p.name(), v.status(), v.confidence(), reason,
-                v.matchCount(), v.sampleTitles(), v.evidence(), t.mallWide(), url, now);
+                v.matchCount(), v.sampleTitles(), v.samplePartial(), v.evidence(),
+                t.mallWide(), url, now);
     }
 
     private ProbeHit notProbed(OnlinePlatformView p, ProbeTarget t, String reason,
                                ProbeQuery q, String now) {
         return new ProbeHit(p.id(), p.name(), Verdict.NOT_PROBED, null, reason,
-                null, List.of(), null, t != null && t.mallWide(), searchUrlFor(t, p, q), now);
+                null, List.of(), false, null, t != null && t.mallWide(),
+                searchUrlFor(t, p, q), now);
     }
 
     /**

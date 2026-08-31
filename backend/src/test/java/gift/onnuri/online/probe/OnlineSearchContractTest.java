@@ -22,7 +22,7 @@ class OnlineSearchContractTest {
     @Test
     void ProbeHit_은_프론트가_소비하는_필드를_노출한다() {
         assertEquals(List.of("platformId", "name", "status", "confidence", "reason",
-                        "matchCount", "sampleTitles", "evidence", "mallWide",
+                        "matchCount", "sampleTitles", "samplePartial", "evidence", "mallWide",
                         "searchUrl", "checkedAt"),
                 components(ProbeHit.class));
     }
@@ -39,11 +39,11 @@ class OnlineSearchContractTest {
     void 직렬화_키가_계약과_일치한다() throws Exception {
         ObjectMapper om = new ObjectMapper();
         ProbeHit h = new ProbeHit("onnuri-hotdeal", "온누리핫딜", Verdict.LIKELY, "medium",
-                null, 20, List.of("[로보락] Qrevo Edge 2 로봇청소기"), null, false,
+                null, 20, List.of("[로보락] Qrevo Edge 2 로봇청소기"), false, null, false,
                 "https://onnurideal.com/search?q=x", "2026-08-31 16:00");
         Map<?, ?> back = om.readValue(om.writeValueAsString(h), Map.class);
         assertEquals(List.of("platformId", "name", "status", "confidence", "reason",
-                        "matchCount", "sampleTitles", "evidence", "mallWide",
+                        "matchCount", "sampleTitles", "samplePartial", "evidence", "mallWide",
                         "searchUrl", "checkedAt"),
                 back.keySet().stream().map(Object::toString).toList());
 
@@ -57,7 +57,7 @@ class OnlineSearchContractTest {
     // ── 집계 규칙 ────────────────────────────────────────────────────────
 
     private static ProbeHit hit(String id, String status, boolean mallWide) {
-        return new ProbeHit(id, id, status, null, null, null, List.of(), null,
+        return new ProbeHit(id, id, status, null, null, null, List.of(), false, null,
                 mallWide, "https://x/" + id, "now");
     }
 

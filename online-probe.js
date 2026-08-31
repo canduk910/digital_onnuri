@@ -97,10 +97,14 @@
     function row(h) {
       var L = LABEL[h.status] || LABEL.unknown;
       var why = h.reason ? ' <span class="pb-reason">(' + esc(REASON[h.reason] || h.reason) + ')</span>' : "";
+      // 부분 일치는 반드시 말한다. "다이슨 청소기"를 찾았는데 '청소기'만 맞는 이름이
+      // 근거로 나오면 이용자는 "그 몰에 다이슨이 있다"로 읽는다(2026-08-31 실측).
       var samples = (h.sampleTitles || []).length
         ? '<div class="pb-samples">' + h.sampleTitles.map(function (t) {
             return '<span>' + esc(t) + '</span>'; }).join("")
-          + '<em>이름이 비슷한 다른 상품일 수 있습니다 — 몰에서 확인하세요.</em></div>'
+          + '<em>' + (h.samplePartial
+              ? '검색어의 일부 낱말만 맞는 결과입니다 — 찾는 상품이 아닐 수 있습니다.'
+              : '이름이 비슷한 다른 상품일 수 있습니다 — 몰에서 확인하세요.') + '</em></div>'
         : "";
       var wide = h.mallWide
         ? ' <span class="pb-wide" title="기획전 딥링크라 온누리 전용관 밖 상품이 섞입니다">온누리 범위 밖 포함</span>'

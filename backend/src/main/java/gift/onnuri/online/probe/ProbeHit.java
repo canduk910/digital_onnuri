@@ -17,6 +17,8 @@ public record ProbeHit(
                                   // | disabled | not-a-probe-target | null
         Integer matchCount,
         List<String> sampleTitles,
+        boolean samplePartial,    // true = 샘플이 검색어의 일부 낱말만 담고 있다
+                                  //   ("다이슨 청소기" → '청소기'만 맞는 이름들). 화면이 그렇게 말한다.
         String evidence,          // none 판정의 근거 문구 원문
         boolean mallWide,         // true = 온누리 결제 범위 밖 상품이 섞인다(기획전 딥링크)
         String searchUrl,

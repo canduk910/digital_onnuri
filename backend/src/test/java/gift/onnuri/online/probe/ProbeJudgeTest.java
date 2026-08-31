@@ -70,6 +70,39 @@ class ProbeJudgeTest {
         }
     }
 
+    @Test
+    void 검색어_낱말을_더_많이_담은_상품명이_앞에_온다() {
+        // "다이슨 청소기" 로 공공몰을 조회하면 '청소기'만 맞는 이름이 먼저 걸린다.
+        // 앞에서 3개를 자르면 질의 전체를 담은 이름이 있어도 잘려 나간다.
+        ProbeTarget t = ProbeTargets.byId("onnuri-hotdeal").orElseThrow();
+        List<String> names = ProbeJudge.extractTitles(
+                t, fixture("onnuri-hotdeal-hit.html"), ProbeQuery.of("로보락 로봇청소기"), 3);
+        assertFalse(names.isEmpty());
+        ProbeQuery q = ProbeQuery.of("로보락 로봇청소기");
+        int prev = Integer.MAX_VALUE;
+        for (String n : names) {
+            int hit = (int) q.countTokens().stream().filter(n::contains).count();
+            assertTrue(hit <= prev, "낱말을 덜 담은 이름이 앞에 왔다: " + names);
+            prev = hit;
+        }
+    }
+
+    @Test
+    void 검색어_일부만_맞는_샘플은_그렇다고_표시한다() {
+        // 2026-08-31 라이브: "다이슨 청소기" → 온누리공공몰 20건이 **전부 '청소기'만** 맞고
+        // 다이슨은 하나도 없었다. 그대로 두면 "공공몰에 다이슨이 있다"로 읽힌다.
+        ProbeQuery q = ProbeQuery.of("다이슨 청소기");
+        assertTrue(ProbeJudge.samplesPartial(
+                        List.of("진공 청소기 20L 대용량 상업용청소기", "스틱 무선청소기 필터청소기"), q),
+                "일부만 맞는데 표시하지 않았다");
+        assertFalse(ProbeJudge.samplesPartial(
+                        List.of("진공 청소기 20L", "[다이슨] 클린앤워시 하이진 물청소기"), q),
+                "전부 맞는 이름이 하나라도 있으면 부분 일치가 아니다");
+        // 낱말이 하나뿐인 질의에는 '일부'라는 개념이 없다.
+        assertFalse(ProbeJudge.samplesPartial(List.of("포기김치 3kg"), ProbeQuery.of("김치")));
+        assertFalse(ProbeJudge.samplesPartial(List.of(), q), "샘플이 없으면 표시할 것도 없다");
+    }
+
     // ── 실측 응답 전량 대조 ───────────────────────────────────────────────
 
     @Test

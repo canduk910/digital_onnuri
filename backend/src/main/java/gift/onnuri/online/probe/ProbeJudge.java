@@ -97,16 +97,38 @@ public final class ProbeJudge {
      */
     public static List<String> extractTitles(ProbeTarget t, String html, ProbeQuery q, int max) {
         if (t.titlePattern() == null || html == null) return List.of();
-        List<String> out = new ArrayList<>();
+        // 후보를 먼저 다 모은다. 앞에서 max 개를 자르면 "청소기"만 맞는 이름이 먼저 걸려
+        // "다이슨 청소기"를 통째로 담은 이름이 잘려 나간다(2026-08-31 라이브에서 그랬다).
+        List<String> cand = new ArrayList<>();
         Matcher m = t.titlePattern().matcher(html);
-        while (m.find() && out.size() < max) {
-            String name = (m.groupCount() >= 1 ? m.group(1) : m.group());
-            name = toText(name);
+        while (m.find() && cand.size() < 200) {
+            String name = toText(m.groupCount() >= 1 ? m.group(1) : m.group());
             if (name.length() < 4 || name.length() > 80) continue;
-            boolean hasToken = q.countTokens().stream().anyMatch(name::contains);
-            if (hasToken && !out.contains(name)) out.add(name);
+            if (matchedTokens(name, q) > 0 && !cand.contains(name)) cand.add(name);
         }
-        return List.copyOf(out);
+        // 질의 낱말을 많이 담은 것부터. 같으면 관찰 순서를 지킨다(몰의 정렬을 뒤집지 않는다).
+        cand.sort((a, b) -> Integer.compare(matchedTokens(b, q), matchedTokens(a, q)));
+        return List.copyOf(cand.subList(0, Math.min(max, cand.size())));
+    }
+
+    private static int matchedTokens(String name, ProbeQuery q) {
+        return (int) q.countTokens().stream().filter(name::contains).count();
+    }
+
+    /**
+     * 샘플이 검색어의 **일부 낱말만** 담고 있는가.
+     *
+     * "다이슨 청소기"로 온누리공공몰을 조회하면 20건이 나오는데 **전부 '청소기'만 맞고
+     * 다이슨은 하나도 없다**(2026-08-31 실측). 그대로 두면 화면은 "관련 상품이 검색됨"과
+     * 함께 다이슨이 아닌 이름을 근거로 내밀고, 이용자는 "공공몰에 다이슨이 있다"로 읽는다.
+     *
+     * 판정(status)은 낮추지 않는다 — 샘플은 판정 경로 밖이라는 원칙을 지킨다.
+     * 대신 화면이 "검색어 일부만 맞는 결과"라고 말할 수 있게 사실만 넘긴다.
+     */
+    static boolean samplesPartial(List<String> samples, ProbeQuery q) {
+        if (samples.isEmpty() || q.countTokens().size() < 2) return false;
+        int all = q.countTokens().size();
+        return samples.stream().noneMatch(n -> matchedTokens(n, q) == all);
     }
 
     public static Verdict judge(ProbeTarget t, String html, ProbeQuery q) {
@@ -142,9 +164,9 @@ public final class ProbeJudge {
         if (hits == 0 && !t.echoesQuery()) return Verdict.none(Verdict.MEDIUM, null, 0);
 
         // 상품명이 뽑혔으면 그게 카운트보다 강한 근거다.
-        if (!samples.isEmpty()) return Verdict.likely(Verdict.MEDIUM, hits, samples);
+        if (!samples.isEmpty()) return Verdict.likely(Verdict.MEDIUM, hits, samples, samplesPartial(samples, q));
 
-        if (hits >= t.likelyThreshold()) return Verdict.likely(Verdict.LOW, hits, List.of());
+        if (hits >= t.likelyThreshold()) return Verdict.likely(Verdict.LOW, hits, List.of(), false);
 
         // 1 ~ 임계 미만 = 에코일 가능성이 높은 구간. "없음"으로도 "있음"으로도 접지 않는다.
         return Verdict.unclear(hits);

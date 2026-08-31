@@ -10,7 +10,8 @@ import java.util.List;
  * 2026-08-31 실측에서 "로보락 큐레보" 질의에 "로보락 호환 리필 물걸레"가 걸렸다.
  */
 public record Verdict(String status, String confidence, Integer matchCount,
-                      List<String> sampleTitles, String evidence) {
+                      List<String> sampleTitles, String evidence,
+                      boolean samplePartial) {
 
     public static final String NONE       = "none";        // 그 몰이 결과 없음을 명시
     public static final String LIKELY     = "likely";      // 관련 상품이 검색됨(단정 아님)
@@ -21,15 +22,17 @@ public record Verdict(String status, String confidence, Integer matchCount,
     public static final String HIGH = "high", MEDIUM = "medium", LOW = "low";
 
     public static Verdict none(String confidence, String evidence, int matchCount) {
-        return new Verdict(NONE, confidence, matchCount, List.of(), evidence);
+        return new Verdict(NONE, confidence, matchCount, List.of(), evidence, false);
     }
-    public static Verdict likely(String confidence, int matchCount, List<String> samples) {
-        return new Verdict(LIKELY, confidence, matchCount, samples, null);
+    /** samplePartial = 샘플이 검색어의 일부 낱말만 담고 있다(ProbeJudge.samplesPartial). */
+    public static Verdict likely(String confidence, int matchCount, List<String> samples,
+                                 boolean samplePartial) {
+        return new Verdict(LIKELY, confidence, matchCount, samples, null, samplePartial);
     }
     public static Verdict unclear(int matchCount) {
-        return new Verdict(UNCLEAR, null, matchCount, List.of(), null);
+        return new Verdict(UNCLEAR, null, matchCount, List.of(), null, false);
     }
     public static Verdict unknown() {
-        return new Verdict(UNKNOWN, null, null, List.of(), null);
+        return new Verdict(UNKNOWN, null, null, List.of(), null, false);
     }
 }
