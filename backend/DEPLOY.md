@@ -125,7 +125,8 @@ python3 _workspace/dev_scripts/build_rag_corpus.py
 ## 야간 배치 (00:30) — ADR-14 (2026-08-12)
 
 매일 00:30(서버 로컬시각) 가맹점·온라인 데이터를 자동 갱신한다. `tools/nightly_update.py`가
-단계 A(가맹점 stage-swap 무중단)·B(온라인 upsert)·C(RAG)를 fail-open으로 실행한다.
+단계 A(가맹점 stage-swap 무중단)·B(온라인 upsert)·C(RAG)·D(채록 탐지)·E(조회 카나리아)를
+fail-open으로 실행한다. 배치 전체 실패로 치는 것은 **A 단계 실패뿐**이다.
 **A 실패만 배치 실패(exit≠0)**, B·C 실패는 로그만 남기고 기존 데이터를 유지한다.
 
 > "기준" 스탬프(`meta.collected_on`)가 소스별로 다른 것은 **의도된 동작**이다 — API는 배치 수집일(최신),
@@ -245,6 +246,60 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 
 반영할 때는 `data/online_catalog.json`을 고치고 `_workspace/15_online_catalog_report.md`에 근거를 남긴다.
 **확인하지 못한 몰의 `surveyed_on`은 올리지 않는다** — 화면 스탬프가 그 날짜를 근거로 계산된다.
+
+### 단계 E — 실시간 조회 판정 카나리아 (2026-08-31, ADR-17)
+
+실시간 조회는 세 갈래로 **조용히** 깨진다. 없음-문구가 바뀌면 없는 것을 `likely`로,
+문구 오탐이 넓어지면 있는 것을 `none`으로(가장 위험), `titlePattern`이 낡으면 근거 없이
+카운트만으로 `likely`가 된다. 어느 쪽도 에러를 내지 않는다.
+
+**배치는 파서를 갖지 않는다.** 앱의 셀프테스트를 하루 한 번 부르고 결과만 남긴다 —
+판정은 이용자가 받는 것과 정확히 같은 경로가 한다. 요청량은 몰당 2질의 × 6곳 = 하루 12건.
+
+`run.sh`에 두 줄을 더한다(`APP_ADMIN_KEY`는 제보 관리자 페이지와 같은 값이다):
+
+```bash
+export APP_BASE_URL=http://localhost:8080        # compose 내부 주소(Caddy를 거치지 않는다)
+export APP_ADMIN_KEY=$(grep -E '^APP_ADMIN_KEY=' ~/onnuri_batch/repo/backend/deploy/.env | cut -d= -f2-)
+```
+
+키가 비면 **스킵**한다(실패가 아니다 — 로그에 `E 스킵: APP_ADMIN_KEY 없음`). 앱이 죽어 있거나
+403이어도 로그만 남기고 배치는 계속된다.
+
+리포트는 `SURVEY_OUT_DIR`에 `probe-canary-YYYY-MM-DD.json`으로 쌓인다(단계 D와 같은 위치).
+어제 리포트가 있으면 응답 길이를 비교해 ±50% 넘는 변화를 함께 알린다 —
+판정이 아직 맞더라도 몰 개편의 조기 신호다.
+
+수동 실행:
+
+```bash
+cd ~/onnuri_batch/repo
+python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-rag --skip-survey   # E만
+
+# 앱을 거치지 않고 직접 보고 싶을 때(30초쯤 걸린다 — 가장 느린 몰이 8초다)
+curl -s -m 120 -H "X-Admin-Key: $APP_ADMIN_KEY" \
+  http://localhost:8080/api/online/search/selftest | python3 -m json.tool
+```
+
+로그를 읽는 법:
+
+| 표시 | 뜻 | 할 일 |
+|---|---|---|
+| `✗ … [absent] 기대=none 실제=likely` | 없음-문구가 바뀌었다 | `ProbeTargets`의 해당 몰 마커 재실측 |
+| `✗ … [present] 기대=likely 실제=none` | **문구 오탐이 넓어졌다(가장 위험)** — 있는 걸 없다고 말하는 중 | 즉시 해당 몰 마커 점검 |
+| `✗ … 상품명 샘플이 없다` | `titlePattern`이 낡았다 | 검색 결과 HTML을 받아 마크업 재확인 |
+| `· … echoesQuery 선언과 실측이 다르다` | 토큰 0 판정의 전제가 흔들린다 | 선언값 재검토 |
+| `· … 응답 길이 A→B (±%)` | 몰이 개편됐을 수 있다 | 판정이 아직 맞아도 한 번 열어 본다 |
+| `! robots … 전면 차단 X → Y` | robots.txt가 바뀌었다 | 차단으로 바뀌었으면 **즉시 대상에서 뺀다**. 풀렸으면 대상 확대 검토 |
+
+규칙을 고친 뒤에는 실제 6곳을 두드려 확인한다(평소 CI에서는 돌지 않는다):
+
+```bash
+cd backend && PROBE_LIVE=1 ./gradlew test --tests '*SelfTestLiveTest' --rerun -i
+```
+
+**실패해도 배치가 조회 기능을 끄지 않는다.** 자동 비활성화는 조용한 축소이고,
+ADR-16이 채록 자동 반영을 기각한 논리와 같다 — 끌지 말지는 사람이 정한다.
 
 ### crontab 등록 (서버 TZ 먼저 확인)
 

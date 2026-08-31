@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """야간 배치(서버 cron 00:30) — 가맹점·온라인 플랫폼 데이터 자동 갱신.
 
-네 단계가 서로 독립적으로 fail-open 한다(ADR-14, D는 ADR-16):
+다섯 단계가 서로 독립적으로 fail-open 한다(ADR-14, D는 ADR-16, E는 ADR-17):
   A 가맹점  — 공식 API 전수 재수집 → stage 테이블 적재 → ±20% 가드 → 무중단 stage-swap
   B 온라인  — 공식 e-commerce API 순회 → upsert(post_no/이름 매칭, 큐레이션 필드 보존)
   C RAG     — OPENAI_API_KEY 있을 때만 코퍼스 재빌드
   D 채록    — 온라인 취급품목·브랜드 변화 **탐지만**(하루 3~4곳 순환, 자동 반영 없음)
+  E 카나리아 — 실시간 조회 판정 규칙이 아직 맞는지 앱에 물어보고 리포트만(자동 비활성화 없음)
 
 배치 전체 실패(exit≠0)로 치는 것은 **A 단계 실패뿐**이다. B·C 실패는 로그만 남기고 기존 데이터를 유지한다.
 
@@ -41,6 +42,24 @@ import load_merchants as lm                       # COLS·FILES·rows_from 재�
 
 DSN = os.environ.get("DB_DSN",
     "host=localhost port=5432 dbname=onnuri user=onnuri password=onnuri")
+
+# 단계 E — 실시간 조회 카나리아(ADR-17)
+APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8080")
+APP_ADMIN_KEY = os.environ.get("APP_ADMIN_KEY", "")
+CANARY_TIMEOUT = 120            # 가장 느린 몰이 8초 × 12건이라 넉넉히 잡는다
+BODY_DELTA_ALERT = 0.5          # 응답 길이가 ±50% 넘게 변하면 개편 신호로 본다
+
+# robots.txt 재조회 대상 8곳 — 2026-08-31 실현성 조사에서 정적 HTTP 로 결과를 얻은 전부다.
+# 조회 대상 6곳 + 그때 `Disallow: /` 라 **제외한** 2곳. 제외한 곳도 계속 본다 —
+# 허용으로 바뀌면 커버리지를 넓힐 수 있고, 그 사실을 아무도 다시 확인하지 않으면 영영 모른다.
+#
+# 도메인은 손으로 쓰지 않고 data/online_platforms.json 에서 뽑는다. 처음엔 상수로 적었다가
+# 2026-08-31 검증에서 굿데이를 onnurigoodday.com(실제는 onnurigood.com)으로 잘못 적었고,
+# **그 엉뚱한 도메인이 마침 Disallow: / 라 기대와 맞아떨어져 통과까지 했다.**
+# 감시 대상이 조용히 다른 사이트가 되는 것을 막으려면 주소의 출처가 하나여야 한다.
+ROBOTS_BLOCKED_AT_SURVEY = ("onnuri-goodday", "inthemarket-onnuri")   # 2026-08-31 조사 시점 전면 차단
+ROBOTS_WATCH_IDS = ("onnuri-hotdeal", "onnuri-chance", "onnuri-sijang", "onnuri-market",
+                    "onnuri-gonggong-mall", "epost-mall") + ROBOTS_BLOCKED_AT_SURVEY
 
 REGIONS = ["서울", "인천", "경기", "부산"]
 GUARD_TOLERANCE = 0.20          # 지역별 ±20%
@@ -340,12 +359,135 @@ def stage_d_survey(out_dir):
     log(f"D 판정: OK — 소요 {time.time()-t0:.1f}s (데이터 자동 반영 없음, 리포트만)")
 
 
+# ------------------------------------------------------------- 단계 E: 카나리아
+def _prev_canary(out_dir, today_name):
+    """어제까지의 리포트 중 가장 최근 것. 응답 길이 비교의 기준이 된다."""
+    if not out_dir:
+        return None
+    d = Path(out_dir)
+    files = sorted(f for f in d.glob("probe-canary-*.json") if f.name != today_name)
+    if not files:
+        return None
+    try:
+        return json.loads(files[-1].read_text(encoding="utf-8"))
+    except Exception:                              # noqa: BLE001
+        return None
+
+
+def _robots_targets():
+    """감시 대상 id → robots.txt 주소. 주소의 출처는 데이터 한 곳뿐이다."""
+    src = ROOT / "data" / "online_platforms.json"
+    try:
+        items = {i["id"]: i for i in json.loads(src.read_text(encoding="utf-8"))["items"]}
+    except Exception as e:                         # noqa: BLE001
+        log(f"  · robots 대상 로드 실패: {e}")
+        return {}
+    out = {}
+    for pid in ROBOTS_WATCH_IDS:
+        it = items.get(pid)
+        if not it:
+            log(f"  ! robots {pid}: data/online_platforms.json 에 없다 — id 확인 필요")
+            continue
+        base = it.get("search_url_template") or it.get("url") or ""
+        m = re.match(r"(https?://[^/]+)", base)
+        if not m:
+            log(f"  ! robots {pid}: 주소를 읽을 수 없다 ({base!r})")
+            continue
+        out[pid] = m.group(1) + "/robots.txt"
+    return out
+
+
+def _robots_scan():
+    """robots.txt 8곳 재조회. 전면 차단 여부만 본다 — 세부 경로 해석은 사람이 한다."""
+    out = {}
+    for pid, url in _robots_targets().items():
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                body = r.read(20000).decode("utf-8", "replace")
+            # `Disallow: /` 한 줄(뒤에 경로가 더 없는 것)이 전면 차단이다.
+            blocked = any(re.fullmatch(r"disallow:\s*/\s*", ln.strip(), re.I)
+                          for ln in body.splitlines())
+            out[pid] = {"status": r.status, "blocked_all": blocked, "bytes": len(body)}
+        except urllib.error.HTTPError as e:
+            # 404 는 금지 없음이다(온누리시장이 그렇다). 오류로 취급하지 않는다.
+            out[pid] = {"status": e.code, "blocked_all": False, "bytes": 0}
+        except Exception as e:                     # noqa: BLE001
+            out[pid] = {"status": None, "error": str(e)[:120]}
+    return out
+
+
+def stage_e_canary(out_dir):
+    """실시간 조회(ADR-17)의 판정 규칙이 아직 맞는지 앱에 물어본다.
+
+    **자동으로 아무것도 끄지 않는다.** 규칙이 깨졌다는 판단은 사람이 하고, 배치는
+    깨졌다는 사실만 남긴다 — 조용한 축소는 ADR-16 이 채록 자동 반영을 기각한 논리와 같다.
+    배치는 파서를 갖지 않는다. 판정은 앱의 실제 조회 경로가 그대로 한다.
+    """
+    log("=== 단계 E: 실시간 조회 판정 카나리아 ===")
+    if not APP_ADMIN_KEY:
+        log("E 스킵: APP_ADMIN_KEY 없음(.env 에 설정하면 켜진다).")
+        return
+    t0 = time.time()
+    url = APP_BASE_URL.rstrip("/") + "/api/online/search/selftest"
+    try:
+        req = urllib.request.Request(url, headers={"X-Admin-Key": APP_ADMIN_KEY, "User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=CANARY_TIMEOUT) as r:
+            rep = json.loads(r.read().decode("utf-8"))
+    except Exception as e:                         # noqa: BLE001
+        log(f"E 실패(로그만): 셀프테스트 호출 실패 {e}. 배치 실패 아님.")
+        return
+
+    if not rep.get("probeEnabled"):
+        # 꺼져 있으면 "이상 없음"이 아니라 "확인하지 않았다"다.
+        log("E 판정: 확인 안 함 — 실시간 조회 킬 스위치가 꺼져 있다.")
+        return
+
+    for c in rep.get("cases", []):
+        if not c.get("ok"):
+            log(f"  ✗ {c['platformId']} [{c['kind']}] 기대={c['expected'] or '(없음)'} "
+                f"실제={c['actual']} 샘플={c['sampleCount']} — {c.get('note') or c.get('reason')}")
+        elif c.get("note"):
+            log(f"  · {c['platformId']} [{c['kind']}] {c['note']}")
+
+    # 응답 길이 급변은 몰 개편의 조기 신호다. 판정이 아직 맞더라도 알린다.
+    today_name = f"probe-canary-{datetime.now().strftime('%Y-%m-%d')}.json"
+    prev = _prev_canary(out_dir, today_name)
+    if prev:
+        before = {(c["platformId"], c["kind"]): c.get("bodyLength", 0)
+                  for c in prev.get("cases", [])}
+        for c in rep.get("cases", []):
+            b = before.get((c["platformId"], c["kind"]))
+            now_len = c.get("bodyLength", 0)
+            if b and now_len and abs(now_len - b) / b > BODY_DELTA_ALERT:
+                log(f"  · {c['platformId']} [{c['kind']}] 응답 길이 {b}→{now_len} "
+                    f"({(now_len-b)/b*100:+.0f}%) — 개편 여부 확인")
+
+    rep["robots"] = _robots_scan()
+    for pid, r in rep["robots"].items():
+        was_blocked = pid in ROBOTS_BLOCKED_AT_SURVEY
+        if r.get("error"):
+            log(f"  · robots {pid}: 조회 실패 {r['error']}")
+        elif r.get("blocked_all") != was_blocked:
+            log(f"  ! robots {pid}: 전면 차단 {was_blocked} → {r['blocked_all']} — 조회 대상 재검토")
+
+    if out_dir:
+        d = Path(out_dir)
+        d.mkdir(parents=True, exist_ok=True)
+        (d / today_name).write_text(json.dumps(rep, ensure_ascii=False, indent=1), encoding="utf-8")
+        log(f"E 리포트: {d / today_name}")
+    log(f"E 판정: {'OK' if rep.get('failed', 0) == 0 else 'FAIL ' + str(rep['failed']) + '건'} "
+        f"— 통과 {rep.get('passed')} / 기대치없음 {rep.get('skipped')} "
+        f"/ 소요 {time.time()-t0:.1f}s (자동 반영·비활성화 없음)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-merchants", action="store_true")
     ap.add_argument("--skip-online", action="store_true")
     ap.add_argument("--skip-rag", action="store_true")
     ap.add_argument("--skip-survey", action="store_true")
+    ap.add_argument("--skip-canary", action="store_true")
     ap.add_argument("--survey-out", default=os.environ.get("SURVEY_OUT_DIR"),
                     help="변화 탐지 리포트를 남길 디렉터리(미지정 시 로그로만)")
     ap.add_argument("--no-collect", action="store_true",
@@ -387,6 +529,14 @@ def main():
             stage_d_survey(args.survey_out)
         except Exception as e:                     # noqa: BLE001 — D 는 배치를 죽이지 않는다
             log(f"D 실패(로그만): {e}. 배치 실패 아님.")
+
+    if args.skip_canary:
+        log("단계 E 스킵(--skip-canary)")
+    else:
+        try:
+            stage_e_canary(args.survey_out)
+        except Exception as e:                     # noqa: BLE001 — E 도 배치를 죽이지 않는다
+            log(f"E 실패(로그만): {e}. 배치 실패 아님.")
 
     log(f"야간 배치 종료 — 총 소요 {time.time()-t0:.1f}s, "
         f"판정 {'FAIL(가맹점)' if merchant_failed else 'OK'}")

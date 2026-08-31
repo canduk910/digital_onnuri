@@ -147,6 +147,25 @@
 
 → 그래서 상품명 추출을 **판정 경로 밖에** 둔다. 깨져도 "근거 없는 `likely`"로 품질만 떨어지고 오답이 되지 않는다. 자세한 것은 ADR-17.
 
+### 5-1. 몰별 상품명 정규식 (5단계에서 실측·배선, 2026-08-31)
+
+1단계에서 `ProbeTarget.titlePattern` 을 **선언만 하고 6곳 모두 `null` 로 둔 채** 넘어갔다. 그래서 화면에 카운트만 남고 근거가 하나도 없었다 — 설계의 절반이 비어 있었던 셈이다(공공몰 `timeoutMs` 를 3단계에서 뒤늦게 배선한 것과 같은 유형). 5단계 렌더 검증에서 샘플이 0건인 것을 보고 발견했다.
+
+6곳 검색 결과 HTML을 "김치"로 다시 받아 마크업을 확인했다.
+
+| 몰 | 상품명 마크업 | 매치 / 질의어 포함 |
+|---|---|---|
+| onnuri-hotdeal | `<p class="… line-clamp-2 … text-card-foreground">` | 20 / 20 |
+| onnuri-chance | `<li data-pcode=… data-pname="상품명">` | 19 / 19 |
+| onnuri-sijang | `<p class="text"><strong></strong>상품명</p>` | 40 / 28 |
+| onnuri-market | `<a href="…item.php?it_id=…">상품명</a>` | 21 / 21 |
+| onnuri-gonggong-mall | `<h4 class="nl-name"><b>상품명</b>` | 20 / 20 |
+| epost-mall | `<div class="goods_text"><p class="tit">상품명</p>` | 17 / 11 |
+
+`onnuri-sijang`·`epost-mall` 에서 두 숫자가 벌어지는 것은 추천·연관 상품이 함께 실리기 때문이고(우체국은 `MALL_WIDE` 라 더 심하다), `ProbeJudge.extractTitles` 가 **질의 토큰을 포함하는 것만** 남겨 걸러낸다. `onnuri-chance` 의 `data-pname` 은 마크업 변화에 가장 둔감하다.
+
+회귀는 픽스처로 고정했다 — 히트 픽스처에서 질의어를 담은 이름이 나오고, **없음 픽스처에서는 하나도 나오지 않는다**(샘플이 나오면 판정이 `likely` 로 기울어 "없는데 있다"가 된다).
+
 ---
 
 ## 6. 커버리지 — 채택 6곳 기준
@@ -198,6 +217,33 @@
 | 홈으로 보내는 쇼핑몰 | 13 | SPA·URL 미확정 |
 
 `search_url_template` 은 `note`·`region_limited` 와 같은 **큐레이션 필드**다. 야간 배치(단계 B)의 UPDATE 는 갱신 컬럼을 명시적으로 나열하는 방식이라 이 컬럼을 건드리지 않는다 — 계획 단계에서 "빠뜨리면 다음 00:30 에 NULL 이 된다"고 우려했으나 실제로는 자동 보존된다. 다만 다음 사람이 UPDATE 에 컬럼을 더할 때 실수하지 않도록 주석을 남겼다.
+
+## 6-3. 카나리아 (6단계, 2026-08-31)
+
+`GET /api/online/search/selftest` — 몰당 2질의(`zzqqxyw12345` / `canaryPresentQuery`) = 12요청/일. 인증은 `X-Admin-Key` **헤더**다. 계획서는 `?key=` 였으나 배치의 명령줄은 cron 로그·프로세스 목록에 그대로 남아 키가 새어 나간다.
+
+첫 실행 결과 — 12건 전부 기대치 일치:
+
+| 몰 | absent 기대 → 실제 | present 기대 → 실제 | 샘플 | 응답 길이(absent/present) |
+|---|---|---|---|---|
+| onnuri-hotdeal | none → none | likely → likely | 3 | 118,453 / 323,087 |
+| onnuri-chance | (기대치 없음) → unclear | likely → likely | 3 | 108,130 / 260,614 |
+| onnuri-sijang | none → none | likely → likely | 3 | 49,909 / 142,458 |
+| onnuri-market | none → none | likely → likely | 3 | 83,319 / 172,268 |
+| onnuri-gonggong-mall | none → none | likely → likely | 3 | 313,737 / 343,758 |
+| epost-mall | none → none | likely → likely | 3 | 116,620 / 295,735 |
+
+`onnuri-chance` 에만 기대치를 세우지 않는다. 등급 C + 질의 에코형이라 **없다고 확정할 수단 자체가 없고**, 여기에 `none` 을 기대하면 카나리아가 매일 거짓 실패를 낸다(1단계에서 이것을 결함으로 오인했다가 "설계대로"로 정정한 그 지점이다).
+
+`present` 판정은 상태만으로 통과시키지 않고 **샘플 ≥1** 을 함께 요구한다. 상태만 보면 `titlePattern` 노후를 놓치고, 그때 화면에는 근거 없는 "검색됨"이 남는다.
+
+### robots.txt 재조회 (매일, 8곳)
+
+조회 대상 6곳 + 차단이라 제외한 2곳. 제외한 곳도 계속 본다 — 풀리면 커버리지를 넓힐 수 있고, 아무도 다시 확인하지 않으면 영영 모른다.
+
+2026-08-31 재조회: 8곳 전부 조사 시점과 동일(굿데이·인더마켓만 `Disallow: /`, 온누리시장은 404 = 금지 없음).
+
+⚠ **감시 도메인을 손으로 적었다가 사고가 날 뻔했다.** 배치 상수에 굿데이를 `onnurigoodday.com`(실제는 `onnurigood.com`)으로 잘못 적었는데, **그 엉뚱한 도메인이 마침 `Disallow: /` 라 기대치와 맞아떨어져 통과했다.** 감시 대상이 조용히 다른 사이트가 되는 것이다. 그래서 도메인은 상수로 두지 않고 `data/online_platforms.json` 의 `search_url_template`(없으면 `url`) 에서 뽑는다 — 주소의 출처는 하나여야 한다.
 
 ## 7. 재조사 방법
 
