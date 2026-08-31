@@ -256,11 +256,17 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 **배치는 파서를 갖지 않는다.** 앱의 셀프테스트를 하루 한 번 부르고 결과만 남긴다 —
 판정은 이용자가 받는 것과 정확히 같은 경로가 한다. 요청량은 몰당 2질의 × 6곳 = 하루 12건.
 
-`run.sh`에 두 줄을 더한다(`APP_ADMIN_KEY`는 제보 관리자 페이지와 같은 값이다):
+`run.sh`에 두 줄을 더한다(`APP_ADMIN_KEY`는 제보 관리자 페이지와 같은 값이고, `$ENV`는
+run.sh가 이미 위에서 정의한 서버 `.env` 경로다):
 
 ```bash
-export APP_BASE_URL=http://localhost:8080        # compose 내부 주소(Caddy를 거치지 않는다)
-export APP_ADMIN_KEY=$(grep -E '^APP_ADMIN_KEY=' ~/onnuri_batch/repo/backend/deploy/.env | cut -d= -f2-)
+# app 은 포트를 호스트에 노출하지 않는다(XFF 스푸핑 방지 — 위 "신뢰 프록시 1홉" 참조).
+# 그래서 localhost:8080 이 아니라 Caddy 를 거쳐 자기 도메인으로 부른다.
+# 하루 1회 12요청이라 TLS 왕복 비용은 무시할 만하다.
+export APP_BASE_URL=https://api.koscomlabor.cloud
+# `|| true` 가 필요하다 — run.sh 는 set -e 라 키가 없으면 grep 이 1 을 반환해
+# 배치 전체가 죽는다. 단계 E 는 fail-open 이어야 하므로 빈 값으로 넘긴다.
+export APP_ADMIN_KEY=$(grep ^APP_ADMIN_KEY "$ENV" | cut -d= -f2- || true)
 ```
 
 키가 비면 **스킵**한다(실패가 아니다 — 로그에 `E 스킵: APP_ADMIN_KEY 없음`). 앱이 죽어 있거나
@@ -276,9 +282,10 @@ export APP_ADMIN_KEY=$(grep -E '^APP_ADMIN_KEY=' ~/onnuri_batch/repo/backend/dep
 cd ~/onnuri_batch/repo
 python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-rag --skip-survey   # E만
 
-# 앱을 거치지 않고 직접 보고 싶을 때(30초쯤 걸린다 — 가장 느린 몰이 8초다)
-curl -s -m 120 -H "X-Admin-Key: $APP_ADMIN_KEY" \
-  http://localhost:8080/api/online/search/selftest | python3 -m json.tool
+# 배치를 거치지 않고 직접 보고 싶을 때(20~30초 걸린다 — 가장 느린 몰이 8초다)
+ENV=~/digital_onnuri/backend/deploy/.env
+curl -s -m 150 -H "X-Admin-Key: $(grep ^APP_ADMIN_KEY "$ENV" | cut -d= -f2-)" \
+  https://api.koscomlabor.cloud/api/online/search/selftest | python3 -m json.tool
 ```
 
 로그를 읽는 법:
@@ -291,6 +298,10 @@ curl -s -m 120 -H "X-Admin-Key: $APP_ADMIN_KEY" \
 | `· … echoesQuery 선언과 실측이 다르다` | 토큰 0 판정의 전제가 흔들린다 | 선언값 재검토 |
 | `· … 응답 길이 A→B (±%)` | 몰이 개편됐을 수 있다 | 판정이 아직 맞아도 한 번 열어 본다 |
 | `! robots … 전면 차단 X → Y` | robots.txt가 바뀌었다 | 차단으로 바뀌었으면 **즉시 대상에서 뺀다**. 풀렸으면 대상 확대 검토 |
+
+2026-09-01 서버 가동 확인 — cron 최소 환경에서 12건 전부 통과, 16초. 키를 비운 모의 실행에서
+배치가 죽지 않고 E만 스킵되는 것도 확인했다. 첫날은 비교할 어제 리포트가 없어 응답 길이
+경고가 나오지 않는다(정상).
 
 규칙을 고친 뒤에는 실제 6곳을 두드려 확인한다(평소 CI에서는 돌지 않는다):
 
