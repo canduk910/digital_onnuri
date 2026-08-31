@@ -69,8 +69,25 @@ class OnlineSearchServiceTest {
                 .search(ProbeQuery.of("로봇청소기"));
         ProbeHit h = r.items().get(0);
         assertEquals(Verdict.NOT_PROBED, h.status());
-        assertEquals("not-a-probe-target", h.reason());
+        // 사유를 뭉뚱그리지 않는다 — 화면이 "왜 확인하지 않았는지"를 말해야
+        // 이용자가 "없다"로 읽지 않는다(2026-09-01 사용자 요청).
+        assertEquals(ProbeTargets.EX_NO_FETCH, h.reason());
         assertEquals("https://onnurishop.co.kr", h.searchUrl());
+    }
+
+    @Test
+    void robots_로_막힌_몰은_그_사유를_말한다() {
+        // 되는데 안 하는 것과 못 하는 것은 다르다. 링크를 눌러 사람이 검색하는 것은
+        // robots 대상이 아니므로, 사유를 밝혀야 이용자가 링크를 눌러 볼 근거가 생긴다.
+        assertEquals(ProbeTargets.EX_ROBOTS, ProbeTargets.exclusionReason("onnuri-goodday"));
+        assertEquals(ProbeTargets.EX_ROBOTS, ProbeTargets.exclusionReason("inthemarket-onnuri"));
+        assertEquals(ProbeTargets.EX_RULES, ProbeTargets.exclusionReason("kkuk-ai-onnuri-mall"));
+        assertEquals(ProbeTargets.EX_NO_FETCH, ProbeTargets.exclusionReason("onnuri-5iljang"));
+        // 조회 대상 6곳에는 제외 사유가 붙을 일이 없다 — 붙으면 목록이 어긋난 것이다.
+        for (ProbeTarget t : ProbeTargets.ALL) {
+            assertEquals(ProbeTargets.EX_NO_FETCH, ProbeTargets.exclusionReason(t.platformId()),
+                    t.platformId() + " 가 제외 사전에 들어 있다 — 조회 대상과 겹친다");
+        }
     }
 
     @Test

@@ -87,7 +87,8 @@ public class OnlineSearchService {
         // 조회 대상이 아닌 몰은 그대로 목록에 담는다 — "확인하지 않았다"와 "없다"는 다르다.
         for (OnlinePlatformView p : platforms) {
             if (ProbeTargets.byId(p.id()).isEmpty()) {
-                items.add(notProbed(p, null, "not-a-probe-target", q, now));
+                // 사유를 구분해 보낸다 — 화면이 "왜 확인하지 않았는지"를 말할 수 있어야 한다.
+                items.add(notProbed(p, null, ProbeTargets.exclusionReason(p.id()), q, now));
             }
         }
         if (!enabled) {

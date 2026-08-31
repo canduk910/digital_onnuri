@@ -117,6 +117,30 @@ public final class ProbeTargets {
                     false, 2, T_EPOST, 0, "김치", 0, MEASURED, ROBOTS)
     );
 
+    /**
+     * 조회 대상이 **아닌** 몰에 대해 "왜 확인하지 않았는지"를 이용자에게 말해 주기 위한 사전.
+     *
+     * "확인하지 않았습니다"만 던지면 이용자는 결국 그 이유를 우리 사정으로 읽거나,
+     * 나쁘게는 "없다"로 읽는다. 사유를 대면 링크를 눌러 볼 근거가 된다.
+     * 근거는 2026-08-31 22곳 전수 실현성 조사(_workspace/19_online_probe.md 1절).
+     */
+    public static final String EX_ROBOTS   = "robots-blocked";     // 몰이 자동 조회를 막아 뒀다
+    public static final String EX_RULES    = "rules-unverified";   // 검색은 되나 판정 규칙 미실측
+    public static final String EX_NO_FETCH = "no-static-search";   // 정적 응답에 결과가 실리지 않는다
+
+    private static final java.util.Map<String, String> EXCLUSION = java.util.Map.of(
+            // 기술적으로는 되지만 robots.txt 가 `Disallow: /` 다. 되는 것과 해도 되는 것은 다르다.
+            "onnuri-goodday", EX_ROBOTS,
+            "inthemarket-onnuri", EX_ROBOTS,
+            // `?keyword=` 로 검색되는 것은 확인했으나("김치" 7회) 없음-문구를 실측하지 않았다.
+            // 링크는 주고 판정은 하지 않는다 — 근거 없는 판정보다 링크가 낫다.
+            "kkuk-ai-onnuri-mall", EX_RULES);
+
+    /** 조회 대상이 아닌 이유. 조사에서 개별 사유를 특정하지 못한 곳은 정적 조회 불가로 본다. */
+    public static String exclusionReason(String platformId) {
+        return EXCLUSION.getOrDefault(platformId, EX_NO_FETCH);
+    }
+
     public static Optional<ProbeTarget> byId(String platformId) {
         return ALL.stream().filter(t -> t.platformId().equals(platformId)).findFirst();
     }

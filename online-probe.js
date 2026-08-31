@@ -39,7 +39,18 @@
   var REASON = {
     timeout: "응답 지연", "http-error": "응답 오류", busy: "잠시 후 다시",
     "rate-limited": "요청 한도", disabled: "기능 꺼짐",
-    "parse-changed": "페이지 구조가 바뀐 듯", "not-a-probe-target": "자동 확인 대상 아님"
+    "parse-changed": "페이지 구조가 바뀐 듯",
+    // 조회하지 않은 이유(ProbeTargets.exclusionReason). 사유를 대야 링크를 눌러 볼 근거가 된다.
+    "robots-blocked": "몰이 자동 조회를 막아 둠",
+    "rules-unverified": "확인 규칙 미실측",
+    "no-static-search": "자동 조회가 안 되는 구조",
+    "not-a-probe-target": "자동 확인 대상 아님"
+  };
+  /** 접힌 섹션 안에서 한 번 더 풀어 쓴다 — 배지만으로는 뜻이 안 통한다. */
+  var REASON_LONG = {
+    "robots-blocked": "이 몰은 robots.txt로 자동 조회를 막아 뒀습니다. 링크로 들어가 직접 검색하는 것은 정상 이용입니다.",
+    "rules-unverified": "검색은 되지만 결과를 판정할 규칙을 아직 세우지 못했습니다.",
+    "no-static-search": "검색 결과가 화면에서만 만들어져 자동으로 읽을 수 없습니다."
   };
 
   var current = null;   // 진행 중 요청(AbortController)
@@ -66,8 +77,8 @@
       + (empty
           ? '<span class="pb-why">지금 목록은 <b>어느 몰이 무엇을 파는지</b>까지만 알고 있어서 '
             + "'" + esc(q) + "' 같은 상품명은 걸리지 않습니다.</span>"
-          : '<span class="pb-why">\'' + esc(q) + '\' 상품이 실제로 있는지 몰에서 직접 확인해 볼 수 있습니다.</span>')
-      + '<button type="button" class="pb-run" id="probeRun">쇼핑몰에서 직접 찾아보기</button>'
+          : '<span class="pb-why">\'' + esc(q) + '\' 상품이 실제로 있는지 여러 몰을 동시에 조회해 확인할 수 있습니다.</span>')
+      + '<button type="button" class="pb-run" id="probeRun">실시간 병렬조회 실행</button>'
       + '</div>';
     var b = mount.querySelector("#probeRun");
     if (b) b.onclick = function () { onRun(); };
@@ -122,14 +133,33 @@
       + (skipped.length
           // 곳 수는 서버가 센 값을 쓴다. 여기서 다시 세면 계약이 바뀔 때 헤드라인과 조용히
           // 어긋난다(2026-08-27 normKind 와 같은 유형).
-          ? '<details class="pb-more"><summary>직접 확인할 수 있는 나머지 '
-            + (data.notProbedCount != null ? data.notProbedCount : skipped.length) + '곳</summary>'
+          ? '<details class="pb-more"><summary>확인하지 않은 나머지 '
+            + (data.notProbedCount != null ? data.notProbedCount : skipped.length)
+            + '곳 — 이유와 검색 링크</summary>'
+            + whyBlock(skipped)
             + '<ul class="pb-list">' + skipped.map(row).join("") + '</ul></details>'
           : "")
       + '<p class="pb-foot">확인 시각 ' + esc(data.checkedAt)
       + ' · 각 몰의 검색 결과를 그 자리에서 읽은 것입니다. '
       + '<b>검색된다고 해서 온누리상품권으로 결제된다는 뜻은 아닙니다</b> — 상품 상세와 결제 수단은 몰에서 확인하세요.</p>'
       + '</div>';
+  }
+
+  /** 확인하지 않은 곳들을 사유별로 묶어 설명한다. 곳 수는 넘겨받은 목록에서 센다. */
+  function whyBlock(skipped) {
+    var groups = {};
+    skipped.forEach(function (h) {
+      var r = h.reason || "not-a-probe-target";
+      (groups[r] = groups[r] || []).push(h.name);
+    });
+    var order = ["no-static-search", "robots-blocked", "rules-unverified"];
+    var keys = order.filter(function (k) { return groups[k]; })
+      .concat(Object.keys(groups).filter(function (k) { return order.indexOf(k) === -1; }));
+    if (!keys.length) return "";
+    return '<div class="pb-why-list">' + keys.map(function (k) {
+      return '<p><b>' + groups[k].length + '곳</b> · '
+        + esc(REASON_LONG[k] || REASON[k] || k) + '</p>';
+    }).join("") + '</div>';
   }
 
   /** 실패해도 쇼핑 22곳 링크는 준다 — 배너가 조용히 사라지는 경로를 만들지 않는다.
