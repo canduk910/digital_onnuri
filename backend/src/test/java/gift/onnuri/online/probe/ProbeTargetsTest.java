@@ -22,6 +22,10 @@ class ProbeTargetsTest {
                     + "robots.txt 를 확인하지 않은 몰을 대상에 넣을 수 없다");
             assertTrue(t.searchUrlTemplate().contains("{q}"), t.platformId() + " — {q} 자리 없음");
             assertNotNull(t.canaryPresentQuery(), t.platformId() + " 카나리아 질의 없음");
+            // 카나리아 질의가 최소 길이에 못 미치면 셀프테스트가 매번 400 을 받는다.
+            // 실제로 "쌀"(1자)로 두었다가 2026-08-31 라이브 확인에서 잡았다.
+            assertTrue(ProbeQuery.of(t.canaryPresentQuery()).searchable(),
+                    t.platformId() + " 카나리아 질의를 조회할 수 없다: " + t.canaryPresentQuery());
         }
     }
 

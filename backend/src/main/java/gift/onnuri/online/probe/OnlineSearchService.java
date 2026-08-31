@@ -189,11 +189,13 @@ public class OnlineSearchService {
         StringBuilder sb = new StringBuilder();
         sb.append("'").append(q.normalized()).append("' — ")
           .append(total).append("곳 중 ").append(probed).append("곳을 지금 확인했습니다. ");
+        // 조각을 연결어미로 잇지 않는다 — 어느 조각이 마지막이 될지 몰라
+        // "…없었으며." 처럼 문장이 끊긴다(2026-08-31 라이브에서 실제로 그랬다).
         List<String> parts = new ArrayList<>();
-        if (likely > 0) parts.add(likely + "곳에서 관련 상품이 검색됐고");
-        if (none > 0) parts.add(none + "곳은 검색 결과가 없었으며");
-        if (unclear + unknown > 0) parts.add((unclear + unknown) + "곳은 판정하지 못했습니다");
-        if (!parts.isEmpty()) sb.append(String.join(", ", parts)).append(". ");
+        if (likely > 0) parts.add(likely + "곳에서 관련 상품이 검색됐습니다.");
+        if (none > 0) parts.add(none + "곳은 검색 결과가 없었습니다.");
+        if (unclear + unknown > 0) parts.add((unclear + unknown) + "곳은 판정하지 못했습니다.");
+        if (!parts.isEmpty()) sb.append(String.join(" ", parts)).append(" ");
         if (notProbed > 0) {
             sb.append("나머지 ").append(notProbed).append("곳은 확인하지 않았습니다 — 없다는 뜻이 아닙니다.");
         }

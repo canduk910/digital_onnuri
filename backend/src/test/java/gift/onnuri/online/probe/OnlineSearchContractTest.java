@@ -91,6 +91,27 @@ class OnlineSearchContractTest {
     }
 
     @Test
+    void 안내문구의_모든_문장이_제대로_끝난다() {
+        // 2026-08-31 라이브에서 "2곳은 검색 결과가 없었으며." 로 끊겼다 —
+        // 연결어미로 이으면 어느 조각이 마지막이 될지 몰라 생기는 문제다.
+        for (var combo : List.of(
+                List.of(hit("a", Verdict.LIKELY, false), hit("b", Verdict.NONE, false)),
+                List.of(hit("a", Verdict.NONE, false)),
+                List.of(hit("a", Verdict.LIKELY, false)),
+                List.of(hit("a", Verdict.UNCLEAR, false), hit("b", Verdict.NONE, false)))) {
+            var r = OnlineSearchService.summarize(ProbeQuery.of("로봇청소기"), "now", 22, combo, false);
+            for (String sentence : r.notice().split("(?<=\\.)\\s+")) {
+                String x = sentence.trim();
+                if (x.isEmpty()) continue;
+                assertTrue(x.endsWith(".") || x.endsWith("니다"),
+                        "문장이 끊겼다: [" + x + "] 전체: " + r.notice());
+                assertFalse(x.endsWith("며.") || x.endsWith("고."),
+                        "연결어미로 끝났다: [" + x + "]");
+            }
+        }
+    }
+
+    @Test
     void 조회를_한_곳이_없으면_직접_검색을_안내한다() {
         var r = OnlineSearchService.summarize(ProbeQuery.of("로봇청소기"), "now", 22,
                 List.of(hit("a", Verdict.NOT_PROBED, false)), false);

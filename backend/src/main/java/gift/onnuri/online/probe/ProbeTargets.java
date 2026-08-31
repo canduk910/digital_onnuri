@@ -36,7 +36,7 @@ public final class ProbeTargets {
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of("\"{q}\" 검색 결과 검색 결과가 없습니다"),
                     List.of(),
-                    true, 5, null, 0, "쌀", 0, MEASURED, ROBOTS),
+                    true, 5, null, 0, "김치", 0, MEASURED, ROBOTS),
 
             // robots.txt: Disallow: /include/ 뿐
             // 없음 실측: 명시 문구 없음. 잡히는 것은 `원산지 데이터 없음`(상품 영역 밖 필터 UI)이라 채택 불가 → 등급 C
@@ -46,7 +46,7 @@ public final class ProbeTargets {
                     "https://onnurichance.com/?pn=product.search.list&search_word={q}",
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of(), List.of(),
-                    true, 5, null, 2, "쌀", 0, MEASURED, ROBOTS),
+                    true, 5, null, 2, "김치", 0, MEASURED, ROBOTS),
 
             // robots.txt: HTTP 404 (파일 없음) — 명시적 금지 없음
             // 없음 실측: `검색하신 ' zzqqxyw12345 '에 대한 검색결과가 없습니다`
@@ -56,7 +56,7 @@ public final class ProbeTargets {
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of("검색하신 '{q}'에 대한 검색결과가 없습니다"),
                     List.of(),
-                    true, 5, null, 0, "쌀", 0, MEASURED, ROBOTS),
+                    true, 5, null, 0, "김치", 0, MEASURED, ROBOTS),
 
             // robots.txt: User-agent: * / Allow: /
             // 없음 실측: ⚠ 검출되는 "없습니다"가 전부 이용약관 문구다 —
@@ -67,7 +67,7 @@ public final class ProbeTargets {
                     "https://nurimarket.co.kr/shop/search_product.php?sq={q}",
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of(), List.of(),
-                    false, 5, null, 0, "쌀", 0, MEASURED, ROBOTS),
+                    false, 5, null, 0, "김치", 0, MEASURED, ROBOTS),
 
             // robots.txt: 그누보드 계열 다수 Disallow 하나 /shop/search.php 는 목록에 없다
             // 없음 실측: `'zzqqxyw12345' 에 대한 0 개의 검색결과` — 건수를 명시해 가장 견고하다
@@ -78,7 +78,7 @@ public final class ProbeTargets {
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of("'{q}' 에 대한 0 개의 검색결과"),
                     List.of(),
-                    true, 5, null, 0, "쌀", 8000, MEASURED, ROBOTS),
+                    true, 5, null, 0, "김치", 8000, MEASURED, ROBOTS),
 
             // robots.txt: Disallow 는 /upload/, /*file*, /*File*, /*adm* — 검색 경로 허용
             // 기획전 딥링크 몰이라 검색이 호스트 몰 전체를 훑는다 → MALL_WIDE.
@@ -91,7 +91,7 @@ public final class ProbeTargets {
                     StandardCharsets.UTF_8, Scope.MALL_WIDE,
                     List.of(),
                     List.of("고객님께서 찾으시는 검색결과가 없습니다", "해당하는 상품이 없습니다"),
-                    false, 2, null, 0, "쌀", 0, MEASURED, ROBOTS)
+                    false, 2, null, 0, "김치", 0, MEASURED, ROBOTS)
     );
 
     public static Optional<ProbeTarget> byId(String platformId) {
