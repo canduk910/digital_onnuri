@@ -26,6 +26,29 @@ public class ChatConfig {
         return new RateLimiter(perMinute, perDay, Clock.system(ZoneId.of("Asia/Seoul")));
     }
 
+    /**
+     * 온라인 실시간 조회 — 이용자 IP 단위(ADR-17).
+     * 캐시가 전량 적중하면 아웃바운드가 없으므로 이 한도를 소비하지 않는다.
+     */
+    @Bean
+    public RateLimiter onlineProbeRateLimiter(
+            @Value("${app.online.probe.rate-per-minute:5}") int perMinute,
+            @Value("${app.online.probe.rate-per-day:100}") int perDay) {
+        return new RateLimiter(perMinute, perDay, Clock.system(ZoneId.of("Asia/Seoul")));
+    }
+
+    /**
+     * 같은 RateLimiter 를 몰 단위로 한 번 더 쓴다 — 키가 IP 가 아니라 platformId 다.
+     * 이용자가 몰려도 상대 사이트가 받는 부담은 여기서 잘린다(야간 배치가 "하루 3~4곳"으로
+     * 억제한 근거와 같은 취지, ADR-16).
+     */
+    @Bean
+    public RateLimiter onlineTargetRateLimiter(
+            @Value("${app.online.probe.per-target-per-minute:6}") int perMinute,
+            @Value("${app.online.probe.per-target-per-day:600}") int perDay) {
+        return new RateLimiter(perMinute, perDay, Clock.system(ZoneId.of("Asia/Seoul")));
+    }
+
     @Bean
     public RateLimiter chatRateLimiter(
             @Value("${app.chat.rate-per-minute:10}") int perMinute,

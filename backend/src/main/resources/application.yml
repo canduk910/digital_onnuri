@@ -38,6 +38,20 @@ app:
     api-key: ${OPENAI_API_KEY:}
     model: gpt-5.6-luna
     embed-model: text-embedding-3-small
+  online:
+    probe:                       # 온라인 실시간 조회 (ADR-17)
+      enabled: ${APP_ONLINE_PROBE_ENABLED:true}   # 킬 스위치 — 끄면 전 항목 not-probed/disabled
+      ttl-minutes: 60            # 같은 질의를 다시 밖으로 내보내지 않는 시간
+      cache-size: 500
+      timeout-ms: 4000           # 몰 1곳 요청 상한(connect 는 3s 고정)
+      budget-ms: 8500            # 전체 예산 — 초과분은 unknown/timeout
+                                 # (가장 느린 온누리공공몰 8초를 담는다. 나머지는 중앙값 0.6초)
+      max-concurrent: 12         # 2 vCPU / 4 GB 방어
+      max-bytes: 1000000         # 응답 본문 상한
+      per-target-per-minute: 6   # 몰 단위(상대 사이트 부담)
+      per-target-per-day: 600
+      rate-per-minute: 5         # 이용자 IP 단위
+      rate-per-day: 100
   chat:
     rate-per-minute: 10        # IP당 비용 통제(사용자 결정: rate limit만)
     rate-per-day: 200

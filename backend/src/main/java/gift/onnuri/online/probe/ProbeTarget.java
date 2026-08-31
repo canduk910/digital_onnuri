@@ -27,6 +27,7 @@ public record ProbeTarget(
         Pattern titlePattern,          // nullable — 상품명 샘플용. 판정 경로 아님
         int noiseFloor,                // 없는 질의에서도 관측된 히트(빼고 센다)
         String canaryPresentQuery,     // 그 몰에 확실히 있는 일반어 — 야간 자가점검용
+        int timeoutMs,                 // 0 이면 전역 기본값. 느린 몰만 개별 지정한다
         LocalDate measuredOn,
         LocalDate robotsCheckedOn
 ) {

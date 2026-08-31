@@ -88,7 +88,7 @@ class ProbeJudgeTest {
         // 온누리굿데이형 결함: "비스포크 로봇청소기 검색결과" 제목만으로 토큰이 1회씩 잡힌다.
         ProbeTarget t = new ProbeTarget("t", "http://x/?q={q}", StandardCharsets.UTF_8,
                 ProbeTarget.Scope.ONNURI_SCOPE, List.of(), List.of(),
-                true, 5, null, 0, "쌀", LocalDate.now(), LocalDate.now());
+                true, 5, null, 0, "쌀", 0, LocalDate.now(), LocalDate.now());
         String html = "<html><head><title>비스포크 로봇청소기 검색결과</title></head><body>"
                 + "<h2>비스포크 로봇청소기 검색결과</h2>"
                 + "<input type='text' value='비스포크 로봇청소기'>"
@@ -103,7 +103,7 @@ class ProbeJudgeTest {
         // <span>등록된</span> 상품이 없습니다 — 원본 HTML 문자열 매칭이면 놓친다.
         ProbeTarget t = new ProbeTarget("t", "http://x/?q={q}", StandardCharsets.UTF_8,
                 ProbeTarget.Scope.ONNURI_SCOPE, List.of(), List.of("등록된 상품이 없습니다"),
-                false, 5, null, 0, "쌀", LocalDate.now(), LocalDate.now());
+                false, 5, null, 0, "쌀", 0, LocalDate.now(), LocalDate.now());
         String html = "<html><body><div><span>등록된</span> 상품이 <b>없습니다</b></div>"
                 + "<p>" + "본문 ".repeat(200) + "</p></body></html>";
         assertEquals(Verdict.NONE, ProbeJudge.judge(t, html, ProbeQuery.of("무언가")).status());
