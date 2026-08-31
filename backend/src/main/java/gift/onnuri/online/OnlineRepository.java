@@ -19,7 +19,7 @@ public class OnlineRepository {
     public List<OnlinePlatformView> findAll() {
         return jdbc.query(
                 "SELECT id, post_no, kind, name, summary, note, url, region_limited, "
-                        + "source_url, collected_on, status FROM online_platform "
+                        + "source_url, collected_on, status, search_url_template FROM online_platform "
                         + "ORDER BY ord ASC NULLS LAST, name",
                 (rs, i) -> new OnlinePlatformView(
                         rs.getString("id"),
@@ -33,7 +33,8 @@ public class OnlineRepository {
                         rs.getString("source_url"),
                         rs.getObject("collected_on") == null ? null
                                 : rs.getObject("collected_on", java.time.LocalDate.class).toString(),
-                        rs.getString("status")));
+                        rs.getString("status"),
+                        rs.getString("search_url_template")));
     }
 
     /** "기준" 스탬프 원천: active 항목의 min(collected_on). active가 없으면 null. */

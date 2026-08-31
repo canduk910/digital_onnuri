@@ -153,11 +153,19 @@ public class OnlineSearchService {
     }
 
     /**
-     * 이용자가 직접 열 링크. 조회 대상이면 그 몰의 검색 URL, 아니면 홈으로 보낸다.
-     * 4단계에서 online_platform.search_url_template 이 생기면 나머지 몰도 검색 URL 이 된다.
+     * 이용자가 직접 열 링크. 조회 대상이면 코드의 규칙을, 아니면 데이터의
+     * search_url_template 을 쓴다. 둘 다 없으면 홈으로 보낸다.
+     *
+     * 확인하지 않은 몰에도 검색 링크를 주는 것이 이 기능 정직함의 절반이다 —
+     * "확인하지 않았다"고 말하면서 갈 곳을 주지 않으면 이용자는 결국 "없다"로 읽는다.
      */
     static String searchUrlFor(ProbeTarget t, OnlinePlatformView p, ProbeQuery q) {
         if (t != null) return ProbeUrl.build(t, q).toString();
+        String tpl = p.searchUrlTemplate();
+        if (tpl != null && !tpl.isBlank() && tpl.contains("{q}")) {
+            return tpl.replace("{q}", java.net.URLEncoder.encode(
+                    q.normalized(), java.nio.charset.StandardCharsets.UTF_8));
+        }
         return p.url() == null ? "" : p.url();
     }
 

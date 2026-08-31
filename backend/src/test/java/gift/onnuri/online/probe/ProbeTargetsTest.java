@@ -49,6 +49,20 @@ class ProbeTargetsTest {
     }
 
     @Test
+    void 코드의_검색URL과_데이터의_검색URL이_같다() throws Exception {
+        // 코드(ProbeTargets)는 자동 조회에, 데이터(online_platforms.json)는 이용자 링크에 쓰인다.
+        // 둘이 갈라지면 "화면 링크로는 결과가 나오는데 판정은 없음" 같은 모순이 생긴다.
+        Path p = Path.of("../data/online_platforms.json");
+        assertTrue(Files.exists(p), "플랫폼 목록을 찾지 못했다: " + p.toAbsolutePath());
+        String json = Files.readString(p);
+        for (ProbeTarget t : ProbeTargets.ALL) {
+            String needle = t.searchUrlTemplate().replace("&", "\\u0026");
+            assertTrue(json.contains(t.searchUrlTemplate()) || json.contains(needle),
+                    t.platformId() + " — 코드의 검색 URL 이 데이터에 없다: " + t.searchUrlTemplate());
+        }
+    }
+
+    @Test
     void 사전을_비운_몰은_그_이유가_코드에_적혀_있다() throws Exception {
         // 등급 C(onnuri-chance·onnuri-market)는 근거 없이 비우면 다음 사람이 실수로 채운다.
         String src = Files.readString(Path.of("src/main/java/gift/onnuri/online/probe/ProbeTargets.java"));

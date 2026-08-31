@@ -24,7 +24,7 @@ class OnlineContractTest {
     @Test
     void OnlinePlatformView_는_프론트가_소비하는_필드를_노출한다() {
         assertEquals(List.of("id", "no", "kind", "name", "summary", "note", "url",
-                        "regionLimited", "sourceUrl", "collectedOn", "status"),
+                        "regionLimited", "sourceUrl", "collectedOn", "status", "searchUrlTemplate"),
                 components(OnlinePlatformView.class));
     }
 
@@ -39,10 +39,11 @@ class OnlineContractTest {
         OnlinePlatformView v = new OnlinePlatformView(
                 "onnuri-hotdeal", 12, "shopping", "온누리핫딜",
                 "요약", "메모", "https://onnurideal.com",
-                false, "https://www.onnuri.gift/visit/market", "2026-08-06", "active");
+                false, "https://www.onnuri.gift/visit/market", "2026-08-06", "active",
+                "https://onnurideal.com/search?q={q}");
         Map<?, ?> item = om.readValue(om.writeValueAsString(v), Map.class);
         assertEquals(List.of("id", "no", "kind", "name", "summary", "note", "url",
-                        "regionLimited", "sourceUrl", "collectedOn", "status"),
+                        "regionLimited", "sourceUrl", "collectedOn", "status", "searchUrlTemplate"),
                 item.keySet().stream().map(Object::toString).toList());
 
         Map<String, String> meta = new HashMap<>();

@@ -4,7 +4,7 @@
     "source_url": "https://www.onnuri.gift/visit/market",
     "pages_checked": "1-3",
     "collected_on": "2026-08-06",
-    "note": "초기 이관은 index.html(2026-08-06 수집 표기) 추출본. 이후 verifier가 2026-08-06 브라우저 실측으로 공식 '온라인 전통시장관'(visit/market) 1~3페이지 전체를 순회해 30곳 이름·구분·개수가 현행 목록과 일치함을 확인. cyso·현대홈쇼핑·공영쇼핑은 기획전 딥링크로 교체. region_limited/regions는 사이트에 지역 메타가 없어 미검증."
+    "note": "초기 이관은 index.html(2026-08-06 수집 표기) 추출본. 이후 verifier가 2026-08-06 브라우저 실측으로 공식 '온라인 전통시장관'(visit/market) 1~3페이지 전체를 순회해 30곳 이름·구분·개수가 현행 목록과 일치함을 확인. cyso·현대홈쇼핑·공영쇼핑은 기획전 딥링크로 교체. region_limited/regions는 사이트에 지역 메타가 없어 미검증. ▸ 2026-08-31 search_url_template 추가(ADR-17): 이용자가 직접 열 검색 링크. {q} 에 인코딩된 검색어가 들어간다. 빈 값이면 화면은 홈(url)으로 보낸다. 9곳 확보 — 실시간 조회 대상 6곳 + robots 로 자동조회는 막히나 사람이 클릭하는 건 정상인 2곳 + 검색은 되나 판정 규칙 미실측 1곳(꾹AI). note·region_limited 와 같은 큐레이션 필드라 야간 배치가 덮지 않는다."
   },
   "items": [
     {
@@ -18,7 +18,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": "https://onnurideal.com/search?q={q}"
     },
     {
       "id": "11st-onnuri-market",
@@ -31,7 +32,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "cyso",
@@ -44,7 +46,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "hyundai-ezwel-onnuri",
@@ -57,7 +60,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "hyundai-home-shopping",
@@ -70,7 +74,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "genius-mall",
@@ -83,7 +88,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "tpirates",
@@ -96,7 +102,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "kkuk-ai-onnuri-mall",
@@ -109,7 +116,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": "https://onnuri.ai/search?keyword={q}"
     },
     {
       "id": "gongyoung-shopping",
@@ -122,7 +130,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "onnuri-paldo-sijang",
@@ -135,7 +144,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "onnuri-5iljang",
@@ -148,7 +158,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "epost-mall",
@@ -161,7 +172,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": "https://mall.epost.go.kr/fo/search/search.do?searchTerm={q}"
     },
     {
       "id": "onnuri-chance",
@@ -174,7 +186,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": "https://onnurichance.com/?pn=product.search.list&search_word={q}"
     },
     {
       "id": "onnuri-gonggong-mall",
@@ -187,7 +200,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": "https://www.ongong.kr/shop/search.php?stx={q}"
     },
     {
       "id": "lotte-on-sangsaeng-store",
@@ -200,7 +214,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "onnuri-sijang",
@@ -213,7 +228,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": "https://www.onnuri-mall.co.kr/product/search?searchNm={q}"
     },
     {
       "id": "onnuri-goodday",
@@ -226,7 +242,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": "https://www.onnurigood.com/?pn=product.search.list&search_word={q}"
     },
     {
       "id": "inthemarket-onnuri",
@@ -239,7 +256,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": "https://inthemarket.co.kr/?pn=product.search.list&search_word={q}"
     },
     {
       "id": "onnuri-noljang",
@@ -252,7 +270,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "onnuri-market",
@@ -265,7 +284,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": "https://nurimarket.co.kr/shop/search_product.php?sq={q}"
     },
     {
       "id": "onnuri-shopping",
@@ -278,7 +298,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "oligopalgo",
@@ -291,7 +312,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "jeonju-matbaedal",
@@ -307,7 +329,8 @@
       "status": "active",
       "regions": [
         "전주"
-      ]
+      ],
+      "search_url_template": ""
     },
     {
       "id": "whee-param",
@@ -320,7 +343,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "meomeokji",
@@ -333,7 +357,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "baedal-teukgeup",
@@ -349,7 +374,8 @@
       "status": "active",
       "regions": [
         "경기"
-      ]
+      ],
+      "search_url_template": ""
     },
     {
       "id": "mukkebi",
@@ -363,7 +389,8 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "regions": []
+      "regions": [],
+      "search_url_template": ""
     },
     {
       "id": "baedal-myeongsu",
@@ -379,7 +406,8 @@
       "status": "active",
       "regions": [
         "군산"
-      ]
+      ],
+      "search_url_template": ""
     },
     {
       "id": "ddangyo",
@@ -392,7 +420,8 @@
       "region_limited": false,
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
-      "status": "active"
+      "status": "active",
+      "search_url_template": ""
     },
     {
       "id": "daeguro",
@@ -408,7 +437,8 @@
       "status": "active",
       "regions": [
         "대구"
-      ]
+      ],
+      "search_url_template": ""
     }
   ]
 }

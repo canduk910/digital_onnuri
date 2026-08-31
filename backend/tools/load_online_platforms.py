@@ -4,7 +4,7 @@
 Flyway가 V5로 스키마를 만든 뒤 실행한다. id 기준 upsert라 여러 번 돌려도 안전.
 - ord = 배열 순서(0-based)
 - post_no = null(야간 배치 첫 실행이 name 매칭으로 채운다)
-- note·region_limited 등 큐레이션 필드 포함 전체 적재
+- note·region_limited·search_url_template 등 큐레이션 필드 포함 전체 적재
 
   python3 backend/tools/load_online_platforms.py
 """
@@ -24,13 +24,14 @@ DSN = os.environ.get("DB_DSN",
 UPSERT = """
 INSERT INTO online_platform
     (id, post_no, ord, kind, name, summary, note, url,
-     region_limited, source_url, collected_on, status)
-VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+     region_limited, source_url, collected_on, status, search_url_template)
+VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 ON CONFLICT (id) DO UPDATE SET
     ord = EXCLUDED.ord, kind = EXCLUDED.kind, name = EXCLUDED.name,
     summary = EXCLUDED.summary, note = EXCLUDED.note, url = EXCLUDED.url,
     region_limited = EXCLUDED.region_limited, source_url = EXCLUDED.source_url,
-    collected_on = EXCLUDED.collected_on, status = EXCLUDED.status
+    collected_on = EXCLUDED.collected_on, status = EXCLUDED.status,
+    search_url_template = EXCLUDED.search_url_template
 """
 
 
@@ -50,6 +51,7 @@ def main():
                 it.get("source_url", default_src),
                 it.get("collected_on", default_date),
                 it.get("status", "active"),
+                it.get("search_url_template") or None,
             ))
         cur.executemany(UPSERT, rows)
         conn.commit()

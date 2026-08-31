@@ -253,7 +253,9 @@ def stage_b_online(conn, today):
             if mid is None:
                 mid = by_name.get(_norm_name(r["name"]))
             if mid is not None:
-                # 수집 가능 필드만 갱신 — note·region_limited·id·source_url 은 절대 미변경(큐레이션 보존)
+                # 수집 가능 필드만 갱신 — note·region_limited·id·source_url·search_url_template 은
+                # 절대 미변경(큐레이션 보존). 갱신 컬럼을 명시적으로 나열하는 방식이라
+                # 새 큐레이션 컬럼은 자동으로 보존된다 — 여기에 컬럼을 함부로 더하지 말 것.
                 cur.execute(
                     "UPDATE online_platform SET name=%s, kind=%s, summary=%s, url=%s, "
                     "ord=%s, post_no=%s, collected_on=%s, status='active' WHERE id=%s",

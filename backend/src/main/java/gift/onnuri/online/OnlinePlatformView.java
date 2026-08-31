@@ -6,10 +6,12 @@ package gift.onnuri.online;
  *
  * data/online_platforms.json의 items와 의미상 1:1:
  *   no = post_no(공식 API postNo), regionLimited = region_limited(큐레이션),
- *   sourceUrl = source_url, collectedOn = collected_on, status = active/removed.
+ *   sourceUrl = source_url, collectedOn = collected_on, status = active/removed,
+ *   searchUrlTemplate = search_url_template(큐레이션, ADR-17 — {q} 자리에 검색어).
  */
 public record OnlinePlatformView(
         String id, Integer no, String kind, String name,
         String summary, String note, String url,
-        boolean regionLimited, String sourceUrl, String collectedOn, String status) {
+        boolean regionLimited, String sourceUrl, String collectedOn, String status,
+        String searchUrlTemplate) {
 }

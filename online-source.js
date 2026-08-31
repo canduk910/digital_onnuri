@@ -35,7 +35,10 @@
       regions: raw.regions || [],
       source_url: pick(raw, "source_url", "sourceUrl") || "",
       collected_on: pick(raw, "collected_on", "collectedOn") || "",
-      status: raw.status || "active"
+      status: raw.status || "active",
+      // 이용자가 직접 열 검색 링크(ADR-17). {q} 에 인코딩된 검색어가 들어간다.
+      // 빈 값이면 화면이 홈(url)으로 보낸다.
+      search_url_template: pick(raw, "search_url_template", "searchUrlTemplate") || ""
     };
   }
   function normPayload(d) {

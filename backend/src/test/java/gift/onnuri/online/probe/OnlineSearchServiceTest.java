@@ -17,8 +17,13 @@ import static org.junit.jupiter.api.Assertions.*;
 class OnlineSearchServiceTest {
 
     private static OnlinePlatformView p(String id, String name, String kind, String url) {
+        return p(id, name, kind, url, null);
+    }
+
+    private static OnlinePlatformView p(String id, String name, String kind, String url,
+                                        String searchTpl) {
         return new OnlinePlatformView(id, null, kind, name, null, null, url,
-                false, null, "2026-08-06", "active");
+                false, null, "2026-08-06", "active", searchTpl);
     }
 
     /** 네트워크는 타지 않는다 — fetcher 를 모킹해 "받지 못했다"로 고정한다. */
@@ -75,6 +80,27 @@ class OnlineSearchServiceTest {
         ProbeHit h = r.items().get(0);
         assertEquals("disabled", h.reason(), "기능이 꺼진 것을 조용히 감추면 안 된다");
         assertFalse(h.searchUrl().isBlank(), "꺼져 있어도 직접 확인 경로는 남긴다");
+    }
+
+    @Test
+    void 조회_대상이_아니어도_검색URL이_있으면_그리로_보낸다() {
+        // 4단계에서 22곳에 search_url_template 을 넣었다 — 확인하지 않은 몰도
+        // 홈이 아니라 그 몰의 검색 결과로 바로 갈 수 있어야 한다.
+        var r = svc(List.of(p("kkuk-ai-onnuri-mall", "꾹AI온누리몰", "shopping",
+                "https://onnuri.ai/", "https://onnuri.ai/search?keyword={q}")), true)
+                .search(ProbeQuery.of("김치"));
+        ProbeHit h = r.items().get(0);
+        assertEquals(Verdict.NOT_PROBED, h.status());
+        assertTrue(h.searchUrl().startsWith("https://onnuri.ai/search?keyword="),
+                "검색 URL 이 있는데 홈으로 보냈다: " + h.searchUrl());
+        assertFalse(h.searchUrl().contains("{q}"), "치환되지 않았다");
+    }
+
+    @Test
+    void 검색URL이_없으면_홈으로_보낸다() {
+        var r = svc(List.of(p("onnuri-shopping", "온누리쇼핑", "shopping",
+                "https://onnurishop.co.kr", "")), true).search(ProbeQuery.of("김치"));
+        assertEquals("https://onnurishop.co.kr", r.items().get(0).searchUrl());
     }
 
     @Test
