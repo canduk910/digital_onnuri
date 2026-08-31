@@ -26,6 +26,29 @@ public final class ProbeTargets {
     private static final LocalDate MEASURED = LocalDate.of(2026, 8, 31);
     private static final LocalDate ROBOTS   = LocalDate.of(2026, 8, 31);
 
+    private static java.util.regex.Pattern P(String re) { return java.util.regex.Pattern.compile(re); }
+
+    /**
+     * 상품명 샘플 정규식 — **판정 경로가 아니다.** 깨지면 근거 없는 likely 또는 unclear 로
+     * 품질이 내려갈 뿐 오답이 되지 않는다(ADR-6 이 우려한 "구조 변경에 취약"을 여기서 봉쇄한다).
+     * 2026-08-31 "김치" 조회 실측 매치 수 / 그중 질의어 포함:
+     *   hotdeal 20/20 · chance 19/19 · sijang 40/28 · market 21/21 · gonggong 20/20 · epost 17/11
+     * sijang·epost 에서 차이가 나는 것은 추천·연관 상품이 섞이기 때문이고,
+     * ProbeJudge.extractTitles 가 질의 토큰을 포함하는 것만 남겨 걸러낸다.
+     */
+    private static final java.util.regex.Pattern T_HOTDEAL =
+            P("<p class=\"[^\"]*line-clamp-2[^\"]*text-card-foreground[^\"]*\">([^<]+)</p>");
+    private static final java.util.regex.Pattern T_CHANCE =   // <li data-pcode=… data-pname="상품명">
+            P("data-pname=\"([^\"]+)\"");
+    private static final java.util.regex.Pattern T_SIJANG =   // <p class="text"><strong></strong>상품명</p>
+            P("<p class=\"text\">\\s*<strong[^>]*>[^<]*</strong>\\s*([^<]+?)\\s*</p>");
+    private static final java.util.regex.Pattern T_MARKET =
+            P("<a href=\"[^\"]*item\\.php\\?it_id=\\d+\"[^>]*>([^<]+)</a>");
+    private static final java.util.regex.Pattern T_GONGGONG = // <h4 class="nl-name"><b>상품명</b>
+            P("<h4 class=\"nl-name\">\\s*<b>([^<]+)</b>");
+    private static final java.util.regex.Pattern T_EPOST =    // <div class="goods_text"><p class="tit">상품명</p>
+            P("<div class=\"goods_text\">\\s*<p class=\"tit\">\\s*([^<]+?)\\s*</p>");
+
     public static final List<ProbeTarget> ALL = List.of(
 
             // robots.txt: Allow: / (Disallow 는 /api/, /checkout/komsco-return 뿐)
@@ -36,7 +59,7 @@ public final class ProbeTargets {
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of("\"{q}\" 검색 결과 검색 결과가 없습니다"),
                     List.of(),
-                    true, 5, null, 0, "김치", 0, MEASURED, ROBOTS),
+                    true, 5, T_HOTDEAL, 0, "김치", 0, MEASURED, ROBOTS),
 
             // robots.txt: Disallow: /include/ 뿐
             // 없음 실측: 명시 문구 없음. 잡히는 것은 `원산지 데이터 없음`(상품 영역 밖 필터 UI)이라 채택 불가 → 등급 C
@@ -46,7 +69,7 @@ public final class ProbeTargets {
                     "https://onnurichance.com/?pn=product.search.list&search_word={q}",
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of(), List.of(),
-                    true, 5, null, 2, "김치", 0, MEASURED, ROBOTS),
+                    true, 5, T_CHANCE, 2, "김치", 0, MEASURED, ROBOTS),
 
             // robots.txt: HTTP 404 (파일 없음) — 명시적 금지 없음
             // 없음 실측: `검색하신 ' zzqqxyw12345 '에 대한 검색결과가 없습니다`
@@ -56,7 +79,7 @@ public final class ProbeTargets {
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of("검색하신 '{q}'에 대한 검색결과가 없습니다"),
                     List.of(),
-                    true, 5, null, 0, "김치", 0, MEASURED, ROBOTS),
+                    true, 5, T_SIJANG, 0, "김치", 0, MEASURED, ROBOTS),
 
             // robots.txt: User-agent: * / Allow: /
             // 없음 실측: ⚠ 검출되는 "없습니다"가 전부 이용약관 문구다 —
@@ -67,7 +90,7 @@ public final class ProbeTargets {
                     "https://nurimarket.co.kr/shop/search_product.php?sq={q}",
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of(), List.of(),
-                    false, 5, null, 0, "김치", 0, MEASURED, ROBOTS),
+                    false, 5, T_MARKET, 0, "김치", 0, MEASURED, ROBOTS),
 
             // robots.txt: 그누보드 계열 다수 Disallow 하나 /shop/search.php 는 목록에 없다
             // 없음 실측: `'zzqqxyw12345' 에 대한 0 개의 검색결과` — 건수를 명시해 가장 견고하다
@@ -78,7 +101,7 @@ public final class ProbeTargets {
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of("'{q}' 에 대한 0 개의 검색결과"),
                     List.of(),
-                    true, 5, null, 0, "김치", 8000, MEASURED, ROBOTS),
+                    true, 5, T_GONGGONG, 0, "김치", 8000, MEASURED, ROBOTS),
 
             // robots.txt: Disallow 는 /upload/, /*file*, /*File*, /*adm* — 검색 경로 허용
             // 기획전 딥링크 몰이라 검색이 호스트 몰 전체를 훑는다 → MALL_WIDE.
@@ -91,7 +114,7 @@ public final class ProbeTargets {
                     StandardCharsets.UTF_8, Scope.MALL_WIDE,
                     List.of(),
                     List.of("고객님께서 찾으시는 검색결과가 없습니다", "해당하는 상품이 없습니다"),
-                    false, 2, null, 0, "김치", 0, MEASURED, ROBOTS)
+                    false, 2, T_EPOST, 0, "김치", 0, MEASURED, ROBOTS)
     );
 
     public static Optional<ProbeTarget> byId(String platformId) {

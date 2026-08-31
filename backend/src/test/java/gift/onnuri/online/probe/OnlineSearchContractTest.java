@@ -72,6 +72,17 @@ class OnlineSearchContractTest {
     }
 
     @Test
+    void 딥링크_몰만_찾은_경우에도_안내문구가_그_곳을_설명한다() {
+        // likelyCount 에서 뺐으므로 문구에서도 빠지면 "6곳을 확인했다"면서 5곳만 설명하는
+        // 문장이 된다 — 확인한 곳 수와 설명한 곳 수가 어긋난다(2026-08-31 '김치' 실측).
+        var r = OnlineSearchService.summarize(ProbeQuery.of("김치"), "now", 22,
+                List.of(hit("a", Verdict.LIKELY, false), hit("epost-mall", Verdict.LIKELY, true)),
+                false);
+        assertTrue(r.notice().contains("온누리 범위 밖"),
+                "딥링크 몰이 문구에서 사라졌다: " + r.notice());
+    }
+
+    @Test
     void 확인하지_않은_곳은_없음이_아니라_미확인으로_센다() {
         var r = OnlineSearchService.summarize(ProbeQuery.of("로봇청소기"), "now", 22,
                 List.of(hit("a", Verdict.NONE, false), hit("b", Verdict.NOT_PROBED, false)),
@@ -98,7 +109,9 @@ class OnlineSearchContractTest {
                 List.of(hit("a", Verdict.LIKELY, false), hit("b", Verdict.NONE, false)),
                 List.of(hit("a", Verdict.NONE, false)),
                 List.of(hit("a", Verdict.LIKELY, false)),
-                List.of(hit("a", Verdict.UNCLEAR, false), hit("b", Verdict.NONE, false)))) {
+                List.of(hit("a", Verdict.UNCLEAR, false), hit("b", Verdict.NONE, false)),
+                List.of(hit("a", Verdict.LIKELY, true)),
+                List.of(hit("a", Verdict.LIKELY, false), hit("b", Verdict.LIKELY, true)))) {
             var r = OnlineSearchService.summarize(ProbeQuery.of("로봇청소기"), "now", 22, combo, false);
             for (String sentence : r.notice().split("(?<=\\.)\\s+")) {
                 String x = sentence.trim();

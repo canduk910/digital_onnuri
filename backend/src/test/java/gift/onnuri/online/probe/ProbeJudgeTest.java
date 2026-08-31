@@ -32,6 +32,44 @@ class ProbeJudgeTest {
         return ProbeJudge.judge(t, fixture(platformId + "-" + kind + ".html"), ProbeQuery.of(query));
     }
 
+    // ── 상품명 샘플 ─────────────────────────────────────────────────────
+
+    @Test
+    void 모든_조회대상이_상품명_샘플_규칙을_갖는다() {
+        // 샘플은 "있다"고 단정하지 않고 근거를 보여주는 수단이다 — 이게 비면
+        // 화면에 남는 것은 카운트뿐이고, 야간 카나리아의 기대치(샘플 ≥1)도 성립하지 않는다.
+        // 2026-08-31 실측: 6곳 전부 null 이라 샘플이 하나도 나오지 않았다.
+        for (ProbeTarget t : ProbeTargets.ALL) {
+            assertNotNull(t.titlePattern(), t.platformId() + " 에 titlePattern 이 없다");
+        }
+    }
+
+    @Test
+    void 히트_픽스처에서_질의어를_담은_상품명을_뽑는다() {
+        for (ProbeTarget t : ProbeTargets.ALL) {
+            String id = t.platformId();
+            List<String> names = ProbeJudge.extractTitles(
+                    t, fixture(id + "-hit.html"), ProbeQuery.of("로봇청소기"), 3);
+            assertFalse(names.isEmpty(), id + " 에서 상품명을 뽑지 못했다 — 마크업이 바뀌었을 수 있다");
+            for (String n : names) {
+                assertTrue(n.contains("로봇") || n.contains("청소기"),
+                        id + " 가 질의와 무관한 이름을 샘플로 냈다: " + n);
+                assertTrue(n.length() >= 4 && n.length() <= 80, id + " 샘플 길이 이상: " + n);
+            }
+        }
+    }
+
+    @Test
+    void 없음_픽스처에서는_상품명_샘플이_나오지_않는다() {
+        // 샘플이 나오면 judge 가 likely 로 기울어 "없는데 있다"가 된다 — 가장 위험한 방향.
+        for (ProbeTarget t : ProbeTargets.ALL) {
+            String id = t.platformId();
+            assertTrue(ProbeJudge.extractTitles(
+                            t, fixture(id + "-none.html"), ProbeQuery.of("zzqqxyw12345"), 3).isEmpty(),
+                    id + " 가 없는 질의에 상품명을 냈다");
+        }
+    }
+
     // ── 실측 응답 전량 대조 ───────────────────────────────────────────────
 
     @Test

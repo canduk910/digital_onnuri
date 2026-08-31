@@ -172,12 +172,12 @@ public class OnlineSearchService {
     /** 카운트와 안내 문구를 서버가 만든다 — 프론트가 재계산하면 조용히 어긋난다. */
     static OnlineSearchResult summarize(ProbeQuery q, String now, int total,
                                         List<ProbeHit> items, boolean throttled) {
-        int none = 0, likely = 0, unclear = 0, unknown = 0, notProbed = 0, probed = 0;
+        int none = 0, likely = 0, unclear = 0, unknown = 0, notProbed = 0, probed = 0, wideLikely = 0;
         for (ProbeHit h : items) {
             switch (h.status()) {
                 case Verdict.NONE -> { none++; probed++; }
                 // mallWide 는 온누리 결제 범위 밖 상품이 섞이므로 '찾음' 집계에 넣지 않는다.
-                case Verdict.LIKELY -> { if (!h.mallWide()) likely++; probed++; }
+                case Verdict.LIKELY -> { if (h.mallWide()) wideLikely++; else likely++; probed++; }
                 case Verdict.UNCLEAR -> { unclear++; probed++; }
                 case Verdict.UNKNOWN -> { unknown++; probed++; }
                 default -> notProbed++;
@@ -185,11 +185,11 @@ public class OnlineSearchService {
         }
         return new OnlineSearchResult(q.normalized(), now, total, probed,
                 none, likely, unclear, unknown, notProbed, throttled,
-                notice(q, total, probed, none, likely, unclear, unknown, notProbed), items);
+                notice(q, total, probed, none, likely, unclear, unknown, notProbed, wideLikely), items);
     }
 
     static String notice(ProbeQuery q, int total, int probed,
-                         int none, int likely, int unclear, int unknown, int notProbed) {
+                         int none, int likely, int unclear, int unknown, int notProbed, int wideLikely) {
         if (probed == 0) {
             return "'" + q.normalized() + "' — 지금은 실시간 확인을 하지 않았습니다. "
                     + "아래 " + total + "곳에서 직접 검색해 보세요.";
@@ -203,6 +203,9 @@ public class OnlineSearchService {
         if (likely > 0) parts.add(likely + "곳에서 관련 상품이 검색됐습니다.");
         if (none > 0) parts.add(none + "곳은 검색 결과가 없었습니다.");
         if (unclear + unknown > 0) parts.add((unclear + unknown) + "곳은 판정하지 못했습니다.");
+        // mallWide 를 likely 집계에서 뺐으므로 여기서 말해 주지 않으면 확인한 곳 수와 설명한 곳 수가
+        // 어긋난다 — "6곳을 확인했다"면서 5곳만 설명하는 문장이 된다(2026-08-31 실측에서 그랬다).
+        if (wideLikely > 0) parts.add(wideLikely + "곳은 온누리 범위 밖 상품이 섞이는 몰이라 목록에서 따로 표시했습니다.");
         if (!parts.isEmpty()) sb.append(String.join(" ", parts)).append(" ");
         if (notProbed > 0) {
             sb.append("나머지 ").append(notProbed).append("곳은 확인하지 않았습니다 — 없다는 뜻이 아닙니다.");

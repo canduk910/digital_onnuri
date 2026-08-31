@@ -85,6 +85,40 @@
   .modal-foot button{ font-family:inherit; font-size:13px; font-weight:700; padding:8px 16px; border-radius:var(--r-sm); cursor:pointer; }
   .modal-foot .bm-reset{ border:1px solid var(--border); background:#fff; color:var(--text-sub); }
   .modal-foot .bm-done{ border:1px solid var(--accent); background:var(--accent); color:#fff; }
+  /* 실시간 조회(ADR-17) — 배너·결과. 판정을 단정하지 않으므로 색도 절제한다. */
+  .probe-banner{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0 14px;
+    padding:11px 14px; border:1px solid var(--accent-line); border-radius:var(--r-md); background:var(--accent-soft); }
+  .probe-banner .pb-why{ font-size:13px; color:var(--text-sub); line-height:1.6; flex:1; min-width:220px; }
+  .probe-banner .pb-why b{ color:var(--text); }
+  .pb-run{ font-family:inherit; font-size:13px; font-weight:700; padding:8px 14px; cursor:pointer;
+    border-radius:var(--r-sm); border:1px solid var(--accent); background:var(--accent); color:#fff; white-space:nowrap; }
+  .pb-run:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
+
+  .probe-result{ margin:10px 0 16px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--bg); overflow:hidden; }
+  .probe-result .pb-head{ padding:12px 14px; font-size:13.5px; line-height:1.65; color:var(--text);
+    background:var(--surface); border-bottom:1px solid var(--border); }
+  .pb-list{ list-style:none; margin:0; padding:0; }
+  .pb-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:10px 14px; border-bottom:1px solid var(--border); font-size:13px; }
+  .pb-row:last-child{ border-bottom:0; }
+  .pb-name{ font-weight:700; color:var(--text); min-width:110px; }
+  .pb-status{ font-size:12.5px; }
+  .pb-likely{ color:var(--accent-press); font-weight:700; }
+  .pb-none{ color:var(--text-sub); }
+  .pb-unclear, .pb-unknown, .pb-skip{ color:var(--text-faint); }
+  .pb-wait{ color:var(--text-faint); }
+  .pb-reason{ color:var(--text-faint); font-weight:400; }
+  .pb-wide{ font-size:11px; font-weight:700; padding:1px 6px; border-radius:999px;
+    background:var(--surface-2); color:var(--text-sub); }
+  .pb-link{ margin-left:auto; font-size:12.5px; color:var(--accent-press); white-space:nowrap; }
+  .pb-samples{ flex-basis:100%; margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .pb-samples span{ font-size:12px; padding:3px 8px; border-radius:var(--r-sm);
+    background:var(--surface); border:1px solid var(--border); color:var(--text-sub); }
+  .pb-samples em{ flex-basis:100%; font-size:11.5px; color:var(--text-faint); font-style:normal; }
+  .pb-more{ border-top:1px solid var(--border); }
+  .pb-more summary{ padding:10px 14px; font-size:12.5px; color:var(--text-sub); cursor:pointer; }
+  .pb-foot{ margin:0; padding:10px 14px; font-size:11.5px; color:var(--text-faint);
+    line-height:1.55; border-top:1px solid var(--border); }
   .aux-row { display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; margin-bottom:14px; padding:12px 14px; background:var(--pat-hatch), var(--surface); border:1px solid var(--border); border-radius:var(--r-md); }
   .aux-group { display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
   select.sel { font-family:inherit; font-size:13px; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:9px 12px; outline:none; cursor:pointer; min-width:120px; transition:.15s ease; }
@@ -212,6 +246,7 @@
       <span class="count-text" id="countText"></span>
     </div>
 
+    <div id="probeArea"></div>
     <div id="resultArea">
       <div class="state"><span class="lead">플랫폼 목록을 불러오는 중입니다…</span></div>
     </div>
@@ -253,7 +288,8 @@
 <script src="shell.js?v=6"></script>
 <script src="chat-widget.js?v=13" defer></script>
 <script src="config.js"></script>
-<script src="online-source.js?v=1"></script>
+<script src="online-source.js?v=2"></script>
+<script src="online-probe.js?v=1"></script>
 <script>
 (function () {
   "use strict";
@@ -626,9 +662,44 @@
         + '물품종류·브랜드 필터를 줄이거나 검색어를 바꿔 보세요. 태그는 ' + esc(META.survey) + ' 실측 기준이라 이후 취급 변화는 반영되지 않을 수 있습니다.'
         + '<div class="state-actions"><button class="btn-outline" id="resetBtn">검색 초기화</button></div></div>';
       var rb = el("resetBtn"); if (rb) rb.onclick = resetAll;
+      probeSync(true);
       return;
     }
     area.innerHTML = '<div class="card-grid">' + rows.map(cardHTML).join("") + '</div>';
+    probeSync(false);
+  }
+
+  // 실시간 조회(ADR-17) — 로컬 태그 필터가 답하지 못하는 "그 상품이 실제로 있느냐"를
+  // 몰에 직접 묻는다. **자동으로 조회하지 않는다** — 타이핑 한 글자마다 6곳을 두드리면
+  // 상대 사이트 부담이 통제 불능이 된다(ADR-16이 하루 3~4곳 순환을 택한 것과 같은 이유).
+  // 배너만 띄우고, 사람이 버튼을 누른 뒤에만 나간다.
+  function probeSync(emptyResult) {
+    var mount = el("probeArea"), P = window.OnnuriOnlineProbe;
+    if (!mount || !P) return;
+    var q = (state.q || "").trim();
+    if (q.length < 2) { P.abort(); mount.innerHTML = ""; mount.removeAttribute("data-q"); return; }
+    if (mount.getAttribute("data-q") === q) return;   // 같은 검색어면 이미 나온 결과를 지우지 않는다
+    P.abort();
+    mount.setAttribute("data-q", q);
+    P.renderBanner(mount, q, emptyResult, function () { probeRun(q); });
+  }
+
+  function probeRun(q) {
+    var mount = el("probeArea"), P = window.OnnuriOnlineProbe;
+    // 스켈레톤 단계부터 링크를 노출한다 — 조회가 실패하든 성공하든 이용자는 갈 곳이 있다.
+    var linkable = PLATFORMS.filter(function (p) {
+      return p.kind !== "delivery" && p.search_url_template;
+    });
+    P.renderRunning(mount, q, linkable);
+    P.search(q).then(function (data) {
+      if (mount.getAttribute("data-q") !== q) return;   // 그 사이 검색어가 바뀌었다
+      P.renderResult(mount, data);
+    }).catch(function (e) {
+      if (e && e.name === "AbortError") return;
+      if (mount.getAttribute("data-q") !== q) return;
+      // 배너가 조용히 사라지는 경로는 만들지 않는다 — 22곳 링크를 전부 준다.
+      P.renderFailure(mount, q, PLATFORMS);
+    });
   }
 
   function renderAll() { renderKindTabs(); renderCatChips(); renderBrandChips(); render(); }
@@ -654,6 +725,8 @@
     state.kind = "전체"; state.cat = "전체"; state.sub = "전체"; state.brand = "전체";
     state.nationwideOnly = false; state.q = "";
     el("q").value = ""; el("qClear").style.display = "none"; el("nationwideOnly").checked = false;
+    if (window.OnnuriOnlineProbe) window.OnnuriOnlineProbe.abort();
+    var pa = el("probeArea"); if (pa) { pa.innerHTML = ""; pa.removeAttribute("data-q"); }
     renderAll();
   }
 
