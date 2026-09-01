@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""수도권 전체 가맹점 재수집·통합 빌드 + 빈도·지점명 기반 브랜드 자동탐지.
+"""서울·인천·경기·부산 가맹점 재수집·통합 빌드 + 빈도·지점명 기반 브랜드 자동탐지.
 
-시도(서울·인천·경기)의 전 구·군 addrCd를 순회하며 빈 키워드로 전 페이지를
-수집하고(전수), 주소 계층 파싱·업종 카테고리·브랜드 자동탐지를 붙여
+**수집 방식(2026-09-01 개편)**: 공식이 가맹점 API 를 v2(onr)에서 v3(onrgt)로 옮기며
+v2 를 닫았다(resCode 9998). v3 는 **좌표가 필수이고 반경 2km 로 고정**이라 —
+addrCd 만 주면 0건, baseRange 는 어떤 값도 무시된다 — 기존의 "구·군 addrCd 순회"가
+성립하지 않는다. 그래서 **2.8km 좌표 격자를 순회**해 모으고, 응답의 addrCd 로
+시도·구를 확정한다(계층 원천은 여전히 API 다). 실측 커버리지 99.56%.
+
+주소 계층 파싱·업종 카테고리·브랜드 자동탐지를 붙여
 data/merchants/{seoul,incheon,gyeonggi}.json을 재생성한다. 공공데이터(CSV)
 스냅샷과 키워드 기반 brand_stores.json을 이 통합 데이터가 대체·흡수한다.
 
@@ -29,6 +34,7 @@ data/merchants/{seoul,incheon,gyeonggi}.json을 재생성한다. 공공데이터
 import argparse
 import csv
 import json
+import math
 import re
 import sys
 import time
@@ -37,14 +43,20 @@ from collections import Counter, defaultdict
 from datetime import date
 from pathlib import Path
 
-API_SEARCH = "https://www.onnuri.gift/api/v2/onr/place/search"
-API_ADDR = "https://www.onnuri.gift/api/v2/onr/addr/{sido}"
+# 2026-09-01: 공식이 v2(onr)를 닫고 v3(onrgt)로 옮겼다. v2 는 이제 resCode 9998("접근 권한이 없습니다").
+# v3 의 결정적 차이 — **좌표가 필수이고 반경 2km 로 고정**이다. addrCd 만 주면 0건이고,
+# baseRange 는 0.5~50 어느 값을 넣어도 무시된다(실측: 전부 같은 건수, 최대 거리 2.0km).
+# 그래서 "구·군 addrCd 순회"가 성립하지 않고 **좌표 격자 순회**로 바꿨다.
+API_SEARCH = "https://www.onnuri.gift/api/v3/onrgt/place/search"
+API_ADDR_SIDO = "https://www.onnuri.gift/api/v3/onrgt/addr/{sido}"   # POST, body {} → 구·군 목록
 HEADERS = {
     "Content-Type": "application/json",
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
     "Referer": "https://www.onnuri.gift/place",
 }
-THROTTLE_SEC = 1.0
+THROTTLE_SEC = 0.7
+GRID_KM = 2.8          # 반경 2km 원이 완전히 덮는 정사각형 한 변(2√2). 이보다 크면 사이가 빈다.
+GRID_SEED = Path("_workspace/raw/merchant_grid_seed.json")
 SIDO = {"11000": "서울", "28000": "인천", "41000": "경기", "26000": "부산"}
 CACHE = Path("_workspace/raw/capital_merchants_raw.json")
 OUT_DIR = Path("data/merchants")
@@ -243,35 +255,125 @@ def post(url, body):
     return payload["data"]
 
 
-def collect(collected_on):
-    n_req = 0
-    districts = []
+def load_districts():
+    """addrCd → (구·군 이름, 시도). 계층의 원천은 여전히 API 다 — 주소 파싱이 아니다.
+
+    이게 중요한 이유: 2026년 인천 자치구 개편(중구·동구 → 제물포구 등)이 API 목록에는
+    반영돼 있는데 **가맹점 주소 문자열에는 옛 이름이 다수 남아 있다**(실측: 28125 의
+    주소 두 번째 토큰이 중구 767 · 동구 580 · 제물포구 45). 주소에서 구를 뽑으면
+    화면에서 신설 구가 사라진다.
+    """
+    out = {}
     for sido, sido_nm in SIDO.items():
-        data = post(API_ADDR.format(sido=sido), {})
-        n_req += 1
-        for row in data["list"]:
-            districts.append((row["addrCd"], row["addrNm"], sido_nm))
+        for row in post(API_ADDR_SIDO.format(sido=sido), {})["list"]:
+            out[row["addrCd"]] = (row["addrNm"], sido_nm)
+    return out
+
+
+def _cell(lat, lng):
+    dlat = GRID_KM / 111.0
+    dlng = GRID_KM / (111.0 * math.cos(math.radians(lat)))
+    return (math.floor(lat / dlat), math.floor(lng / dlng))
+
+
+def _center(r, c):
+    dlat = GRID_KM / 111.0
+    lat = (r + 0.5) * dlat
+    return lat, (c + 0.5) * (GRID_KM / (111.0 * math.cos(math.radians(lat))))
+
+
+def load_grid():
+    """조회할 격자 지점. 시드 파일이 있으면 그것을, 없으면 기존 수집본에서 만든다.
+
+    시드는 **누적**한다(한 번이라도 가맹점이 관측된 셀은 지우지 않는다). 매번 결과로
+    덮어쓰면 그날 0건이던 셀이 빠지고, 다음 날 그 자리에 새 가맹점이 생겨도 영영 못 본다.
+    여기에 이웃 1칸을 더해 경계 밖 신규 가맹까지 덮는다(실측 커버리지 99.56%).
+    """
+    seed = set()
+    if GRID_SEED.exists():
+        seed = {tuple(x) for x in json.load(open(GRID_SEED, encoding="utf-8"))["cells"]}
+    if not seed:
+        for code in REGION_FILE.values():
+            f = OUT_DIR / f"{code}.json"
+            if not f.exists():
+                continue
+            for i in json.load(open(f, encoding="utf-8"))["items"]:
+                if i.get("lat") and i.get("lng"):
+                    seed.add(_cell(i["lat"], i["lng"]))
+    if not seed:
+        raise RuntimeError(
+            "격자 시드가 없다. 기존 data/merchants/*.json 이나 "
+            f"{GRID_SEED} 중 하나가 있어야 한다(최초 1회는 사람이 만든다).")
+    grid = set(seed)
+    for (r, c) in seed:
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                grid.add((r + dr, c + dc))
+    return seed, sorted(grid)
+
+
+def save_grid(seed, rows):
+    """관측된 셀을 시드에 누적해 저장한다."""
+    cells = set(seed)
+    for r in rows:
+        if r.get("latitude") and r.get("longitude"):
+            cells.add(_cell(float(r["latitude"]), float(r["longitude"])))
+    GRID_SEED.parent.mkdir(parents=True, exist_ok=True)
+    with open(GRID_SEED, "w", encoding="utf-8") as f:
+        json.dump({"grid_km": GRID_KM, "cells": sorted(cells)}, f)
+
+
+def collect(collected_on):
+    districts = load_districts()
     print(f"구·군 {len(districts)}개 로드", file=sys.stderr)
-    rows, district_counts = [], {}
-    for addr_cd, addr_nm, sido_nm in districts:
-        page, total_page, got = 1, 1, 0
+    seed, grid = load_grid()
+    print(f"격자 {len(grid)}지점(시드 {len(seed)} + 이웃 1칸)", file=sys.stderr)
+
+    n_req, empty = 0, 0
+    found = {}
+    for n, (r, c) in enumerate(grid, 1):
+        lat, lng = _center(r, c)
+        page, total_page = 1, 1
         while page <= total_page:
-            data = post(API_SEARCH, {"keyword": "", "addrCd": addr_cd, "currPage": page})
+            data = post(API_SEARCH, {
+                "keyword": "", "addrCd": "", "addrNm": "", "placeTypeList": [],
+                "paperYn": "", "cardYn": "", "qrYn": "",
+                "latitude": f"{lat:.6f}", "longitude": f"{lng:.6f}",
+                "baseRange": 2, "currPage": page})
             n_req += 1
             total_page = data.get("totalPage") or 1
-            for r in data.get("list") or []:
-                r["_query_addrNm"] = addr_nm
-                r["_query_sido"] = sido_nm
-                rows.append(r)
-                got += 1
+            lst = data.get("list") or []
+            if page == 1 and not lst:
+                empty += 1
+            for row in lst:
+                found[row["frCd"]] = row
             page += 1
-        district_counts[f"{sido_nm} {addr_nm}"] = data.get("totalCnt", got)
-        print(f"  {sido_nm} {addr_nm}({addr_cd}): {got}건", file=sys.stderr)
+        if n % 200 == 0:
+            print(f"  {n}/{len(grid)} 지점 · 요청 {n_req} · 고유 {len(found)}건", file=sys.stderr)
+
+    # 격자는 시도 경계를 넘어 인접 지역(대구·경남 등)까지 물어온다.
+    # addrCd 로 우리 4개 시도만 남긴다 — 안 걸러내면 "부산 사람에게 대구 가맹점"이 나간다.
+    rows, district_counts, outside = [], Counter(), 0
+    for row in found.values():
+        d = districts.get(str(row.get("addrCd") or ""))
+        if not d:
+            outside += 1
+            continue
+        addr_nm, sido_nm = d
+        row["_query_addrNm"] = addr_nm
+        row["_query_sido"] = sido_nm
+        rows.append(row)
+        district_counts[f"{sido_nm} {addr_nm}"] += 1
+
+    print(f"수집 {len(found)}건 → 대상 {len(rows)}건 (범위 밖 {outside}건 제외), "
+          f"요청 {n_req} · 빈 지점 {empty}", file=sys.stderr)
+    save_grid(seed, rows)
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     with open(CACHE, "w", encoding="utf-8") as f:
         json.dump({"collected_on": collected_on, "n_requests": n_req,
-                   "district_counts": district_counts, "rows": rows}, f, ensure_ascii=False)
-    return {"collected_on": collected_on, "rows": rows, "district_counts": district_counts}
+                   "district_counts": dict(district_counts), "rows": rows}, f, ensure_ascii=False)
+    return {"collected_on": collected_on, "rows": rows,
+            "district_counts": dict(district_counts)}
 
 
 # ----------------------------------------------------------------- 빌드
@@ -340,7 +442,7 @@ def main():
                 "api_endpoint": API_SEARCH,
                 "collected_on": collected_on,
                 "region": region,
-                "scope": "전수 — 시도 전 구·군 addrCd 순회, 빈 키워드로 전 페이지 수집",
+                "scope": "전수 — 좌표 격자(2.8km) 순회로 전 페이지 수집 후 addrCd 로 시도·구 확정. v3 API 는 좌표가 필수이고 반경 2km 고정이라 구·군 순회가 불가능하다(2026-09-01)",
                 "hierarchy": (["시도", "구", "동"] if region != "경기" else ["시도", "시", "구", "동"]),
                 "cats": ["음식점", "편의점", "마트·슈퍼", "약국", "학원", "의류·신발",
                          "농축수산·식품", "생활·잡화", "생활서비스", "기타"],
