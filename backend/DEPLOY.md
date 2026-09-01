@@ -265,6 +265,16 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 | 소요 | 약 22분 (0.7초 스로틀) — 구 방식은 약 200초 |
 | 커버리지 | 99.56% |
 
+**`run.sh` 의 pull 은 산출물을 먼저 버려야 한다.** 배치가 매일 `data/merchants/*.json` 과
+후보 CSV 를 새로 쓰는데, `set -e` + `git pull --ff-only` 조합이라 그 변경이 남아 있으면
+pull 이 실패하고 **배치 전체가 죽는다**(2026-09-01 실제로 그랬다 — 저장소의
+`data/merchants` 를 갱신한 순간 서버 로컬과 충돌).
+
+```bash
+git checkout -- data/merchants _workspace/13_brand_candidates.csv 2>/dev/null || true
+git pull --ff-only origin main >>"$LOG" 2>&1
+```
+
 **격자 시드**는 `_workspace/raw/merchant_grid_seed.json` 에 **누적** 저장된다. 매번 결과로
 덮어쓰지 않는다 — 그날 0건이던 셀이 빠지면 다음 날 그 자리에 새 가맹점이 생겨도 영영
 못 본다. 시드 파일이 없으면 기존 `data/merchants/*.json` 좌표로 만든다.
