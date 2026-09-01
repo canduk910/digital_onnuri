@@ -99,7 +99,24 @@
     return p.url || "";
   }
 
-  function renderResult(mount, data) {
+  /**
+   * 실시간 조회 아래에 붙는 한 줄 — "이걸로 끝이 아니다"를 말한다.
+   *
+   * 실시간 조회는 몇 곳만 보고 그 순간의 검색 결과만 읽는다. 반면 아래 목록은 각 몰의
+   * 카테고리·브랜드를 사람이 훑어 정리한 것이라 **무엇을 파는 몰인지**를 넓게 보여준다.
+   * 둘은 답하는 질문이 다르고, 한쪽만 보면 이용자가 "여기엔 없다"로 잘못 접는다.
+   */
+  function alsoBrowse(localCount, onBrowse) {
+    if (localCount > 0) {
+      return '<p class="pb-also">아래 <b>' + localCount + '곳</b> 목록에는 각 몰이 무엇을 파는지 '
+        + '물품종류·브랜드 태그로 정리돼 있습니다 — 함께 살펴보세요.</p>';
+    }
+    return '<p class="pb-also">이 검색어로는 아래 목록이 비어 있습니다. '
+      + '<b>물품종류·브랜드로 훑어보면</b> 어떤 몰이 그 품목을 다루는지 볼 수 있습니다. '
+      + '<button type="button" class="pb-browse" id="probeBrowse">검색어 지우고 목록 보기</button></p>';
+  }
+
+  function renderResult(mount, data, localCount, onBrowse) {
     var probed = data.items.filter(function (h) { return h.status !== "not-probed"; });
     var skipped = data.items.filter(function (h) { return h.status === "not-probed"; });
 
@@ -137,10 +154,13 @@
             + whyBlock(skipped)
             + '<ul class="pb-list">' + skipped.map(row).join("") + '</ul></details>'
           : "")
+      + alsoBrowse(localCount || 0, onBrowse)
       + '<p class="pb-foot">확인 시각 ' + esc(data.checkedAt)
       + ' · 각 몰의 검색 결과를 그 자리에서 읽은 것입니다. '
       + '<b>검색된다고 해서 온누리상품권으로 결제된다는 뜻은 아닙니다</b> — 상품 상세와 결제 수단은 몰에서 확인하세요.</p>'
       + '</div>';
+    var bb = mount.querySelector("#probeBrowse");
+    if (bb && onBrowse) bb.onclick = function () { onBrowse(); };
   }
 
   /** 확인하지 않은 곳들을 사유별로 묶어 설명한다. 곳 수는 넘겨받은 목록에서 센다. */
