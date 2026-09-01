@@ -22,6 +22,11 @@
 
   /* ===== 배너 (M10-2) ===== */
   .notice { background:repeating-linear-gradient(135deg, rgba(242,107,29,.03) 0 1px, transparent 1px 12px), var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:var(--r-md); padding:14px 18px; margin:0 0 18px; }
+  /* 자동 갱신이 멈춘 동안의 강조. 평소 배너와 확실히 구분돼야 한다 —
+     같은 톤이면 이용자가 늘 있던 안내로 읽고 지나친다. */
+  .notice.notice-stale { border-color:var(--accent); background:var(--accent-soft); }
+  .stale-flag { color:var(--accent-press); }
+  .stale-why { color:var(--text-faint); font-size:12px; }
   .notice p { font-size:13.5px; color:var(--text-sub); }
   .notice strong { color:var(--text); font-weight:700; }
 
@@ -717,7 +722,7 @@
   var UNKNOWN_DONG = "동 미상";
 
   // ---- 상태 ----
-  var META = { collected: COLLECTED };
+  var META = { collected: COLLECTED, staleSince: "", staleReason: "" };
   var state = {
     sido: "서울", si: "전체", gu: "전체", dong: "전체",
     cat: "전체", brand: "전체", mtype: "전체",
@@ -1488,10 +1493,17 @@
   function catCount(k) { return k === "전체" ? SNAP.catTotal : (SNAP.facetCat[k] || 0); }
 
   // API 모드 수집일 스탬프 — /api/meta의 merchantsCollectedOn(배치가 갱신). 실패 시 조용히 무시.
+  // staleSince/staleReason 은 배치의 가맹점 재수집이 연속 실패 중일 때만 온다.
   function fetchApiMeta() {
     if (MODE !== "api") return;
     fetch(API_BASE + "/meta").then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (m) { if (m && m.merchantsCollectedOn) { META.collected = m.merchantsCollectedOn; renderMeta(); } })
+      .then(function (m) {
+        if (!m) return;
+        if (m.merchantsCollectedOn) META.collected = m.merchantsCollectedOn;
+        META.staleSince = m.merchantsStaleSince || "";
+        META.staleReason = m.merchantsStaleReason || "";
+        renderMeta();
+      })
       .catch(function () {});
   }
 
@@ -1499,7 +1511,18 @@
   function renderMeta() {
     var d = META.collected || "(수집일 미상)";
     el("mDate").textContent = d;
-    el("noticeMain").innerHTML = "<strong>이 목록은 온누리 가맹점찾기에서 " + esc(d) + "에 수집한 자료입니다.</strong> 매일 00:30 야간 배치로 자동 최신화됩니다. 도로명 주소와 구·동까지 확인되지만, 수집일 이후 새로 가맹하거나 해지한 곳은 반영되지 않습니다 — 결제 전 온누리 가맹점 지도나 디지털온누리 앱에서 확인하세요.";
+    // 갱신이 멈췄으면 "자동 최신화됩니다"라고 말하지 않는다 — 그 순간 화면이 거짓말을 한다.
+    // 2026-08-29 온누리가 가맹점 조회 API 를 바꾸며 자동 수집 접근을 막았고, 배치는 설계대로
+    // 기존 데이터를 지켰지만 화면은 나흘 동안 "매일 자동 최신화"라고 말하고 있었다.
+    var stale = !!META.staleSince;
+    el("noticeMain").innerHTML = stale
+      ? '<strong class="stale-flag">⚠ 자동 갱신이 멈춰 있습니다 — 온누리 공식 시스템이 '
+          + esc(META.staleSince) + '부터 가맹점 정보 자동 수집을 차단했습니다.</strong> '
+        + "아래 목록은 <strong>" + esc(d) + " 수집분</strong>이며 그 이후 가맹·해지는 반영되지 않습니다. "
+        + "지금 쓸 수 있는지는 <strong>디지털온누리 앱이나 온누리 가맹점 지도</strong>에서 확인하세요."
+        + (META.staleReason ? ' <span class="stale-why">(배치 기록: ' + esc(META.staleReason) + ')</span>' : "")
+      : "<strong>이 목록은 온누리 가맹점찾기에서 " + esc(d) + "에 수집한 자료입니다.</strong> 매일 00:30 야간 배치로 자동 최신화됩니다. 도로명 주소와 구·동까지 확인되지만, 수집일 이후 새로 가맹하거나 해지한 곳은 반영되지 않습니다 — 결제 전 온누리 가맹점 지도나 디지털온누리 앱에서 확인하세요.";
+    el("noticeMain").parentNode.classList.toggle("notice-stale", stale);
     el("footLimit").innerHTML = "※ 이 자료는 온누리 가맹점찾기(비공식 조회)에서 수집했습니다. 구·시까지는 확정값이지만 동(洞)은 도로명 주소에서 뽑은 값이라 약 7%는 '" + UNKNOWN_DONG + "'이며 일부 부정확할 수 있습니다. 정확한 위치·현재 가맹 여부는 결제 전 온누리 가맹점 지도나 디지털온누리 앱에서 확인하세요." + "<br>" + " 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong>정확하지 않을 수 있습니다</strong> — 내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.";
   }
 

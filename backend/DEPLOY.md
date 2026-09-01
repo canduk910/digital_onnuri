@@ -247,6 +247,34 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 반영할 때는 `data/online_catalog.json`을 고치고 `_workspace/15_online_catalog_report.md`에 근거를 남긴다.
 **확인하지 못한 몰의 `surveyed_on`은 올리지 않는다** — 화면 스탬프가 그 날짜를 근거로 계산된다.
 
+### 가맹점 갱신이 멈췄을 때 (2026-09-01)
+
+단계 A 가 실패하면 배치가 `app_meta` 에 두 값을 남기고, `/api/meta` 가 그대로 노출해
+`merchants.html` 이 화면 상단에 경고를 띄운다.
+
+| 키 | 뜻 |
+|---|---|
+| `merchants_stale_since` | **첫 실패일**(매일 덮어쓰지 않는다 — 덮으면 며칠째인지 알 수 없다) |
+| `merchants_stale_reason` | 사유 한 줄 |
+
+성공하면 배치가 두 키를 지운다. 남아 있으면 정상인데도 화면이 경고를 띄운다.
+
+왜 만들었나 — 2026-08-29 온누리가 가맹점 API 를 v2→v3 로 옮기며 v2 를 닫았고, 배치는
+설계대로 fail-open 해 기존 데이터를 지켰다. 그런데 **나흘 동안 아무도 몰랐다.**
+로그에만 `판정 FAIL(가맹점)` 이 남았고 화면은 "매일 00:30 자동 최신화"라고 말하고 있었다.
+fail-open 은 데이터를 지키지만 **사실을 알리지는 않는다** — 알리는 것은 별도 장치가 필요하다.
+
+상태 확인·수동 조작:
+
+```bash
+docker exec -it onnuri-db psql -U onnuri -d onnuri -c \
+  "SELECT k, v FROM app_meta WHERE k LIKE 'merchants%';"
+
+# 수동 해제(원인을 고친 뒤에만)
+docker exec -it onnuri-db psql -U onnuri -d onnuri -c \
+  "DELETE FROM app_meta WHERE k IN ('merchants_stale_since','merchants_stale_reason');"
+```
+
 ### 단계 E — 실시간 조회 판정 카나리아 (2026-08-31, ADR-17)
 
 실시간 조회는 세 갈래로 **조용히** 깨진다. 없음-문구가 바뀌면 없는 것을 `likely`로,

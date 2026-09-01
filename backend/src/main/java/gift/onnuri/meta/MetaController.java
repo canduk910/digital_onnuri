@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class MetaController {
 
     static final String KEY_MERCHANTS_COLLECTED_ON = "merchants_collected_on";
+    /** 배치가 재수집에 연속 실패하는 동안만 존재한다(성공 시 삭제). nightly_update.py 단계 A 와 짝. */
+    static final String KEY_MERCHANTS_STALE_SINCE  = "merchants_stale_since";
+    static final String KEY_MERCHANTS_STALE_REASON = "merchants_stale_reason";
 
     private final MetaRepository repo;
 
@@ -19,6 +22,8 @@ public class MetaController {
 
     @GetMapping("/meta")
     public MetaResult meta() {
-        return new MetaResult(repo.get(KEY_MERCHANTS_COLLECTED_ON));
+        return new MetaResult(repo.get(KEY_MERCHANTS_COLLECTED_ON),
+                repo.get(KEY_MERCHANTS_STALE_SINCE),
+                repo.get(KEY_MERCHANTS_STALE_REASON));
     }
 }

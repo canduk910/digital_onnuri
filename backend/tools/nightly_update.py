@@ -92,6 +92,7 @@ def stage_a_merchants(conn, today, no_collect):
             cwd=str(ROOT))
         if r.returncode != 0:
             log(f"A 실패: 재수집 비정상 종료(exit={r.returncode}). 기존 데이터 유지.")
+            _mark_stale(conn, today, f"공식 가맹점 API 재수집 실패(exit={r.returncode})")
             return False
         log("A1 재수집 완료")
 
@@ -130,6 +131,7 @@ def stage_a_merchants(conn, today, no_collect):
             cur.execute("DROP TABLE merchant_stage")
             conn.commit()
             log(f"A 실패: 가드 위반 — {'; '.join(reasons)}. 스왑 중단, 기존 유지.")
+            _mark_stale(conn, today, "수집 결과가 가드에 걸려 반영하지 않음")
             return False
         log(f"A3 가드 통과(기존 {cur_db} 대비 ±{GUARD_TOLERANCE:.0%} 이내)")
     conn.commit()
@@ -155,6 +157,7 @@ def stage_a_merchants(conn, today, no_collect):
             "INSERT INTO app_meta(k, v) VALUES('merchants_collected_on', %s) "
             "ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v", (today,))
     conn.commit()
+    _clear_stale(conn)          # 갱신이 되돌아왔다 — 화면 경고를 내린다
     log(f"A5 정리 완료(old drop·인덱스명 정규화·ANALYZE·수집일 {today} 기록) — 소요 {time.time()-t0:.1f}s")
     log("A 판정: OK")
     return True
@@ -309,6 +312,40 @@ def stage_b_online(conn, today):
     log(f"B2 upsert: 신규 {inserted}·갱신 {updated}·removed {removed} "
         f"(행 {before}→{after}) — 소요 {time.time()-t0:.1f}s")
     log("B 판정: OK")
+
+
+def _mark_stale(conn, today, reason):
+    """가맹점 갱신이 멈춘 사실을 app_meta 에 남긴다 — /api/meta 가 그대로 노출하고
+    merchants.html 이 화면에 띄운다.
+
+    2026-08-29 온누리가 가맹점 API 를 v2→v3 로 옮기며 v2 를 닫았고, 배치는 설계대로
+    fail-open 해 기존 데이터를 지켰다. 그런데 **나흘 동안 아무도 몰랐다** — 로그에만
+    남았고 화면은 그동안 "매일 00:30 자동 최신화"라고 말하고 있었다.
+    멈춘 사실은 운영자의 로그가 아니라 이용자가 보는 화면에 드러나야 한다.
+
+    since 는 **첫 실패일을 유지**한다(매일 덮어쓰면 "어제부터"가 되어 4일째인지 알 수 없다).
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO app_meta(k, v) VALUES('merchants_stale_since', %s) "
+                        "ON CONFLICT (k) DO NOTHING", (today,))
+            cur.execute("INSERT INTO app_meta(k, v) VALUES('merchants_stale_reason', %s) "
+                        "ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v", (reason[:200],))
+        conn.commit()
+        log(f"A 중단 기록: since(첫 실패일 유지)·reason={reason[:60]}")
+    except Exception as e:                         # noqa: BLE001 — 기록 실패가 배치를 죽이지 않는다
+        log(f"A 중단 기록 실패(무시): {e}")
+
+
+def _clear_stale(conn):
+    """갱신이 되돌아왔으면 지운다. 남겨 두면 정상인데도 화면이 경고를 띄운다."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM app_meta WHERE k IN "
+                        "('merchants_stale_since','merchants_stale_reason')")
+        conn.commit()
+    except Exception as e:                         # noqa: BLE001
+        log(f"A 중단 기록 해제 실패(무시): {e}")
 
 
 # ------------------------------------------------------------------ 단계 C: RAG
