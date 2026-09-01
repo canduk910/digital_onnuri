@@ -86,15 +86,15 @@
   .modal-foot .bm-reset{ border:1px solid var(--border); background:#fff; color:var(--text-sub); }
   .modal-foot .bm-done{ border:1px solid var(--accent); background:var(--accent); color:#fff; }
   /* 실시간 조회(ADR-17) — 배너·결과. 판정을 단정하지 않으므로 색도 절제한다. */
-  .probe-banner{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0 14px;
-    padding:11px 14px; border:1px solid var(--accent-line); border-radius:var(--r-md); background:var(--accent-soft); }
+  .probe-banner{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:12px 0 0;
+    padding:11px 14px; border:1px solid var(--accent-line); border-radius:var(--r-md); background:var(--bg); }
   .probe-banner .pb-why{ font-size:13px; color:var(--text-sub); line-height:1.6; flex:1; min-width:220px; }
   .probe-banner .pb-why b{ color:var(--text); }
   .pb-run{ font-family:inherit; font-size:13px; font-weight:700; padding:8px 14px; cursor:pointer;
     border-radius:var(--r-sm); border:1px solid var(--accent); background:var(--accent); color:#fff; white-space:nowrap; }
   .pb-run:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
 
-  .probe-result{ margin:10px 0 16px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--bg); overflow:hidden; }
+  .probe-result{ margin:12px 0 0; border:1px solid var(--border); border-radius:var(--r-md); background:var(--bg); overflow:hidden; }
   .probe-result .pb-head{ padding:12px 14px; font-size:13.5px; line-height:1.65; color:var(--text);
     background:var(--surface); border-bottom:1px solid var(--border); }
   .pb-list{ list-style:none; margin:0; padding:0; }
@@ -130,16 +130,28 @@
 
   /* ===== 컨트롤 ===== */
   .controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:14px; }
-  /* 검색 히어로 — 필터보다 위, 페이지에서 가장 큰 입력. */
-  .search-hero { margin:0 0 16px; }
-  .search-hint { margin:8px 0 0; font-size:13px; line-height:1.6; color:var(--text-sub); }
-  .search-hint b { color:var(--text); font-weight:700; }
+  /* 검색 히어로 — 필터보다 위, 페이지에서 가장 큰 입력.
+     오렌지로 감싸 이 페이지에서 가장 먼저 눈에 들어오게 한다(2026-09-01 사용자 요청).
+     칩·탭은 모노톤이라 오렌지 블록이 여기 하나뿐이고, 그래서 절제 원칙과 충돌하지 않는다. */
+  .search-hero { margin:0 0 18px; padding:16px 18px 14px; background:var(--accent-soft);
+    border:1px solid var(--accent-line); border-radius:var(--r-md); position:relative; overflow:hidden; }
+  /* 왼쪽 오렌지 바 — 블록 전체를 진하게 칠하지 않고 가장자리로만 강도를 준다. */
+  .search-hero::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--accent); }
+  .search-eyebrow { display:flex; align-items:center; gap:7px; margin:0 0 9px;
+    font-size:10.5px; font-weight:800; letter-spacing:.09em; color:var(--accent-press); text-transform:uppercase; }
+  .search-eyebrow .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); flex:none; }
+  .search-hint { margin:9px 0 0; font-size:13px; line-height:1.6; color:var(--text-sub); }
+  .search-hint b { color:var(--accent-press); font-weight:800; }
   .search-wrap { position:relative; flex:1; min-width:230px; }
   .search-hero .search-wrap { flex:none; width:100%; }
   .search-wrap svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); width:15px; height:15px; stroke:var(--text-faint); fill:none; stroke-width:2; pointer-events:none; }
-  .search-hero .search-wrap svg { left:16px; width:18px; height:18px; stroke:var(--text-sub); }
+  .search-hero .search-wrap svg { left:16px; width:18px; height:18px; stroke:var(--accent); stroke-width:2.4; }
   .search-wrap input { width:100%; font-family:inherit; font-size:14px; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:10px 36px; outline:none; transition:.15s ease; }
-  .search-hero .search-wrap input { font-size:16px; padding:14px 44px; border-width:2px; border-color:var(--border-2); border-radius:var(--r-md); }
+  /* 오렌지 바탕 위의 흰 입력창 — 대비로 도드라진다. */
+  .search-hero .search-wrap input { font-size:16px; padding:14px 44px; border-width:2px;
+    border-color:var(--accent); border-radius:var(--r-md); background:var(--bg); }
+  .search-hero .search-wrap input:hover { border-color:var(--accent-hover); }
+  .search-hero .search-wrap input:focus { border-color:var(--accent-press); box-shadow:0 0 0 4px rgba(242,107,29,.18); }
   .search-hero .search-wrap input::placeholder { color:var(--text-faint); }
   .search-hero .search-clear { right:8px; font-size:15px; }
   .search-wrap input:hover { border-color:var(--border-2); }
@@ -192,7 +204,7 @@
     .page-head::after { font-size:120px; top:-28px; right:-4px; }
     .kind-tab { padding:10px 10px 8px; }
     /* 글자 크기는 16px 를 유지한다 — 그 아래로 내리면 iOS 가 입력 시 화면을 확대한다. */
-    .search-hero { margin-bottom:12px; }
+    .search-hero { margin-bottom:14px; padding:13px 14px 12px; }
     .search-hero .search-wrap input { padding:12px 42px; }
     .search-hint { font-size:12.5px; }
   }
@@ -247,6 +259,7 @@
          가장 강한 도구가 됐는데, 칩 4줄 아래에 있어 위계가 가장 낮았다(2026-09-01 실측 y=542).
          사이드바를 '도구 먼저'로 바꾼 2026-08-25 와 같은 논리다. -->
     <div class="search-hero">
+      <p class="search-eyebrow"><span class="dot"></span>상품 실시간 검색</p>
       <div class="search-wrap">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
         <input id="q" type="text" autocomplete="off"

@@ -47,7 +47,7 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "search_url_template": ""
+      "search_url_template": "https://www.cyso.co.kr/item/list?q={q}"
     },
     {
       "id": "hyundai-ezwel-onnuri",
@@ -61,7 +61,7 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "search_url_template": ""
+      "search_url_template": "https://www.onnuri-sijang.com/onnuri/main/searchPage?currentPage=1&displaySize=20&searchTerm={q}"
     },
     {
       "id": "hyundai-home-shopping",
@@ -131,7 +131,7 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "search_url_template": ""
+      "search_url_template": "https://www.gongyoungshop.kr/search/goodsSearch.do?kwd={q}"
     },
     {
       "id": "onnuri-paldo-sijang",
@@ -145,7 +145,7 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "search_url_template": ""
+      "search_url_template": "https://e-jangter.com/goods/search.aspx?q={q}"
     },
     {
       "id": "onnuri-5iljang",
@@ -159,7 +159,7 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "search_url_template": ""
+      "search_url_template": "https://www.onnuri5.com/shop/search_result_onnuri?cno=&cate_gno=&search_str={q}"
     },
     {
       "id": "epost-mall",
