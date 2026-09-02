@@ -15,7 +15,7 @@ class ProbeTargetsTest {
 
     @Test
     void 조회대상이_모두_실측일과_robots_검토일을_가진다() {
-        assertEquals(9, ProbeTargets.ALL.size());   // 2026-09-02 현대이지웰·온누리5일장 추가(내부 API)
+        assertEquals(10, ProbeTargets.ALL.size());  // 2026-09-02 온누리쇼핑 추가
         for (ProbeTarget t : ProbeTargets.ALL) {
             assertNotNull(t.measuredOn(), t.platformId() + " measuredOn 없음");
             assertNotNull(t.robotsCheckedOn(), t.platformId() + " robotsCheckedOn 없음 — "

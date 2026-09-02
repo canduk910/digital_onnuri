@@ -54,6 +54,8 @@ public final class ProbeTargets {
             P("\"GDS_NM\":\"([^\"]+)\"");
     private static final java.util.regex.Pattern T_5ILJANG =   // "product_name":"상품명"
             P("\"product_name\":\"([^\"]+)\"");
+    private static final java.util.regex.Pattern T_SHOPPING =  // <div class="name">상품명</div>
+            P("<div class=\"name\">\\s*([^<]+?)\\s*</div>");
     private static final java.util.regex.Pattern T_EPOST =    // <div class="goods_text"><p class="tit">상품명</p>
             P("<div class=\"goods_text\">\\s*<p class=\"tit\">\\s*([^<]+?)\\s*</p>");
 
@@ -176,7 +178,22 @@ public final class ProbeTargets {
                     List.of("\"data\":[]"),
                     true, 5, T_5ILJANG, 4, "김치", 0, MEASURED, LocalDate.of(2026, 9, 2),
                     "mall_id=onnuri&member_id=&cno=&cate_gno=45&search_str={q}"
-                            + "&request_method=POST&page=1&perPage=50")
+                            + "&request_method=POST&page=1&perPage=50"),
+
+            // 온누리쇼핑 — 검색 UI 가 클릭으로 열려 폼을 못 찾았을 뿐, 결과는 **서버가 렌더한다**.
+            // 검색을 실제로 실행해 보고서야 주소를 알았다(`/search?searchWrd=`).
+            // robots.txt: 전면 차단 없음, /search 에 대한 금지도 없다.
+            // 없음 실측: `검색된 상품이 없습니다.` — 있음 응답에는 없다(대조 확인) → 등급 B
+            // 실측: 김치 126회·64KB · 로봇청소기 105회·60KB · 없는 말 3회·15KB(전부 검색창 에코)
+            new ProbeTarget("onnuri-shopping",
+                    "https://onnurishop.co.kr/search?searchWrd={q}",
+                    StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
+                    List.of(),
+                    List.of("검색된 상품이 없습니다"),
+                    // echoesQuery=false — 검색어가 <input value> 와 JS 변수에만 있어 stripEcho 후
+                    // 텍스트에는 남지 않는다(카나리아가 선언 true 와 실측 false 의 차이를 잡았다).
+                    // 덕분에 토큰 0 판정도 함께 쓸 수 있다.
+                    false, 5, T_SHOPPING, 0, "김치", 0, MEASURED, LocalDate.of(2026, 9, 2))
     );
 
     /**

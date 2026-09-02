@@ -65,14 +65,16 @@ class OnlineSearchServiceTest {
     @Test
     void 조회_대상이_아닌_몰도_목록에_담고_홈_링크를_준다() {
         // "확인하지 않았다"와 "없다"는 다르다 — 빼버리면 이용자는 없는 줄 안다.
-        var r = svc(List.of(p("onnuri-shopping", "온누리쇼핑", "shopping", "https://onnurishop.co.kr")), true)
+        // 예시는 **검색 기능 자체가 없는** 몰로 든다(2026-09-02 실측: 검색 input 0개).
+        // 온누리쇼핑은 그날 조회 대상이 되어 더는 이 자리에 쓸 수 없다.
+        var r = svc(List.of(p("genius-mall", "지니어스몰", "shopping", "https://luxurysystem.co.kr")), true)
                 .search(ProbeQuery.of("로봇청소기"));
         ProbeHit h = r.items().get(0);
         assertEquals(Verdict.NOT_PROBED, h.status());
         // 사유를 뭉뚱그리지 않는다 — 화면이 "왜 확인하지 않았는지"를 말해야
         // 이용자가 "없다"로 읽지 않는다(2026-09-01 사용자 요청).
         assertEquals(ProbeTargets.EX_NO_FETCH, h.reason());
-        assertEquals("https://onnurishop.co.kr", h.searchUrl());
+        assertEquals("https://luxurysystem.co.kr", h.searchUrl());
     }
 
     @Test
@@ -116,9 +118,9 @@ class OnlineSearchServiceTest {
 
     @Test
     void 검색URL이_없으면_홈으로_보낸다() {
-        var r = svc(List.of(p("onnuri-shopping", "온누리쇼핑", "shopping",
-                "https://onnurishop.co.kr", "")), true).search(ProbeQuery.of("김치"));
-        assertEquals("https://onnurishop.co.kr", r.items().get(0).searchUrl());
+        var r = svc(List.of(p("genius-mall", "지니어스몰", "shopping",
+                "https://luxurysystem.co.kr", "")), true).search(ProbeQuery.of("김치"));
+        assertEquals("https://luxurysystem.co.kr", r.items().get(0).searchUrl());
     }
 
     @Test

@@ -40,7 +40,8 @@ class SelfTestLiveTest {
         }
         System.out.println(sb);
         assertTrue(r.probeEnabled(), "킬 스위치가 꺼져 있으면 카나리아는 확인한 것이 없다");
-        assertEquals(12, r.total(), "몰당 2질의 = 12건이어야 한다");
+        assertEquals(ProbeTargets.ALL.size() * 2, r.total(),
+                "몰당 2질의 — 대상이 늘면 건수도 따라 는다");
         assertEquals(0, r.failed(), "카나리아 실패:" + sb);
     }
 }
