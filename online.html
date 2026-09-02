@@ -133,13 +133,16 @@
   /* '없었다'도 정보라서 읽혀야 한다 — faint(2.73:1)는 AA 미달이라 sub 로. 위계는 굵기가 맡는다. */
   .pb-idx-miss{ color:var(--text-sub); }
   .pb-idx-when{ font-size:11.5px; font-weight:400; color:var(--text-sub); }
-  .pb-also{ margin:0; padding:11px 14px; font-size:12.5px; line-height:1.65; color:var(--text-sub);
-    background:var(--surface); border-top:1px solid var(--border); }
-  .pb-also b{ color:var(--text); font-weight:700; }
-  .pb-browse{ font-family:inherit; font-size:12.5px; font-weight:700; margin-left:4px;
-    padding:5px 11px; cursor:pointer; border-radius:var(--r-sm);
+  /* 다리 버튼(2026-09-02 탭 분리) — 실시간 결과에서 '몰 둘러보기'로 건너가는 유일한 통로.
+     종전의 "아래 N곳 목록에는…" 안내를 대체한다. 두 축이 탭으로 갈리면서 '아래 목록'이라는
+     말 자체가 성립하지 않게 됐다 — 같은 화면에 없는 것을 아래라고 부르면 이용자가 스크롤만 한다. */
+  .pb-bridge{ margin:0; padding:11px 14px; border-top:1px solid var(--border); background:var(--surface); }
+  .pb-bridge p{ margin:0 0 8px; font-size:12.5px; line-height:1.65; color:var(--text-sub); }
+  .pb-bridge p b{ color:var(--text); font-weight:700; }
+  .pb-bridge button{ font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;
+    padding:8px 14px; border-radius:var(--r-sm);
     border:1px solid var(--accent); background:var(--bg); color:var(--accent-press); }
-  .pb-browse:hover{ background:var(--accent-soft); }
+  .pb-bridge button:hover{ background:var(--accent-soft); }
   .pb-foot{ margin:0; padding:10px 14px; font-size:11.5px; color:var(--text-faint);
     line-height:1.55; border-top:1px solid var(--border); }
   .aux-row { display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; margin-bottom:14px; padding:12px 14px; background:var(--pat-hatch), var(--surface); border:1px solid var(--border); border-radius:var(--r-md); }
@@ -214,6 +217,31 @@
   .btn-outline { background:var(--bg); color:var(--text); border:1px solid var(--border-2); }
   .btn-outline:hover { background:var(--surface); color:var(--text); text-decoration:none; }
 
+  /* ===== 페이지 탭 — 검색 두 축 분리 (2026-09-02) =====
+     한 검색창을 '태그 둘러보기'와 '실시간 조회'가 함께 쓰면서 "칩 필터가 실시간 조회에도
+     걸린다"는 오해를 낳았다(실제 요청 본문은 검색어 하나뿐이고 칩은 무관하다).
+     탭은 페이지 수준 컨트롤이라 구분 탭(.kind-tab — 다크 필)보다 위계가 높아야 한다.
+     같은 모양을 두 번 쓰면 어느 쪽이 상위인지 읽히지 않으므로 밑줄형으로 성격을 달리 준다. */
+  .ptabs { display:flex; gap:2px; margin:0 0 18px; border-bottom:1px solid var(--border); }
+  .ptab { position:relative; font-family:inherit; cursor:pointer; background:none; border:0;
+    padding:11px 15px 13px; font-size:14.5px; font-weight:700; letter-spacing:-0.015em;
+    color:var(--text-faint); white-space:nowrap; transition:color .15s ease; }
+  .ptab:hover { color:var(--text-sub); }
+  .ptab[aria-selected="true"] { color:var(--text); }
+  .ptab[aria-selected="true"]::after { content:""; position:absolute; left:6px; right:6px; bottom:-1px;
+    height:3px; border-radius:3px 3px 0 0; background:var(--accent); }
+
+  /* 탭 2 태그 검색 — 모노톤으로 둔다. 오렌지 블록은 탭 1 히어로 하나뿐이어야
+     '오렌지는 포인트만' 원칙이 유지된다. */
+  .tag-search { margin:0 0 14px; }
+  .tag-search .search-wrap { flex:none; width:100%; }
+  .tag-hint { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:9px 0 0;
+    font-size:12.5px; line-height:1.6; color:var(--text-sub); }
+  .tab-jump { font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer;
+    padding:6px 11px; border-radius:var(--r-sm); border:1px solid var(--border-2);
+    background:var(--bg); color:var(--text); }
+  .tab-jump:hover { border-color:var(--accent); color:var(--accent-press); }
+
   .footnotes { margin-top:26px; padding-top:16px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:6px; }
   .footnotes p { font-size:12.5px; color:var(--text-faint); line-height:1.6; }
   .footnotes strong { color:var(--text-sub); }
@@ -227,6 +255,10 @@
     .search-hero { margin-bottom:14px; padding:13px 14px 12px; }
     .search-hero .search-wrap input { padding:12px 42px; }
     .search-hint { font-size:12.5px; }
+    /* 탭 라벨은 좁은 화면에서도 한 줄이어야 한다 — 낱말 단위로 쪼개지면 두 탭이
+       한 덩어리로 보여 무엇을 고르는 컨트롤인지 읽히지 않는다. */
+    .ptabs { margin-bottom:14px; }
+    .ptab { padding:11px 11px 13px; font-size:14px; }
   }
 </style>
 </head>
@@ -245,7 +277,9 @@
     <nav class="sb-nav">
       <div class="sb-group">가맹점 스마트 검색</div>
       <a class="sb-item" href="merchants.html#sidoTabs">오프라인 가맹점 찾기</a>
-      <a class="sb-item active" href="#kindTabs" aria-current="page">온라인 사용처 찾기</a>
+      <!-- 앵커는 #pageTabs — 종전 #kindTabs 는 탭 분리 후 '몰 둘러보기' 패널 안으로 들어가
+           기본 탭에서는 숨은 요소가 된다(눌러도 아무 일이 없는 죽은 링크가 된다). -->
+      <a class="sb-item active" href="#pageTabs" aria-current="page">온라인 사용처 찾기</a>
       <div class="sb-group">사용 가이드</div>
       <a class="sb-item" href="index.html#offline">오프라인 사용처</a>
       <a class="sb-item" href="index.html#online">온라인 가맹 플랫폼</a>
@@ -273,44 +307,73 @@
       <p class="meta-line" id="metaLine">불러오는 중…</p>
     </header>
 
-    <div class="notice"><p id="noticeMain">불러오는 중…</p></div>
+    <!-- 두 축을 탭으로 가른다(2026-09-02). 한 검색창을 '실시간 조회'와 '태그 둘러보기'가
+         함께 쓰면서, 위의 칩 필터가 실시간 조회에도 걸린다는 오해가 생겼다 —
+         실시간 요청은 검색어 하나만 보내고 칩과는 무관하다. 화면이 그 사실을 말하게 한다. -->
+    <div class="ptabs" id="pageTabs" role="tablist" aria-label="검색 방식 선택">
+      <button type="button" class="ptab" id="tabLive" role="tab" aria-selected="true"
+              aria-controls="panelLive">상품 실시간 검색</button>
+      <button type="button" class="ptab" id="tabBrowse" role="tab" aria-selected="false"
+              aria-controls="panelBrowse" tabindex="-1">몰 둘러보기</button>
+    </div>
 
-    <!-- 검색을 필터보다 앞에 둔다. 실시간 조회(ADR-17)가 붙으면서 검색이 이 페이지에서
-         가장 강한 도구가 됐는데, 칩 4줄 아래에 있어 위계가 가장 낮았다(2026-09-01 실측 y=542).
-         사이드바를 '도구 먼저'로 바꾼 2026-08-25 와 같은 논리다. -->
-    <div class="search-hero">
-      <p class="search-eyebrow"><span class="dot"></span>상품 실시간 검색</p>
-      <div class="search-wrap">
-        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
-        <input id="q" type="text" autocomplete="off"
-               placeholder="상품명·브랜드·몰 이름 (예: 다이슨 청소기)">
-        <button class="search-clear" id="qClear" aria-label="검색어 지우기" style="display:none">✕</button>
+    <!-- ── 탭 1 · 상품 실시간 검색 ────────────────────────────────────────────
+         검색창이 이 탭의 전부다. 칩은 여기 없다 — 없다는 것이 곧 "필터는 이 조회에
+         걸리지 않는다"는 안내다(2026-09-01 히어로 승격의 연장). -->
+    <section id="panelLive" role="tabpanel" aria-labelledby="tabLive">
+      <div class="search-hero">
+        <p class="search-eyebrow"><span class="dot"></span>상품 실시간 검색</p>
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+          <input id="pq" type="text" autocomplete="off"
+                 placeholder="상품명·브랜드·몰 이름 (예: 다이슨 청소기)">
+          <button class="search-clear" id="pqClear" aria-label="검색어 지우기" style="display:none">✕</button>
+        </div>
+        <!-- 상시 안내. 2자를 입력하기 전에는 실시간 조회가 있다는 사실 자체를 알 수 없었다.
+             곳 수는 쓰지 않는다 — 조회 대상 수는 서버가 아는 값이라 화면에 손으로 적으면
+             대상이 바뀔 때 거짓말이 된다. -->
+        <p class="search-hint">상품명을 넣어 보세요 — 목록에 없어도
+          <b>여러 온라인몰을 동시에 조회해</b> 그 상품이 있는지 확인합니다.
+          이 조회에는 「몰 둘러보기」의 칩 필터가 걸리지 않습니다.</p>
+        <div id="probeArea"></div>
       </div>
-      <!-- 상시 안내. 2자를 입력하기 전에는 실시간 조회가 있다는 사실 자체를 알 수 없었다.
-           곳 수는 쓰지 않는다 — 조회 대상 수는 서버가 아는 값이라 화면에 손으로 적으면
-           대상이 바뀔 때 거짓말이 된다. '일부'가 부분 노출 안내를 겸한다. -->
-      <p class="search-hint">상품명을 넣어 보세요 — 목록에 없어도
-        <b>여러 온라인몰을 동시에 조회해</b> 그 상품이 있는지 확인합니다.</p>
-      <div id="probeArea"></div>
-    </div>
+    </section>
 
-    <div class="kind-tabs" id="kindTabs" role="tablist" aria-label="구분 선택"></div>
+    <!-- ── 탭 2 · 몰 둘러보기 ───────────────────────────────────────────────── -->
+    <section id="panelBrowse" role="tabpanel" aria-labelledby="tabBrowse" hidden>
+      <div class="notice"><p id="noticeMain">불러오는 중…</p></div>
 
-    <div class="chip-row" id="catChips" aria-label="물품종류 대분류 선택"></div>
-    <div class="chip-row" id="subChips" aria-label="물품종류 소분류 선택" style="display:none"></div>
+      <div class="tag-search">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+          <input id="q" type="text" autocomplete="off"
+                 placeholder="태그로 찾기 (예: 삼성, 건어물, 배달)">
+          <button class="search-clear" id="qClear" aria-label="검색어 지우기" style="display:none">✕</button>
+        </div>
+        <!-- 이 검색창은 태그를 훑을 뿐이라 상품명은 대개 걸리지 않는다. 어디로 가야 하는지를
+             문장이 아니라 눌리는 버튼으로 준다(행선지가 눈에 띄어야 안내가 산다). -->
+        <p class="tag-hint">이 검색은 몰 이름·물품종류·브랜드 태그를 훑습니다.
+          <button type="button" class="tab-jump" id="toLive">상품명은 「상품 실시간 검색」 탭에서 →</button></p>
+      </div>
 
-    <div class="aux-row">
-      <div class="aux-group" id="brandChips" aria-label="브랜드 선택"></div>
-    </div>
+      <div class="kind-tabs" id="kindTabs" role="tablist" aria-label="구분 선택"></div>
 
-    <div class="controls">
-      <label class="nationwide-toggle"><input type="checkbox" id="nationwideOnly">전국 이용 가능만</label>
-      <span class="count-text" id="countText"></span>
-    </div>
+      <div class="chip-row" id="catChips" aria-label="물품종류 대분류 선택"></div>
+      <div class="chip-row" id="subChips" aria-label="물품종류 소분류 선택" style="display:none"></div>
 
-    <div id="resultArea">
-      <div class="state"><span class="lead">플랫폼 목록을 불러오는 중입니다…</span></div>
-    </div>
+      <div class="aux-row">
+        <div class="aux-group" id="brandChips" aria-label="브랜드 선택"></div>
+      </div>
+
+      <div class="controls">
+        <label class="nationwide-toggle"><input type="checkbox" id="nationwideOnly">전국 이용 가능만</label>
+        <span class="count-text" id="countText"></span>
+      </div>
+
+      <div id="resultArea">
+        <div class="state"><span class="lead">플랫폼 목록을 불러오는 중입니다…</span></div>
+      </div>
+    </section>
 
     <div class="footnotes">
       <p id="footMethod"></p>
@@ -350,7 +413,7 @@
 <script src="chat-widget.js?v=13" defer></script>
 <script src="config.js"></script>
 <script src="online-source.js?v=2"></script>
-<script src="online-probe.js?v=6"></script>
+<script src="online-probe.js?v=7"></script>
 <script>
 (function () {
   "use strict";
@@ -366,7 +429,12 @@
 
   // ---- 데이터 ----
   var PLATFORMS = [], CATALOG = {}, TAXONOMY = [], META = { platforms: "", survey: "" };
-  var state = { kind: "전체", cat: "전체", sub: "전체", brand: "전체", nationwideOnly: false, q: "" };
+  // tab: "live"(상품 실시간 검색) | "browse"(몰 둘러보기). 기본은 live —
+  // 이 페이지에서 가장 강한 도구이고, 상품명으로 들어오는 이용자가 다수다.
+  // q  = 탭 2 태그 검색어(칩 필터와 함께 목록을 좁힌다)
+  // pq = 탭 1 상품 검색어(실시간 조회 + 다리 버튼에만 쓴다)
+  // 둘을 한 값으로 두면 탭이 갈렸는데도 한쪽 입력이 다른 쪽 결과를 바꾼다 — 분리가 이번 변경의 핵심이다.
+  var state = { tab: "live", kind: "전체", cat: "전체", sub: "전체", brand: "전체", nationwideOnly: false, q: "", pq: "" };
   // 다중 필터(2026-08-12): cat·brand는 콤마 구분 다중 값("agri,fashion"). sub는 대분류 1개일 때만 활성.
   function multiHas(v, key) { return v !== "전체" && v.split(",").indexOf(key) !== -1; }
   function multiToggle(v, key) {
@@ -482,24 +550,37 @@
         var bs = itemBrands(p), sel = multiList(state.brand);
         if (!sel.some(function (b2) { return bs.indexOf(b2) !== -1; })) return false;   // 브랜드 다중 OR
       }
-      if (q) {
-        var cats = ((CATALOG[p.id] || {}).cats || []).map(taxLabel).join(" ");
-        var hay = (p.name + " " + (p.summary || "") + " " + (p.note || "") + " " + cats + " " + itemBrands(p).join(" ")).toLowerCase();
-        // 이름·태그 라벨에 그대로 있으면 직접 일치.
-        if (hay.indexOf(q) !== -1) return true;
-        // 없으면 **품목으로** 한 번 더 본다. 태그 라벨은 '생활·주방가전'까지만 내려가서
-        // "로봇청소기" 같은 상품 이름은 그대로는 걸리지 않는다. 채록에 쓰는 판정 규칙
-        // (CAT_RULES)이 이미 그 말을 카테고리로 옮길 줄 알기에, 같은 규칙을 여기서도 쓴다
-        // — 별도 동의어 사전을 만들지 않는다(2026-09-02).
-        var byItem = catsForQuery(q);
-        if (!byItem.length) return false;
-        var mine = (CATALOG[p.id] || {}).cats || [];
-        return byItem.some(function (c) {
-          return mine.some(function (m) { return m === c || m.indexOf(c + "-") === 0; });
-        });
-      }
+      if (q) return matchesQ(p, q);
       return true;
     });
+  }
+
+  /** 검색어 한 개가 한 몰에 걸리는가. 규칙을 한 곳에 둔다 —
+      목록 필터와 다리 버튼이 서로 다른 규칙을 쓰면 곳 수가 조용히 갈린다. */
+  function matchesQ(p, q) {
+    var cats = ((CATALOG[p.id] || {}).cats || []).map(taxLabel).join(" ");
+    var hay = (p.name + " " + (p.summary || "") + " " + (p.note || "") + " " + cats + " " + itemBrands(p).join(" ")).toLowerCase();
+    // 이름·태그 라벨에 그대로 있으면 직접 일치.
+    if (hay.indexOf(q) !== -1) return true;
+    // 없으면 **품목으로** 한 번 더 본다. 태그 라벨은 '생활·주방가전'까지만 내려가서
+    // "로봇청소기" 같은 상품 이름은 그대로는 걸리지 않는다. 채록에 쓰는 판정 규칙
+    // (CAT_RULES)이 이미 그 말을 카테고리로 옮길 줄 알기에, 같은 규칙을 여기서도 쓴다
+    // — 별도 동의어 사전을 만들지 않는다(2026-09-02).
+    var byItem = catsForQuery(q);
+    if (!byItem.length) return false;
+    var mine = (CATALOG[p.id] || {}).cats || [];
+    return byItem.some(function (c) {
+      return mine.some(function (m) { return m === c || m.indexOf(c + "-") === 0; });
+    });
+  }
+
+  /** 다른 필터를 걷어 낸 상태에서 이 검색어가 걸리는 몰 수. 실시간 조회 배너가
+      "태그 목록으로는 안 걸린다"고 말해도 되는지 판단하는 값이다 —
+      브랜드명("다이슨")은 태그에 그대로 있으므로 걸린다고 말해야 한다. */
+  function coverCount(q) {
+    q = (q || "").trim().toLowerCase();
+    if (!q) return 0;
+    return PLATFORMS.filter(function (p) { return matchesQ(p, q); }).length;
   }
 
   // 검색어 → 품목 카테고리. data/cat_rules.json 은 채록 규칙(CAT_RULES)의 사본이고,
@@ -525,6 +606,94 @@
       var hay = (p.name + " " + (p.summary || "") + " " + (p.note || "") + " " + cats + " " + itemBrands(p).join(" ")).toLowerCase();
       return hay.indexOf(q) === -1;
     }).length;
+  }
+
+  /* ── 탭 (2026-09-02) ──────────────────────────────────────────────────────
+     localStorage 로 기억하지 않는다 — 지난번에 무엇을 했는지보다 지금 무엇을 하러
+     왔는지가 우선이고, 착지 규칙이 이미 그것을 정한다. 대신 주소에는 남겨
+     새로고침·공유가 같은 탭으로 열리게 한다. */
+  function setTab(t, writeUrl) {
+    state.tab = (t === "browse") ? "browse" : "live";
+    var live = state.tab === "live";
+    el("tabLive").setAttribute("aria-selected", live ? "true" : "false");
+    el("tabBrowse").setAttribute("aria-selected", live ? "false" : "true");
+    el("tabLive").tabIndex = live ? 0 : -1;      // 로빙 탭인덱스 — 탭 목록 전체가 아니라 선택된 탭 하나만 포커스를 받는다
+    el("tabBrowse").tabIndex = live ? -1 : 0;
+    el("panelLive").hidden = !live;
+    el("panelBrowse").hidden = live;
+    if (writeUrl) syncUrlTab();
+  }
+  /** 다른 파라미터는 건드리지 않는다 — 착지 파라미터를 지우면 새로고침 시 맥락이 사라진다. */
+  function syncUrlTab() {
+    try {
+      var u = new URL(location.href);
+      u.searchParams.set("tab", state.tab);
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+    } catch (e) {}
+  }
+
+  /**
+   * 실시간 결과 → 몰 둘러보기 다리. 무엇을 적용하고 몇 곳이 되는지를 함께 계산한다.
+   *
+   * 곳 수를 "품목으로 걸리는 몰"로 따로 세지 않고 **클릭이 실제로 적용할 필터에서 센다.**
+   * 두 계산이 갈리면 버튼은 13곳이라 말하고 건너간 화면은 10곳을 보여준다 —
+   * 이 저장소가 반복해서 겪은, 에러 없이 숫자만 어긋나는 그 유형이다.
+   *
+   * 칩 UI 가 '대분류 단일 + 소분류 다중'이라 여러 대분류에 걸친 품목은 한 화면에 다 담을 수 없다
+   * ("로봇청소기" → 생활·청소용품 + 가전·생활주방가전). 가장 많은 몰을 덮는 대분류 하나를 고르고
+   * 그 아래 소분류를 다중 OR 로 건다.
+   */
+  function bridgeTarget(q) {
+    var NONE = { mode: "none", count: 0 };
+    var cats = catsForQuery((q || "").trim().toLowerCase());
+    if (!cats.length) return NONE;
+    var byTop = {}, order = [];
+    cats.forEach(function (c) {
+      var t = topOf(c); if (!t) return;
+      if (!byTop[t]) { byTop[t] = []; order.push(t); }
+      byTop[t].push(c);
+    });
+    var best = null;
+    order.forEach(function (t) {
+      var subs = byTop[t].filter(function (c) { return c !== t; });
+      var n = PLATFORMS.filter(function (p) {
+        if (p.kind === "delivery") return false;   // 물품 축은 쇼핑몰 대상 — filtered() 와 같은 규칙
+        return subs.length
+          ? subs.some(function (s2) { return hasCat(p, null, s2); })
+          : hasCat(p, t, null);
+      }).length;
+      if (!best || n > best.count) {
+        best = { mode: "cat", cat: t, sub: subs.length ? subs.join(",") : "전체", count: n };
+      }
+    });
+    // 규칙에는 걸렸는데 그 태그를 가진 몰이 없으면 '0곳 둘러보기'가 된다 — 그 버튼은 길이 아니다.
+    return (best && best.count > 0) ? best : NONE;
+  }
+
+  /** 다리 버튼이 화면에 낼 문구. 곳 수는 bridgeTarget 이 센 값을 그대로 쓴다. */
+  function bridgeCopy(t) {
+    if (t.mode === "cat") {
+      return { lead: "실시간 조회는 <b>지금 검색되는지</b>를 봅니다. 각 몰이 무엇을 파는지는 물품종류·브랜드 태그로 정리돼 있습니다.",
+               label: "이 품목을 다루는 몰 " + nf(t.count) + "곳 둘러보기 →" };
+    }
+    return { lead: "이 검색어로 걸리는 품목 태그가 없습니다.",
+             label: "몰 둘러보기에서 품목·브랜드로 찾기 →" };
+  }
+
+  /** 다리 버튼 클릭. 버튼이 말한 곳 수와 건너간 화면의 곳 수가 같아야 하므로,
+      곳 수 계산에 들어가지 않은 축(구분·브랜드·전국·태그 검색어)은 전부 되돌린다. */
+  function goBrowseFrom(t) {
+    if (t && t.mode === "cat") {
+      state.kind = "전체"; state.brand = "전체"; state.nationwideOnly = false; state.q = "";
+      var qi = el("q"); if (qi) qi.value = "";
+      el("qClear").style.display = "none";
+      el("nationwideOnly").checked = false;
+      state.cat = t.cat; state.sub = t.sub;
+    }
+    setTab("browse", true);
+    renderAll();
+    var anchor = el("catChips");
+    if (anchor) anchor.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   // ---- 렌더 ----
@@ -797,40 +966,44 @@
     if (!rows.length) {
       area.innerHTML = '<div class="state"><span class="lead">선택한 조건에 맞는 플랫폼이 없습니다.</span>'
         + '물품종류·브랜드 필터를 줄이거나 검색어를 바꿔 보세요. 태그는 ' + esc(META.survey) + ' 실측 기준이라 이후 취급 변화는 반영되지 않을 수 있습니다.'
-        + '<div class="state-actions"><button class="btn-outline" id="resetBtn">검색 초기화</button></div></div>';
+        + '<div class="state-actions"><button class="btn-outline" id="resetBtn">검색 초기화</button>'
+        + '<button class="btn-primary" id="toLiveEmpty">상품명으로 실시간 조회하기 →</button></div></div>';
       var rb = el("resetBtn"); if (rb) rb.onclick = resetAll;
-      probeSync(true);
+      // 빈 결과는 막다른 길이 아니라 분기점이다 — 태그 목록이 답하지 못하는 질문은 옆 탭이 받는다.
+      var tl = el("toLiveEmpty"); if (tl) tl.onclick = function () { jumpToLive(); };
       return;
     }
     area.innerHTML = '<div class="card-grid">' + rows.map(cardHTML).join("") + '</div>';
-    probeSync(false);
   }
 
   // 실시간 조회(ADR-17) — 로컬 태그 필터가 답하지 못하는 "그 상품이 실제로 있느냐"를
   // 몰에 직접 묻는다. **자동으로 조회하지 않는다** — 타이핑 한 글자마다 조회 대상 전부를 두드리면
   // 상대 사이트 부담이 통제 불능이 된다(ADR-16이 하루 3~4곳 순환을 택한 것과 같은 이유).
   // 배너만 띄우고, 사람이 버튼을 누른 뒤에만 나간다.
-  function probeSync(emptyResult) {
+  function probeSync() {
     var mount = el("probeArea"), P = window.OnnuriOnlineProbe;
     if (!mount || !P) return;
-    var q = (state.q || "").trim();
+    var q = (state.pq || "").trim();
     if (q.length < 2) { P.abort(); mount.innerHTML = ""; mount.removeAttribute("data-q"); return; }
     if (mount.getAttribute("data-q") === q) return;   // 같은 검색어면 이미 나온 결과를 지우지 않는다
     P.abort();
     mount.setAttribute("data-q", q);
-    P.renderBanner(mount, q, emptyResult, function () { probeRun(q); });
+    // 배너의 '태그 목록으로는 안 걸린다' 분기는 **다른 필터를 뺀** 순수 검색어 기준이다.
+    // 탭이 갈리면서 옆 탭 목록의 길이를 근거로 쓸 수 없게 됐다 — 그 목록은 칩 필터가 걸려 있다.
+    P.renderBanner(mount, q, coverCount(q) === 0, function () { probeRun(q); });
   }
 
-  /** 검색어를 지워 태그 기반 목록을 되살리고 그 자리로 데려간다. 다른 필터는 건드리지 않는다. */
-  function browseByTags() {
-    state.q = "";
-    var qi = el("q"); if (qi) qi.value = "";
-    el("qClear").style.display = "none";
-    if (window.OnnuriOnlineProbe) window.OnnuriOnlineProbe.abort();
-    var pa = el("probeArea"); if (pa) { pa.innerHTML = ""; pa.removeAttribute("data-q"); }
-    renderAll();
-    var t = el("catChips");
-    if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+  /** 탭 2 → 탭 1. 태그 검색어가 있으면 실어 보낸다(다시 치게 하지 않는다). 자동 조회는 하지 않는다. */
+  function jumpToLive() {
+    var v = (state.q || "").trim();
+    setTab("live", true);
+    if (v) {
+      state.pq = v;
+      var pi = el("pq"); if (pi) pi.value = v;
+      el("pqClear").style.display = "";
+    }
+    renderLive();
+    var pi2 = el("pq"); if (pi2) pi2.focus();
   }
 
   function probeRun(q) {
@@ -842,8 +1015,11 @@
     P.renderRunning(mount, q, linkable);
     P.search(q).then(function (data) {
       if (mount.getAttribute("data-q") !== q) return;   // 그 사이 검색어가 바뀌었다
-      // 로컬(태그 기반) 목록 상황을 함께 넘긴다 — 실시간 조회만 보고 "없다"로 접지 않게.
-      P.renderResult(mount, data, filtered().length, browseByTags);
+      // 옆 탭으로 가는 다리를 함께 넘긴다 — 실시간 조회만 보고 "없다"로 접지 않게.
+      var t = bridgeTarget(q), copy = bridgeCopy(t);
+      P.renderResult(mount, data, {
+        lead: copy.lead, label: copy.label, onGo: function () { goBrowseFrom(t); }
+      });
     }).catch(function (e) {
       if (e && e.name === "AbortError") return;
       if (mount.getAttribute("data-q") !== q) return;
@@ -852,31 +1028,65 @@
     });
   }
 
-  function renderAll() { renderKindTabs(); renderCatChips(); renderBrandChips(); render(); }
+  function renderLive() { probeSync(); }
+  function renderAll() { renderKindTabs(); renderCatChips(); renderBrandChips(); render(); renderLive(); }
+
+  /**
+   * 착지 파라미터 → 탭. 챗 훅과 URL 파라미터가 같은 창구를 지난다(normKind·applyCat 과 같은 방식).
+   *
+   * 규칙: `tab` 이 있으면 그대로. 없으면 **검색어만 왔을 때 live**(상품을 묻는 것이다),
+   * 구분·물품종류·브랜드가 하나라도 오면 browse(그 필터가 사는 곳이 그 탭이다).
+   * 아무것도 없으면 browse — "온라인 어디서 쓰나"에 가까운 질문이라 목록을 펼쳐 보이는 게 맞다.
+   */
+  function resolveTab(o) {
+    if (o && (o.tab === "live" || o.tab === "browse")) return o.tab;
+    var hasQ = !!(o && o.q);
+    var hasFilter = !!(o && (o.kind || o.cat || o.brand));
+    return (hasQ && !hasFilter) ? "live" : "browse";
+  }
+
+  /** 착지 파라미터를 state 에 반영한다. **자동으로 조회하지 않는다** — 검색어는 채우고
+      배너까지만 띄운다(실행은 사람이 지시한다). */
+  function applyLanding(o) {
+    state.kind = "전체"; state.cat = "전체"; state.sub = "전체"; state.brand = "전체";
+    state.q = ""; state.pq = "";
+    // 전국 이용 가능만 체크도 되돌린다 — 안 되돌리면 챗봇이 "배달앱 8곳"이라 말한 뒤 3곳 화면에
+    // 착지시킨다(2026-09-02 dev-qa F-1). goBrowseFrom·resetAll 과 같은 규칙.
+    state.nationwideOnly = false; var nw = el("nationwideOnly"); if (nw) nw.checked = false;
+    var qi = el("q"), pi = el("pq");
+    if (qi) qi.value = ""; if (pi) pi.value = "";
+    el("qClear").style.display = "none"; el("pqClear").style.display = "none";
+    var pa = el("probeArea"); if (pa) { pa.innerHTML = ""; pa.removeAttribute("data-q"); }
+    if (window.OnnuriOnlineProbe) window.OnnuriOnlineProbe.abort();
+
+    var tab = resolveTab(o);
+    var nk = normKind(o.kind); if (nk) state.kind = nk;
+    applyCat(o.cat);
+    if (o.brand) state.brand = o.brand;
+    // 검색어는 착지한 탭의 입력창으로 간다 — 두 입력이 다른 일을 하므로 아무 데나 넣을 수 없다.
+    if (o.q) {
+      if (tab === "live") { state.pq = o.q; if (pi) { pi.value = o.q; el("pqClear").style.display = ""; } }
+      else { state.q = o.q; if (qi) { qi.value = o.q; el("qClear").style.display = ""; } }
+    }
+    setTab(tab, true);
+  }
 
   // 챗 위젯 '자동모드'(ON, 옛 이름 '지도 바로 이동') 훅 — 페이지 이동 없이 현재 화면 필터를 즉시 적용.
   window.onnuriApplyChatFilter = function (p) {
-    p = p || {};
-    state.kind = "전체"; state.cat = "전체"; state.sub = "전체"; state.brand = "전체"; state.q = "";
-    var qi = el("q"); if (qi) qi.value = "";
-    var nk = normKind(p.kind); if (nk) state.kind = nk;
-    applyCat(p.cat);
-    if (p.brand) state.brand = p.brand;
-    if (p.q) { state.q = p.q; if (qi) qi.value = p.q; }
+    applyLanding(p || {});
     renderAll();
   };
 
-  function resetAll() {
+  function resetAll() {   // 탭 2 전용 — 탭 1 의 조회 결과는 다른 탭 것이라 건드리지 않는다
     state.kind = "전체"; state.cat = "전체"; state.sub = "전체"; state.brand = "전체";
     state.nationwideOnly = false; state.q = "";
     el("q").value = ""; el("qClear").style.display = "none"; el("nationwideOnly").checked = false;
-    if (window.OnnuriOnlineProbe) window.OnnuriOnlineProbe.abort();
-    var pa = el("probeArea"); if (pa) { pa.innerHTML = ""; pa.removeAttribute("data-q"); }
     renderAll();
   }
 
   // ---- 부팅 ----
   function boot() {
+    setTab(state.tab, false);   // 마크업 기본값과 tabIndex·hidden 을 맞춘다(주소는 건드리지 않는다)
     var bust = CFG.dataVersion ? "?v=" + encodeURIComponent(CFG.dataVersion) : "";
     // 품목 검색 규칙(채록 규칙의 사본). 실패해도 직접 일치 검색은 그대로 돈다.
     fetch("data/cat_rules.json" + bust).then(function (r) { return r.ok ? r.json() : null; })
@@ -885,7 +1095,9 @@
         CAT_RE = d.rules.map(function (x) {
           try { return { cat: x.cat, re: new RegExp(x.re, x.flags || "") }; } catch (e) { return null; }
         }).filter(Boolean);
+        // 규칙이 늦게 도착했다면 이미 그린 화면을 다시 그린다 — 품목 경로가 조용히 빠진 채 남지 않게.
         if (state.q) render();
+        if (state.pq) renderLive();
       }).catch(function () {});
     // 플랫폼 목록: 백엔드 이관됨 → API 우선 + JSON 폴백(어댑터 online-source.js가 소스 정규화).
     // 취급품목 태깅(online_catalog.json)은 수동 큐레이션이라 이관 대상 아님 — 그대로 JSON.
@@ -937,7 +1149,8 @@
   }
 
   // 챗봇 이동 카드 등 외부 진입. 1순위 sessionStorage(주소창 비노출·읽는 즉시 삭제),
-  // 2순위 URL 파라미터(직접 링크 호환): ?kind=shopping|delivery&cat=대분류id|라벨&brand=브랜드&q=검색어
+  // 2순위 URL 파라미터(직접 링크 호환):
+  //   ?tab=live|browse&kind=shopping|delivery&cat=대분류id|라벨|대분류/소분류&brand=브랜드&q=검색어
   function applyUrlParams() {
     var o = null;
     try {
@@ -951,16 +1164,30 @@
     if (!o) {
       try {
         var p = new URLSearchParams(location.search);
-        o = { kind: p.get("kind"), cat: p.get("cat"), brand: p.get("brand"), q: p.get("q") };
+        o = { tab: p.get("tab"), kind: p.get("kind"), cat: p.get("cat"), brand: p.get("brand"), q: p.get("q") };
       } catch (e) { return; }
+      // 파라미터가 하나도 없는 평범한 방문은 착지가 아니다 — 기본 탭(live)을 그대로 둔다.
+      // 여기서 resolveTab 을 태우면 '아무것도 없으면 browse' 규칙이 걸려 기본 탭이 뒤집힌다.
+      if (!o.tab && !o.kind && !o.cat && !o.brand && !o.q) return;
     }
-    var ok = normKind(o.kind); if (ok) state.kind = ok;
-    applyCat(o.cat);   // 챗 훅과 같은 창구 — 형식이 늘어도 한 곳만 고친다
-    if (o.brand) state.brand = o.brand;
-    if (o.q) { state.q = o.q; var qi = el("q"); if (qi) qi.value = state.q; }
+    applyLanding(o);   // 챗 훅과 같은 창구 — 형식이 늘어도 한 곳만 고친다
   }
 
   // ---- 이벤트 ----
+  // 탭 전환. 키보드는 ←/→ 로 옮기고 선택된 탭만 포커스를 받는다(로빙 탭인덱스).
+  el("tabLive").addEventListener("click", function () { setTab("live", true); renderLive(); });
+  el("tabBrowse").addEventListener("click", function () { setTab("browse", true); renderAll(); });
+  el("pageTabs").addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    var next = state.tab === "live" ? "browse" : "live";
+    setTab(next, true);
+    if (next === "browse") renderAll(); else renderLive();
+    el(next === "live" ? "tabLive" : "tabBrowse").focus();
+  });
+
+  // 탭 2 · 태그 검색. **Enter 로 실시간 조회를 부르지 않는다** — 이 입력은 이미 화면에 있는
+  // 목록을 좁힐 뿐이고, 바깥으로 나가는 요청은 옆 탭의 일이다.
   var qTimer = null;
   el("q").addEventListener("input", function (e) {
     var v = e.target.value;
@@ -968,24 +1195,40 @@
     clearTimeout(qTimer);
     qTimer = setTimeout(function () { state.q = v; render(); }, 150);
   });
+  el("qClear").addEventListener("click", function () {
+    state.q = ""; el("q").value = ""; el("qClear").style.display = "none"; el("q").focus(); render();
+  });
+  el("toLive").addEventListener("click", jumpToLive);
+
+  // 탭 1 · 상품 실시간 검색.
+  var pqTimer = null;
+  el("pq").addEventListener("input", function (e) {
+    var v = e.target.value;
+    el("pqClear").style.display = v ? "" : "none";
+    clearTimeout(pqTimer);
+    pqTimer = setTimeout(function () { state.pq = v; renderLive(); }, 150);
+  });
 
   // Enter 로 바로 실시간 조회. 버튼을 눌러야만 하는 건 손이 한 번 더 가는 일이었다.
   // **자동 조회 금지 원칙과 충돌하지 않는다** — 막으려던 것은 "타이핑 한 글자마다 나가는 것"이지
   // 사람이 실행을 지시하는 행위가 아니다. Enter 는 버튼 클릭과 같은 의사표시다.
-  el("q").addEventListener("keydown", function (e) {
+  el("pq").addEventListener("keydown", function (e) {
     if (e.key !== "Enter") return;
     // 한글 조합 중의 Enter 는 '조합 확정'이지 실행이 아니다(2026-08-12 챗 입력창과 같은 함정).
     if (e.isComposing || e.keyCode === 229) return;
     e.preventDefault();
     var v = e.target.value.trim();
     if (v.length < 2) return;
-    clearTimeout(qTimer);
-    if (state.q !== v) { state.q = v; render(); }   // 배너가 이 검색어로 맞춰진 뒤 실행
+    clearTimeout(pqTimer);
+    if (state.pq !== v) { state.pq = v; renderLive(); }   // 배너가 이 검색어로 맞춰진 뒤 실행
     var run = el("probeRun");
-    if (run) run.click();                            // 배너 단계면 조회 시작
+    if (run) run.click();                                  // 배너 단계면 조회 시작
   });
-  el("qClear").addEventListener("click", function () {
-    state.q = ""; el("q").value = ""; el("qClear").style.display = "none"; el("q").focus(); render();
+  el("pqClear").addEventListener("click", function () {
+    state.pq = ""; el("pq").value = ""; el("pqClear").style.display = "none";
+    if (window.OnnuriOnlineProbe) window.OnnuriOnlineProbe.abort();
+    var pa = el("probeArea"); if (pa) { pa.innerHTML = ""; pa.removeAttribute("data-q"); }
+    el("pq").focus();
   });
   el("nationwideOnly").addEventListener("change", function (e) { state.nationwideOnly = e.target.checked; render(); });
   // 브랜드 팝업 (열기 버튼은 renderBrandChips 가 만들 때 바인딩)
@@ -1000,7 +1243,8 @@
   document.addEventListener("keydown", function (e) {
     var t = document.activeElement;
     var typing = t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.isContentEditable);
-    if (e.key === "/" && !typing) { e.preventDefault(); el("q").focus(); }
+    // 지금 보고 있는 탭의 입력창으로 간다 — 숨은 탭의 입력창은 포커스해도 보이지 않는다.
+    if (e.key === "/" && !typing) { e.preventDefault(); el(state.tab === "live" ? "pq" : "q").focus(); }
   });
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

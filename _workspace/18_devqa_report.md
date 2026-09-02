@@ -299,3 +299,103 @@
 - **V8 마이그레이션 실제 적용·SQL 실행**: 로컬 Postgres 미기동. `OnlineProductIndexRepositoryTest` 는 빈 인자 가드와 `escapeLike` 만 검증하고 `summarize`/`findMatching` 의 SQL 은 **한 번도 DB 에 나가지 않았다.** 컬럼명·`to_char` 별칭·`IN` 자리표시자 개수는 코드 리뷰로만 확인. 배포 후 `V8` 적용과 실 질의 1회를 반드시 확인할 것.
 - **단계 F 실행**: `index_nightly.js` 를 Playwright 로 실제 구동하지 않았다(레시피 2곳의 크롤 동작·건수 가드는 단위 테스트 51건 범위).
 - **라이브 카나리아 22건**: `SelfTestLiveTest` 는 스킵됨. 지니어스몰 승격의 실측 기대치(present `로봇청소기`)는 배포 후 확인 대상.
+
+---
+
+## 2026-09-02 (2차) — 온라인 사용처 2탭 분리(ADR-20) + 챗 navigate `tab` 착지 검증
+
+검증 대상: 미커밋 작업트리 9파일(`CLAUDE.md`·`03_content_spec`·`16_arch_decisions`·`17_chatbot_design`·`ChatService`·`OpenAiClient`·`ChatContractTest`·`online-probe.js`·`online.html`).
+
+**판정: 조건부 통과.** 게이트 항목 전부 기대치 일치. 다만 착지 창구가 `전국 이용 가능만` 필터를 되돌리지 않아 **챗봇이 말한 곳 수와 착지 화면의 곳 수가 갈리는 경로**를 실측으로 재현했다(F-1). 1차 게이트에서 지적한 문서 정합 D1~D4 는 커밋본에서 전부 반영된 것을 확인했다.
+
+### 1. 테스트
+
+| 항목 | 결과 | 기대 |
+|---|---|---|
+| `./gradlew cleanTest test` | **150건** · 실패 0 · 오류 0 · 스킵 1 | 150 ✓ |
+| 스킵 1건 | `SelfTestLiveTest`(라이브 카나리아) | 설계대로 |
+| `ChatContractTest` | 6 → **12건** | +6 ✓ |
+| `test_survey_probe.js` | **154건** | 154 ✓ |
+| `test_index_nightly.js` | **51건** | 51 ✓ |
+
+신규 6건은 실질 단언이다 — 도구 스키마 enum(`["live","browse"]` 순서까지)·description 키워드, `params` 실림, 비-online page 의 tab 무시(+오류 아님), enum 밖 값 폐기, `params` 안 tab 도 같은 창구, 프롬프트의 탭 라우팅 지시.
+
+### 2. 경계면 교차 비교
+
+**(a) `tab` 값 집합 — 일치.**
+서버가 내보내는 값 = `{live, browse, 없음}`(그 밖은 `ChatService.navigate` 가 조용히 제거). 프론트 `resolveTab` 은 `live|browse` 만 그대로 쓰고 나머지는 규칙 폴백. 폴백 규칙도 명세와 일치 — `q` 만 → live / `kind|cat|brand` 중 하나라도 → browse / 둘 다 없음 → browse. **URL 로 들어오는 미검증 값도 프론트가 막는다**: `?tab=zzz&q=로봇청소기` → live 착지·주소 `tab=live` 로 정정·조회 요청 0. 파라미터가 0개인 평범한 방문은 `applyUrlParams` 가 조기 반환해 기본 탭(live)을 지킨다(폴백 규칙에 태우면 browse 로 뒤집히는 함정을 방어).
+
+**(b) `chat-widget.js` 무수정 — 확인.**
+`handleAction`(:309)은 `a.params || {}` 를 그대로 `onnuriApplyChatFilter` 에, `actionUrl`(:350)은 그대로 `sessionStorage.onnuri_nav_filter` 에 넣는다. 키 필터링이 없어 `tab` 이 손실 없이 통과. `git status` 에도 없다.
+
+**(c) "live 착지는 자동 조회 안 함" ↔ 실제 요청 — 일치.**
+착지 6경로(챗 훅 4 + URL 2) 전부 `/online/search` 요청 **0건**이면서 조회 버튼 배너는 떠 있다. 탭 2 → 탭 1 통로(`#toLive`)와 빈 결과 통로도 요청 0.
+
+**(d) `renderResult` 시그니처 — 일치.**
+`(mount, data, bridge)` 3인자. 호출자는 `online.html:1020` 하나뿐(저장소 전수 확인, `merchants.html` 의 `renderResultError` 는 동명이인). 캐시버스트 `online-probe.js?v=7` 도 online.html:416 에서 올라갔다.
+
+**(e) 사유 3종·색인 층 계약 — 회귀 없음.**
+`whyBlock` 8곳/2곳/1곳 = 11곳, 접힘 요약 `확인하지 않은 나머지 11곳` 유지. 색인 층은 있으면 그리고 없으면 안 그린다.
+
+### 3. 렌더 실측 (Playwright · 독립 작성 스크립트 · `localhost:8655` · fetch 스텁)
+
+| 시나리오 | 실측 | 기대 |
+|---|---|---|
+| 기본 진입 | live 선택·`aria-selected true/false`·tabIndex 0/-1·browse 패널 hidden·보이는 칩 0·요청 0 | ✓ |
+| 탭 2 카드 | 30 (count `30곳 중 30곳 표시`) | 30 ✓ |
+| 탭 2 `김치` | 10 (`30곳 중 10곳 표시`) | 10 ✓ |
+| 탭 2 `로봇청소기` | 13 (`… 13곳 표시 · 품목으로 찾은 13곳 포함`) | 13 ✓ |
+| 탭 2 Enter | 요청 **0건** | 0 ✓ |
+| 탭 1 `로봇청소기` Enter | 요청 1건 · 결과 · 색인 블록 · 다리 `이 품목을 다루는 몰 13곳 둘러보기 →` | ✓ |
+| 블록 순서 | `pb-head → pb-list → pb-index → pb-bridge → pb-more → pb-foot` | 명세대로 ✓ |
+| 다리 클릭 | browse 전환 · 카드 **13** · `30곳 중 13곳 표시 · 세부 미확인 4곳 제외` · 칩 `생활·청소용품` + 소분류 활성 | **버튼 곳 수 = 착지 곳 수** ✓ |
+| 무카테고리(`zzqqxyw12345`) | 다리가 `몰 둘러보기에서 품목·브랜드로 찾기 →` 로 물러섬, 클릭 시 필터 없이 30곳 | ✓ |
+| 챗 훅 `{q}` | live · `#pq` 채움 · 요청 0 | ✓ |
+| 챗 훅 `{kind,cat,brand}` | browse · 3곳 · 칩 `가전·디지털` + 브랜드 `로보락` 활성 | 3 ✓(2026-08-27 기준값) |
+| 챗 훅 `{tab:live,q}` | live · `#pq`=다이슨 · 요청 0 | ✓ |
+| 챗 훅 `{tab:browse,cat:식품/김치}` | browse · 10곳 · 칩 `반찬·가공식품`+`김치` 활성 | 10 ✓ |
+| 같은 페이지 훅 | live · 요청 0 | ✓ |
+| URL `?tab=live&q=` / `?kind&cat=식품/김치` | live 요청 0 / browse 10곳 | ✓ |
+| 실시간 회귀 — 색인 없음 | `pb-index` 미생성, 다리는 유지 | ✓ |
+| 실시간 회귀 — 전부 unknown+timeout | 색인·다리 정상 | ✓ |
+| 키보드 ←/→ | live→browse→live, `aria-selected` 반전, 로빙 tabIndex, 포커스 이동, 주소 `tab` 동기 | ✓ |
+| IME 방어 | 1자 Enter 0건 · `isComposing` Enter 0건 · `keyCode 229` Enter 0건 · 정상 Enter 1건 | ✓ |
+| 탭 2 → 탭 1(`#toLive`) | live 전환 · 태그 검색어 `다이슨` 이월 · 포커스 `#pq` · 신규 요청 0 | ✓ |
+| 탭 2 빈 결과 통로 | `[상품명으로 실시간 조회하기 →]` 존재 · 클릭 시 live + 검색어 이월 + 요청 0 | ✓ |
+| 모바일 390px | 3상태 전부 `scrollWidth 390 == clientWidth`, 탭 줄 41px 1줄 | ✓ |
+| pageerror | 전 시나리오 **0** | ✓ |
+| JS 문법 | online.html 인라인·online-probe.js `new Function` 통과 | ✓ |
+
+### 4. 회귀 기준값·D-F1
+
+| 항목 | 값 | 판정 |
+|---|---|---|
+| 온라인몰 active | 30 (쇼핑 22 + 배달 8) | 유지 |
+| 검색 링크 보유 | 16 | 유지 |
+| 카탈로그 items / taxonomy | 22 / 11 | 유지 |
+| `index.html`·`config.js`·`data/`·`build_index.py` | 무변경 | ✓ |
+| `verify_build.py`(D-F1) | 전체 통과(참고 실행) | ✓ |
+
+### 5. 문서 정합
+
+- `03_content_spec` S19 는 **곳 수를 적지 않는다**는 원칙을 본문에 명시하고 조회 대상 수를 쓰지 않는다. 등장하는 숫자(13·10·30)는 카탈로그 데이터에서 나오는 값이라 원칙 위반이 아니다. 몰 이름은 우체국쇼핑 1건뿐이고 `mallWide` 배지 설명이라 필요한 언급이다.
+- `17_chatbot_design` navigate 계약표에 `tab` 이 선택 필드임·enum·이중 검문·"live 는 자동 조회 안 함"이 모두 적혀 있다.
+- 사이드바 앵커 `#pageTabs` 는 **online.html 자기 자신만** 참조한다(저장소 전수 grep). 다른 페이지에서 `online.html#kindTabs` 로 들어오는 링크 0건 — 죽은 앵커 없음.
+- **1차 게이트 지적 반영 확인**: D1·D2·D3 는 "조회 대상 수(`ProbeTargets.ALL` 이 정한다)"로 숫자를 빼는 방향으로, D4 는 클래스 javadoc 재작성으로 전부 해소됐다.
+
+### 6. 비밀값 스캔
+
+이번 변경의 추가된 줄에서 IP·API 키·개인키·하드코딩 비밀번호 **0건**.
+
+### 7. 지적 목록
+
+| # | 심각도 | 파일:줄 | 기대 vs 실제 | 담당 |
+|---|---|---|---|---|
+| **F-1** | **보통(코드)** | `online.html:1076~1096` `applyLanding` | 착지 창구가 `state.nationwideOnly`·체크박스를 되돌리지 않는다. **재현**: 탭 2에서 `전국 이용 가능만` 체크 → 챗 자동모드로 `{tab:"browse", kind:"delivery"}` 착지. 기대 **8곳**(깨끗한 세션), 실제 **3곳**. 챗봇은 자기 도구 결과로 "배달앱 8곳"이라 말한 뒤 3곳 화면에 착지시킨다. 같은 파일의 `goBrowseFrom`(:687)과 `resetAll`(:1079)은 이 축을 되돌리는데 `applyLanding` 만 빠져 있다. 결함 자체는 이번 변경 이전부터 있었으나(옛 `onnuriApplyChatFilter` 도 동일), 착지 창구를 새로 만들면서 **바로 옆 함수와 규칙이 갈린** 상태다 — 이 영역이 열려 있는 지금 한 줄로 맞추는 것이 맞다. URL 착지는 새 문서 로드라 영향 없다 | frontend |
+| O-1 | 낮음(경화) | `online-probe.js:181` | `bridge.lead` 를 `innerHTML` 에 **이스케이프 없이** 삽입한다(`label` 은 `esc` 를 거친다). 현재는 `bridgeCopy` 가 고정 문자열 2종만 돌려주므로 안전하고, JSDoc 이 "검색어를 담지 말 것"을 경고한다. 다만 방어가 주석뿐이라 뒷사람이 곳 수 대신 검색어를 넣는 순간 XSS 가 된다. `<b>` 만 허용하는 최소 정제나 개발 모드 단언 권고 | frontend |
+| O-2 | 정보 | — | `bridgeTarget` 은 여러 대분류에 걸친 품목에서 한 대분류만 넘긴다(ADR-20 이 알려진 한계로 기록). 현 46규칙에서 손실 사례는 확인되지 않았다(로봇청소기 생활·주방 13 ⊇ 가전 10) | — |
+
+### 8. 미검증(통과로 적지 않음)
+
+- **실서버 챗 경로 e2e**: 로컬 백엔드·`OPENAI_API_KEY` 가 없어 실제 모델이 `tab` 을 실어 보내는지는 확인하지 못했다. 서버 측은 계약 테스트로, 프론트 측은 `sessionStorage`/`onnuriApplyChatFilter` 직접 주입으로 검증했다. 배포 후 "로봇청소기 어디서 사?" 1회 라이브 확인 필요.
+- **실제 실시간 조회 응답**: `/online/search` 를 스텁했다. 서버 판정 자체의 회귀는 1차 게이트와 `gradlew` 범위.

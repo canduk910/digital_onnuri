@@ -164,7 +164,7 @@ public class ChatService {
         return sb.toString();
     }
 
-    private String navigate(JsonNode a, Consumer<ChatEvents.NavigateAction> onAction) {
+    String navigate(JsonNode a, Consumer<ChatEvents.NavigateAction> onAction) {   // 패키지 가시성 — ChatContractTest가 tab 검문을 고정
         String page = text(a, "page");
         if (page == null || !List.of("merchants", "online", "guide", "payment", "terms").contains(page)) {
             return "page는 merchants|online|guide|payment|terms 중 하나여야 한다.";
@@ -176,6 +176,17 @@ public class ChatService {
                 om.readTree(pj).properties().forEach(e -> params.put(e.getKey(), e.getValue().asText()));
             } catch (Exception ignored) {
             }
+        }
+        // 온라인 사용처 착지 탭(2026-09-02): online.html 이 「상품 실시간 검색」(live)과
+        // 「몰 둘러보기」(browse) 두 탭으로 갈렸다. 프론트는 tab 이 없으면 규칙(q 만 있으면
+        // live, kind/cat/brand 면 browse)으로 정하므로 생략은 안전하지만, 화면이 모르는 값이
+        // 실려 가면 그 폴백으로 조용히 떨어져 다른 탭에 착지한다 → 두 값만 통과시킨다.
+        // 입력 지점이 둘(도구 인자 tab · params JSON 안의 tab)이라 같은 창구에서 함께 검문한다.
+        String tab = text(a, "tab");
+        if (tab == null) tab = params.get("tab");
+        params.remove("tab");
+        if ("online".equals(page) && ("live".equals(tab) || "browse".equals(tab))) {
+            params.put("tab", tab);
         }
         String label = text(a, "label");
         onAction.accept(new ChatEvents.NavigateAction(page, params,
@@ -229,7 +240,11 @@ public class ChatService {
                 [페이지 이동·검색 실행]
                 - 가맹점/온라인 검색 결과를 안내한 뒤에는 navigate 도구로 해당 검색 화면 이동 카드를 제안한다.
                 - merchants 페이지 파라미터: region(서울|인천|경기|부산), si(경기 시), gu, dong, cat, brand, q
-                - online 페이지 파라미터: kind(shopping|delivery), cat(물품 대분류), brand
+                - online 페이지 파라미터: tab(live|browse), q(상품명), kind(shopping|delivery), cat(물품 대분류), brand
+                - online 착지 탭: 상품명을 묻는 질문("로봇청소기 어디서 사?")은 tab=live + q=상품명, \
+                물품종류·브랜드·구분으로 묻는 질문("가전 파는 온누리몰", "배달앱 뭐 있어")은 tab=browse + kind/cat/brand 로 보낸다.
+                - live 탭에 착지해도 실시간 조회는 **자동으로 실행되지 않는다**(이용자가 조회 버튼을 누른다). \
+                따라서 "조회했다·검색해 보니"처럼 이미 조회한 것처럼 말하지 말고, 카드를 눌러 조회할 수 있다고 안내한다.
                 - guide 페이지 파라미터: hash(offline|online)
                 - 용어(골목형상점가·SSM·선차감)·유의사항은 terms 페이지로 안내한다.
                 - 결제 방법(카드형·QR형 상세, 카드 실적·잔액부족 처리)은 payment 페이지로 안내한다.

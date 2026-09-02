@@ -98,4 +98,102 @@ class ChatContractTest {
         assertTrue(p.contains("구매(충전)한도"), "한도 두 종류를 구분해 답하도록");
         assertTrue(p.contains("보유한도"), "보유한도 개념 명시");
     }
+
+    // ---------- 탭 라우팅 (2026-09-02, online.html 2탭 분리) ----------
+
+    private ChatService svc() {
+        RagRepository rag = org.mockito.Mockito.mock(RagRepository.class);
+        org.mockito.Mockito.when(rag.minCollectedOn()).thenReturn(null);
+        OpenAiClient ai = org.mockito.Mockito.mock(OpenAiClient.class);
+        org.mockito.Mockito.when(ai.mapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        return new ChatService(ai, rag, null);
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode args(String json) {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * navigate 도구 스키마가 tab(live|browse) 을 enum 으로 노출하는지 고정한다.
+     * online.html 이 두 탭으로 갈라진 뒤, 모델이 임의 문자열(예: "search")을 보내면
+     * 프론트는 그 값을 모르고 규칙 폴백으로 떨어져 **에러 없이 다른 탭**에 착지한다.
+     */
+    @Test
+    void navigate_도구_스키마는_tab_enum_을_노출한다() {
+        OpenAiClient ai = new OpenAiClient("", "m", "e");
+        com.fasterxml.jackson.databind.JsonNode nav = null;
+        for (com.fasterxml.jackson.databind.JsonNode t : ai.toolDefs()) {
+            if ("navigate".equals(t.path("function").path("name").asText())) nav = t;
+        }
+        assertNotNull(nav, "navigate 도구 정의");
+        com.fasterxml.jackson.databind.JsonNode tab =
+                nav.path("function").path("parameters").path("properties").path("tab");
+        assertFalse(tab.isMissingNode(), "tab 파라미터");
+        assertEquals("string", tab.path("type").asText());
+        List<String> vals = new java.util.ArrayList<>();
+        tab.path("enum").forEach(v -> vals.add(v.asText()));
+        assertEquals(List.of("live", "browse"), vals, "허용값은 live|browse 뿐");
+        String d = tab.path("description").asText();
+        assertTrue(d.contains("상품명"), "상품명 질문 → live 라는 판단 기준");
+        assertTrue(d.contains("online"), "page=online 에만 쓰이는 필드임을 명시");
+    }
+
+    /** page=online + tab=live 는 params 에 실려 프론트로 그대로 전달된다(위젯 무수정 전제). */
+    @Test
+    void navigate_는_online_탭을_params_에_실어_보낸다() {
+        java.util.List<ChatEvents.NavigateAction> got = new java.util.ArrayList<>();
+        svc().navigate(args("{\"page\":\"online\",\"tab\":\"live\",\"params\":\"{\\\"q\\\":\\\"로봇청소기\\\"}\"}"), got::add);
+        assertEquals(1, got.size());
+        assertEquals("live", got.get(0).params().get("tab"));
+        assertEquals("로봇청소기", got.get(0).params().get("q"));
+    }
+
+    /** page 가 online 이 아니면 tab 은 조용히 버린다 — 오류가 아니라 무시(계약). */
+    @Test
+    void navigate_는_online_이_아닌_page_의_tab_을_무시한다() {
+        java.util.List<ChatEvents.NavigateAction> got = new java.util.ArrayList<>();
+        String r = svc().navigate(args("{\"page\":\"merchants\",\"tab\":\"live\"}"), got::add);
+        assertEquals(1, got.size(), "이동 카드 자체는 정상 표시");
+        assertFalse(got.get(0).params().containsKey("tab"), "merchants 에는 tab 이 없다");
+        assertFalse(r.startsWith("page는"), "오류 반환이 아니다");
+    }
+
+    /** enum 밖 값은 버린다 — 그대로 흘리면 프론트 폴백 규칙과 어긋난 탭에 착지한다. */
+    @Test
+    void navigate_는_알_수_없는_tab_값을_버린다() {
+        java.util.List<ChatEvents.NavigateAction> got = new java.util.ArrayList<>();
+        svc().navigate(args("{\"page\":\"online\",\"tab\":\"search\",\"params\":\"{\\\"kind\\\":\\\"shopping\\\"}\"}"), got::add);
+        assertEquals(1, got.size());
+        assertFalse(got.get(0).params().containsKey("tab"));
+        assertEquals("shopping", got.get(0).params().get("kind"));
+    }
+
+    /** params JSON 안에 직접 넣은 tab 도 같은 검문을 받는다(입력 지점이 둘이다). */
+    @Test
+    void navigate_는_params_안의_tab_도_같은_규칙으로_검문한다() {
+        java.util.List<ChatEvents.NavigateAction> got = new java.util.ArrayList<>();
+        svc().navigate(args("{\"page\":\"online\",\"params\":\"{\\\"tab\\\":\\\"browse\\\"}\"}"), got::add);
+        assertEquals("browse", got.get(0).params().get("tab"));
+        got.clear();
+        svc().navigate(args("{\"page\":\"online\",\"params\":\"{\\\"tab\\\":\\\"zzz\\\"}\"}"), got::add);
+        assertFalse(got.get(0).params().containsKey("tab"));
+    }
+
+    /**
+     * 시스템 프롬프트의 탭 라우팅 지시(2026-09-02)를 고정한다.
+     * 지시가 빠지면 모델이 tab 을 아예 보내지 않고, 프론트 규칙 폴백이 대신 판단한다 —
+     * 에러 없이 다른 탭에 착지하므로 발견이 늦다. live 착지는 자동 조회를 실행하지
+     * 않으므로 "조회했다"는 말도 금지한다.
+     */
+    @Test
+    void 시스템_프롬프트는_online_탭_라우팅을_지시한다() {
+        String p = svc().systemPrompt();
+        assertTrue(p.contains("tab(live|browse)"), "탭 파라미터 이름·허용값");
+        assertTrue(p.contains("상품명"), "상품명 질문 → live");
+        assertTrue(p.contains("자동으로 실행되지 않는다"), "live 착지는 조회 미실행");
+    }
 }

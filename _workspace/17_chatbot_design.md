@@ -17,7 +17,34 @@
 
 - 모델·키: `application.yml` `app.openai.*` — `OPENAI_API_KEY`는 서버 .env에만. 미설정 시 챗만 비활성(error 이벤트 안내).
 - stateless: 서버는 대화를 저장하지 않는다. 위젯이 sessionStorage(`onnuri_chat_hist`) 최근 10턴을 요청에 동봉.
-- URL 착지: merchants `?region&si&gu&dong&cat&brand&q` / online `?kind&cat&brand&q` / index `#hash` (applyUrlParams).
+- URL 착지: merchants `?region&si&gu&dong&cat&brand&q` / online `?tab&q&kind&cat&brand` / index `#hash` (applyUrlParams).
+
+### navigate 계약 (params — 위젯이 그대로 실어 나른다)
+
+| page | 파라미터 | 비고 |
+|---|---|---|
+| merchants | region(서울\|인천\|경기\|부산)·si·gu·dong·cat·brand·q | region 없이는 검색 화면이 전체로 열린다 |
+| online | **tab(live\|browse)**·q·kind(shopping\|delivery)·cat·brand | 2026-09-02 신설 — 아래 표 |
+| guide | hash(offline\|online) | index 앵커 |
+| payment / terms | 없음 | 페이지 이동만 |
+
+**online 착지 탭(2026-09-02, online.html 2탭 분리)**
+
+| 질문 유형 | tab | 함께 보내는 값 | 예 |
+|---|---|---|---|
+| 상품명으로 묻는다 | `live` (상품 실시간 검색) | q=상품명 | "로봇청소기 어디서 사?" |
+| 품목·브랜드·구분으로 묻는다 | `browse` (몰 둘러보기) | kind/cat/brand | "가전 파는 온누리몰", "배달앱 뭐 있어" |
+
+- `tab` 은 **선택 필드**다. 없으면 프론트가 규칙으로 정한다(q 만 있으면 live, kind/cat/brand 가 있으면 browse)
+  — 옛 프론트·옛 백엔드 어느 조합이든 깨지지 않는다.
+- 허용값은 도구 스키마 enum(`live`/`browse`)으로 좁히고, 서버도 `ChatService.navigate` 에서 한 번 더 검문한다.
+  화면이 모르는 값이 실려 가면 프론트 규칙 폴백으로 떨어져 **에러 없이 다른 탭**에 착지하기 때문이다.
+  입력 지점이 둘(도구 인자 `tab` · `params` JSON 안의 `tab`)이라 같은 창구에서 함께 거른다.
+- `page` 가 online 이 아닌데 tab 이 오면 **오류가 아니라 무시**한다(카드는 정상 표시).
+- **live 착지는 자동 조회를 실행하지 않는다** — 이용자가 조회 버튼을 누른다. 시스템 프롬프트가
+  "조회했다"는 말을 금지하고, ChatContractTest 가 그 지시를 고정한다.
+- `chat-widget.js` 는 params 를 그대로 sessionStorage(`onnuri_nav_filter`)·`onnuriApplyChatFilter` 에
+  넘기므로 **위젯 수정이 필요 없다**(2026-09-02 확인).
 
 ## RAG 코퍼스 (rag_chunk)
 
@@ -60,6 +87,6 @@ structured output {on_topic}, ~200tok)로 범위 밖 질문을 차단한다 — 
 
 ## 검증 기준 (dev-testing 연동)
 
-- `./gradlew test`: ChatContractTest(SSE 이벤트·DTO 이름), RateLimiterTest(분·일·IP 독립), 기존 계약 유지.
+- `./gradlew test`: ChatContractTest(SSE 이벤트·DTO 이름·시스템 프롬프트 지시·navigate tab 검문), RateLimiterTest(분·일·IP 독립), 기존 계약 유지.
 - 파이프라인: `build_rag_corpus.py --selftest`.
 - 시나리오 5종(위젯): 정책(출처 인용)·가맹점 연동(숫자 일치+이동 카드)·온라인·mermaid 렌더·범위 밖 거절.

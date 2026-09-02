@@ -212,11 +212,20 @@ public class OpenAiClient {
                     "cat", "string", "업종 대분류 (예: 음식점, 카페, 편의점)",
                     "brand", "string", "브랜드명 (예: GS25, 다이소)",
                     "q", "string", "가맹점명·주소·시장명 부분 검색어")));
+        ObjectNode navParams = obj(
+                "page", "string", "merchants(가맹점 찾기)|online(온라인 사용처)|payment(결제 방법 상세)|terms(용어·유의사항)|guide(가이드 index)",
+                "tab", "string", "page=online 일 때만 쓰는 착지 탭. 상품명으로 묻는 질문(예: '로봇청소기 어디서 사?')은 live(상품 실시간 검색, params.q 에 상품명), "
+                        + "물품종류·브랜드·구분으로 묻는 질문(예: '가전 파는 온누리몰')은 browse(몰 둘러보기, params 에 kind/cat/brand). 판단이 서지 않으면 생략한다.",
+                "label", "string", "카드에 표시할 한국어 라벨 (예: '노량진동 GS25 검색 결과 보기')",
+                "params", "string", "URL 쿼리 파라미터 JSON 문자열 (예: {\"region\":\"서울\",\"gu\":\"동작구\",\"dong\":\"노량진동\",\"brand\":\"GS25\"})");
+        // tab 은 화면이 아는 두 값뿐이다. 자유 문자열로 두면 모델이 지어낸 값이 프론트의
+        // 규칙 폴백으로 떨어져 **에러 없이 다른 탭**에 착지한다 — enum 으로 좁힌다.
+        ArrayNode tabEnum = ((ObjectNode) navParams.get("properties").get("tab")).putArray("enum");
+        tabEnum.add("live");
+        tabEnum.add("browse");
         tools.add(fn("navigate",
                 "사이트 페이지 이동·검색 실행을 제안하는 카드를 사용자에게 표시한다. 가맹점 검색 결과를 보여주거나 특정 화면으로 안내할 때 사용한다. 카드는 사용자가 눌러야 이동한다.",
-                obj("page", "string", "merchants(가맹점 찾기)|online(온라인 사용처)|payment(결제 방법 상세)|terms(용어·유의사항)|guide(가이드 index)",
-                    "label", "string", "카드에 표시할 한국어 라벨 (예: '노량진동 GS25 검색 결과 보기')",
-                    "params", "string", "URL 쿼리 파라미터 JSON 문자열 (예: {\"region\":\"서울\",\"gu\":\"동작구\",\"dong\":\"노량진동\",\"brand\":\"GS25\"})")));
+                navParams));
         return tools;
     }
 

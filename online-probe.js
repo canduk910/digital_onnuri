@@ -28,6 +28,11 @@
     });
   }
 
+  // 다리 리드 문구는 <b> 강조만 허용한다 — 전부 이스케이프한 뒤 <b></b> 만 되살린다.
+  // lead 에 검색어 같은 외부 값이 들어가는 순간 innerHTML 이 XSS 가 되므로(2026-09-02 dev-qa O-1)
+  // 호출자가 조심하는 대신 여기서 막는다.
+  function escLead(s) { return esc(s).replace(/&lt;(\/?)b&gt;/g, "<$1b>"); }
+
   /** 상태별 표시 문구. "있음"이라고 말하지 않는 것이 핵심이다. */
   var LABEL = {
     likely: { cls: "pb-likely", text: "관련 상품이 검색됨" },
@@ -116,20 +121,24 @@
   }
 
   /**
-   * 실시간 조회 아래에 붙는 한 줄 — "이걸로 끝이 아니다"를 말한다.
+   * 옆 탭('몰 둘러보기')으로 건너가는 다리 — "이걸로 끝이 아니다"를 말한다.
    *
-   * 실시간 조회는 몇 곳만 보고 그 순간의 검색 결과만 읽는다. 반면 아래 목록은 각 몰의
+   * 실시간 조회는 몇 곳만 보고 그 순간의 검색 결과만 읽는다. 반면 태그 목록은 각 몰의
    * 카테고리·브랜드를 사람이 훑어 정리한 것이라 **무엇을 파는 몰인지**를 넓게 보여준다.
    * 둘은 답하는 질문이 다르고, 한쪽만 보면 이용자가 "여기엔 없다"로 잘못 접는다.
+   *
+   * 2026-09-02 탭 분리 전에는 "아래 N곳 목록에는…"이라는 안내였다. 두 축이 탭으로 갈리면서
+   * 그 목록이 같은 화면에 없어졌으므로 **문장이 아니라 버튼**으로 바꿨다 — '아래'가 없는데
+   * 아래라고 말하면 이용자는 스크롤만 하다 만다.
+   *
+   * 문구·곳 수는 호출자(online.html)가 만들어 넘긴다. 여기서 세면 적용될 필터와 곳 수가
+   * 갈려 "13곳 둘러보기"를 눌렀는데 10곳이 나오는 일이 생긴다.
    */
-  function alsoBrowse(localCount, onBrowse) {
-    if (localCount > 0) {
-      return '<p class="pb-also">아래 <b>' + localCount + '곳</b> 목록에는 각 몰이 무엇을 파는지 '
-        + '물품종류·브랜드 태그로 정리돼 있습니다 — 함께 살펴보세요.</p>';
-    }
-    return '<p class="pb-also">이 검색어로는 아래 목록이 비어 있습니다. '
-      + '<b>물품종류·브랜드로 훑어보면</b> 어떤 몰이 그 품목을 다루는지 볼 수 있습니다. '
-      + '<button type="button" class="pb-browse" id="probeBrowse">검색어 지우고 목록 보기</button></p>';
+  function bridgeBlock(bridge) {
+    if (!bridge || !bridge.label) return "";
+    return '<div class="pb-bridge">'
+      + (bridge.lead ? '<p>' + escLead(bridge.lead) + '</p>' : "")
+      + '<button type="button" id="probeBridge">' + esc(bridge.label) + '</button></div>';
   }
 
   /**
@@ -184,7 +193,11 @@
       + (rows ? '<ul class="pb-list">' + rows + '</ul>' : "") + '</div>';
   }
 
-  function renderResult(mount, data, localCount, onBrowse) {
+  /**
+   * @param bridge {lead, label, onGo} — lead 는 강조 태그를 담을 수 있는 **고정 문구**라
+   *   그대로 삽입한다. 검색어 같은 외부 값은 절대 lead 에 담지 않는다(label 은 esc 를 거친다).
+   */
+  function renderResult(mount, data, bridge) {
     var probed = data.items.filter(function (h) { return h.status !== "not-probed"; });
     var skipped = data.items.filter(function (h) { return h.status === "not-probed"; });
 
@@ -218,6 +231,9 @@
       + '<ul class="pb-list">' + probed.map(row).join("") + '</ul>'
       // 실시간 목록 **아래**, 확인하지 않은 곳 **위**. 색인은 실시간의 보완이지 대체가 아니다.
       + idxHtml
+      // 다리는 두 층 바로 뒤 — 결과를 다 읽은 자리에서 다음 행선지를 준다.
+      // 접힌 섹션(확인하지 않은 곳)은 부차적 공개라 그 뒤로 민다.
+      + bridgeBlock(bridge)
       + (skipped.length
           // 곳 수는 서버가 센 값을 쓴다. 여기서 다시 세면 계약이 바뀔 때 헤드라인과 조용히
           // 어긋난다(2026-08-27 normKind 와 같은 유형).
@@ -227,7 +243,6 @@
             + whyBlock(skipped)
             + '<ul class="pb-list">' + skipped.map(row).join("") + '</ul></details>'
           : "")
-      + alsoBrowse(localCount || 0, onBrowse)
       // 각주는 맨 아래에 한 번만 둔다 — 색인 층까지 덮어야 하므로, 색인이 있으면 두 층을
       // 각각 무엇으로 읽어야 하는지 밝힌다. 결제 가능 여부 단서는 어느 층에도 똑같이 걸린다.
       + '<p class="pb-foot">확인 시각 ' + esc(data.checkedAt) + ' · '
@@ -237,8 +252,8 @@
           : '각 몰의 검색 결과를 그 자리에서 읽은 것입니다. ')
       + '<b>검색된다고 해서 온누리상품권으로 결제된다는 뜻은 아닙니다</b> — 상품 상세와 결제 수단은 몰에서 확인하세요.</p>'
       + '</div>';
-    var bb = mount.querySelector("#probeBrowse");
-    if (bb && onBrowse) bb.onclick = function () { onBrowse(); };
+    var bb = mount.querySelector("#probeBridge");
+    if (bb && bridge && bridge.onGo) bb.onclick = function () { bridge.onGo(); };
   }
 
   /** 확인하지 않은 곳들을 사유별로 묶어 설명한다. 곳 수는 넘겨받은 목록에서 센다. */
