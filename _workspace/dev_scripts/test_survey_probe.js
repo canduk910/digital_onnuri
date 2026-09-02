@@ -427,4 +427,32 @@ console.log('(s) 오탐을 고쳐도 정탐은 살아 있어야 한다');
 
 console.log();
 if (fail) { console.log(`실패 ${fail}건 / 전체 ${pass + fail}건`); process.exit(1); }
+console.log('(m) CAT_RULES 사본 — 화면 검색이 같은 규칙을 쓴다');
+{
+  // 화면 검색은 지금까지 카테고리 **라벨**만 훑어 "로봇청소기"가 0곳이었다.
+  // taxonomy 라벨은 '생활·주방가전'까지만 내려가고 몰 메뉴 원문에도 그 문구가 없다
+  // (2026-09-02 6곳 재채록으로 확인). 채록 규칙을 화면에도 쓰면 새 사전이 필요 없다.
+  const dumpPath = path.join(__dirname, '..', '..', 'data', 'cat_rules.json');
+  const exists = fs.existsSync(dumpPath);
+  check(exists, 'data/cat_rules.json 존재', '없으면 node _workspace/dev_scripts/dump_cat_rules.js');
+  if (exists) {
+    const dumped = JSON.parse(fs.readFileSync(dumpPath, 'utf8')).rules;
+    check(dumped.length === CAT_RULES.length, '사본과 코드의 규칙 수가 같다',
+      `사본 ${dumped.length} vs 코드 ${CAT_RULES.length}`);
+    const mismatch = CAT_RULES.map(([cat, re], i) =>
+      (dumped[i] && dumped[i].cat === cat && dumped[i].re === re.source) ? null : cat).filter(Boolean);
+    check(mismatch.length === 0, '사본의 정규식이 코드와 일치',
+      mismatch.length ? `어긋난 규칙: ${mismatch.join(', ')} — 사본을 다시 내보내라` : '');
+  }
+  const hit = (q) => CAT_RULES.filter(([, re]) => re.test(q)).map(([c]) => c);
+  check(hit('로봇청소기').includes('appliance-home'), "'로봇청소기' → 생활·주방가전",
+    `실제: ${hit('로봇청소기').join(', ') || '없음'}`);
+  check(hit('노트북').includes('appliance-digital'), "'노트북' → 컴퓨터·모바일");
+  check(hit('선풍기').includes('appliance-season'), "'선풍기' → 계절가전");
+  check(hit('기저귀').includes('baby'), "'기저귀' → 출산·유아");
+  // 아무 말에나 걸리면 검색이 넓어져 쓸모가 없어진다.
+  check(hit('zzqqxyw12345').length === 0, '없는 말에는 카테고리가 걸리지 않는다',
+    hit('zzqqxyw12345').join(', '));
+}
+
 console.log(`전체 통과 (${pass}건)`);
