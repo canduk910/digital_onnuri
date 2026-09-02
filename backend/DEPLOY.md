@@ -247,6 +247,24 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 반영할 때는 `data/online_catalog.json`을 고치고 `_workspace/15_online_catalog_report.md`에 근거를 남긴다.
 **확인하지 못한 몰의 `surveyed_on`은 올리지 않는다** — 화면 스탬프가 그 날짜를 근거로 계산된다.
 
+### 온라인 큐레이션 필드는 배치가 매일 저장소와 맞춘다 (2026-09-02)
+
+`note`·`region_limited`·`search_url_template` 은 공식 API 가 주지 않는, 우리가 손으로 정한 값이다.
+단계 B 의 upsert 는 이 컬럼을 건드리지 않아 잘 **보존**되지만 — **새 값이 들어갈 길도 없었다.**
+지금까지는 사람이 `load_online_platforms.py` 를 따로 돌려야 했고, 2026-09-02 에 실제로 그걸 잊어
+전날 추가한 검색 링크 5곳이 DB 에 없었다(화면이 그 몰들을 홈으로 보내고 있었다).
+
+이제 단계 B 끝에서 `data/online_platforms.json` 의 큐레이션 필드를 DB 에 반영한다.
+저장소가 SSOT 이고 배치는 이미 `git pull` 을 하므로, **커밋만 하면 다음 날 반영된다.**
+값이 같으면 UPDATE 하지 않는다(로그의 갱신 건수가 곧 변경분).
+
+즉시 반영이 필요하면 직접 넣는다:
+
+```bash
+docker exec onnuri-db psql -U onnuri -d onnuri \
+  -c "SELECT id, search_url_template FROM online_platform WHERE search_url_template IS NOT NULL;"
+```
+
 ### 가맹점 수집 방식 — 좌표 격자 (2026-09-01 개편)
 
 공식이 가맹점 API 를 v2(`/api/v2/onr/...`)에서 v3(`/api/v3/onrgt/...`)로 옮기고 v2 를

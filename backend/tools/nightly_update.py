@@ -311,6 +311,7 @@ def stage_b_online(conn, today):
         after = cur.fetchone()[0]
     log(f"B2 upsert: 신규 {inserted}·갱신 {updated}·removed {removed} "
         f"(행 {before}→{after}) — 소요 {time.time()-t0:.1f}s")
+    _sync_curation(conn)
     log("B 판정: OK")
 
 
@@ -346,6 +347,42 @@ def _clear_stale(conn):
         conn.commit()
     except Exception as e:                         # noqa: BLE001
         log(f"A 중단 기록 해제 실패(무시): {e}")
+
+
+def _sync_curation(conn):
+    """저장소 data/online_platforms.json 의 **큐레이션 필드**를 DB 에 맞춘다.
+
+    note·region_limited·search_url_template 은 공식 API 가 주지 않는, 우리가 손으로 정한 값이다.
+    단계 B 의 upsert 는 이 컬럼을 건드리지 않아 잘 보존되지만 — **새 값이 들어갈 길도 없다.**
+    지금까지는 사람이 load_online_platforms.py 를 따로 돌려야 했고, 2026-09-02 에 실제로
+    그걸 잊어 어제 추가한 검색 링크 5곳이 DB 에 없었다(화면은 그 몰들을 홈으로 보내고 있었다).
+
+    저장소가 큐레이션의 SSOT 이므로 DB 가 매일 따라오게 한다. 배치는 이미 git pull 을 하니
+    커밋만 하면 다음 날 반영된다.
+    """
+    src = ROOT / "data" / "online_platforms.json"
+    if not src.exists():
+        log("B 큐레이션 동기화 생략: data/online_platforms.json 없음")
+        return
+    try:
+        items = json.loads(src.read_text(encoding="utf-8"))["items"]
+    except Exception as e:                         # noqa: BLE001
+        log(f"B 큐레이션 동기화 실패(무시): {e}")
+        return
+    n = 0
+    with conn.cursor() as cur:
+        for it in items:
+            cur.execute(
+                "UPDATE online_platform SET note=%s, region_limited=%s, search_url_template=%s "
+                "WHERE id=%s AND (note IS DISTINCT FROM %s OR region_limited IS DISTINCT FROM %s "
+                "               OR search_url_template IS DISTINCT FROM %s)",
+                (it.get("note", ""), bool(it.get("region_limited", False)),
+                 it.get("search_url_template") or None, it["id"],
+                 it.get("note", ""), bool(it.get("region_limited", False)),
+                 it.get("search_url_template") or None))
+            n += cur.rowcount
+    conn.commit()
+    log(f"B 큐레이션 동기화: {n}건 갱신(note·region_limited·search_url_template)")
 
 
 # ------------------------------------------------------------------ 단계 C: RAG
