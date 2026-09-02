@@ -308,6 +308,16 @@ node backend/tools/index_nightly.js --limit 5 --out /tmp  # 페이지 상한을 
 python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-rag --skip-survey --skip-canary   # F만
 ```
 
+> **DB_DSN 이 필요하다.** `nightly_update.py` 의 기본 DSN 은 로컬 개발용 기본값이라 서버에서는
+> 인증 실패로 즉시 죽는다(2026-09-02 수동 실행에서 실제로 그랬다). `run.sh` 가 `.env` 에서 만드는
+> `DB_DSN` 을 같은 방식으로 먼저 export 한다:
+>
+> ```bash
+> ENV=~/digital_onnuri/backend/deploy/.env
+> export DB_DSN="host=127.0.0.1 port=5432 dbname=$(grep ^DB_NAME $ENV|cut -d= -f2) user=$(grep ^DB_USER $ENV|cut -d= -f2) password=$(grep ^DB_PASSWORD $ENV|cut -d= -f2)"
+> export PATH=/opt/node20/bin:$PATH SURVEY_OUT_DIR=~/onnuri_batch/survey
+> ```
+
 #### 롤백
 
 색인 층을 통째로 내리려면 두 가지를 한다. 실시간 조회 층에는 영향이 없다.
