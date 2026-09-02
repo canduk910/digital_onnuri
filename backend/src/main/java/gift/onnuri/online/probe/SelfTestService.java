@@ -32,8 +32,26 @@ public class SelfTestService {
     private static final DateTimeFormatter STAMP =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Asia/Seoul"));
 
-    /** 어느 몰에도 없을 문자열. 사람이 검색할 리 없는 형태여야 상대 로그도 오염시키지 않는다. */
-    public static final String ABSENT_QUERY = "zzqqxyw12345";
+    /**
+     * 어느 몰에도 없을 검색어를 **회차마다 새로 만든다.**
+     *
+     * 고정 문자열(`zzqqxyw12345`)을 매일 보냈더니 **상대 몰의 인기 검색어에 우리 질의가 올라갔다**
+     * — 2026-09-03 실측: 온누리굿데이 인기 검색어 10개 중 2위, 자동완성 배열에도 포함.
+     * 그 몰을 쓰는 사람들 화면에 우리가 만든 낱말이 보이는 것이라 그 자체로 폐를 끼치는 일이고,
+     * 부수적으로 판정도 흔든다 — 그 블록은 stripEcho 가 걷지 않는 본문이라 히트로 잡힌다
+     * (같은 회차 실측: 고정 질의 히트 2, **무작위 질의 히트 0**).
+     *
+     * 매 회차 다른 말을 보내면 어느 몰의 인기·최근 검색어에도 쌓이지 않는다.
+     * 형태: `zq` + 소문자 8자. 숫자를 넣지 않아 상품 코드·수량과 우연히 겹칠 일이 없고,
+     * 10자라 ProbeQuery 의 길이 제한(2~40)을 넉넉히 지킨다.
+     * 리포트에는 그 회차에 실제로 쓴 말이 SelfTestCase.query 로 남는다.
+     */
+    static String absentQuery() {
+        StringBuilder sb = new StringBuilder("zq");
+        java.util.concurrent.ThreadLocalRandom r = java.util.concurrent.ThreadLocalRandom.current();
+        for (int i = 0; i < 8; i++) sb.append((char) ('a' + r.nextInt(26)));
+        return sb.toString();
+    }
 
     private final ProbeFetcher fetcher;
     private final boolean enabled;
@@ -59,7 +77,7 @@ public class SelfTestService {
             return new SelfTestReport(now, false, 0, 0, 0, 0, List.of());
         }
         for (ProbeTarget t : ProbeTargets.ALL) {
-            cases.add(one(t, ProbeQuery.of(ABSENT_QUERY), SelfTestCase.ABSENT));
+            cases.add(one(t, ProbeQuery.of(absentQuery()), SelfTestCase.ABSENT));
             cases.add(one(t, ProbeQuery.of(t.canaryPresentQuery()), SelfTestCase.PRESENT));
         }
         int passed = 0, failed = 0, skipped = 0;

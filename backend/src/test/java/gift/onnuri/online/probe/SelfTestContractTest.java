@@ -70,7 +70,7 @@ class SelfTestContractTest {
             assertTrue(ProbeQuery.of(q).searchable(),
                     t.platformId() + " 의 카나리아 질의가 조회 불가: " + q);
         }
-        assertTrue(ProbeQuery.of(SelfTestService.ABSENT_QUERY).searchable(),
+        assertTrue(ProbeQuery.of(SelfTestService.absentQuery()).searchable(),
                 "없음 질의가 조회 불가하면 카나리아가 절반만 돈다");
     }
 
@@ -142,6 +142,30 @@ class SelfTestContractTest {
                     .contains("zzqqxyw12345");
             assertEquals(t.echoesQuery(), echoed,
                     t.platformId() + " — echoesQuery 선언과 실측이 다르다(카나리아가 매일 신고한다)");
+        }
+    }
+
+    @Test
+    void 없는말_질의는_회차마다_달라진다() {
+        // 같은 말을 매일 보내면 **상대 몰의 인기 검색어에 우리 질의가 쌓인다** —
+        // 2026-09-03 실측에서 온누리굿데이 인기 검색어 2위가 우리 카나리아 질의였다.
+        // 그 몰 이용자 화면에 우리가 만든 낱말이 보이는 것이라 그 자체로 폐를 끼치고,
+        // 그 블록은 stripEcho 가 걷지 않는 본문이라 판정 히트로도 잡힌다.
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int i = 0; i < 200; i++) seen.add(SelfTestService.absentQuery());
+        assertTrue(seen.size() > 190, "질의가 충분히 흩어지지 않는다: " + seen.size() + "/200");
+        for (String q : seen) {
+            assertTrue(q.matches("zq[a-z]{8}"), "형태가 다르다: " + q);
+            assertTrue(ProbeQuery.of(q).searchable(), "조회할 수 없는 질의다: " + q);
+        }
+    }
+
+    @Test
+    void 없는말_질의에_숫자를_넣지_않는다() {
+        // 숫자가 들어가면 상품 코드·수량(`1kg`)과 우연히 겹칠 수 있다.
+        for (int i = 0; i < 50; i++) {
+            assertFalse(SelfTestService.absentQuery().matches(".*\\d.*"),
+                    "숫자가 섞였다");
         }
     }
 }
