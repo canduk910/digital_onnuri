@@ -216,4 +216,30 @@ class ProbeJudgeTest {
         // 온누리찬스는 없는 질의에도 추천 블록에서 관련어가 2회 나온다.
         assertEquals(2, ProbeTargets.byId("onnuri-chance").orElseThrow().noiseFloor());
     }
+
+    @Test
+    void 지니어스몰은_건수_문구로_없음을_확정하고_있으면_상품명을_낸다() {
+        // 2026-09-02 승격 실측. 이 몰은 '없음'을 **건수로** 말한다 — `총 0 개의 상품이 있습니다`.
+        // 판정은 태그를 걷어낸 텍스트에 대고 하므로 원문의 `총 <i>0</i>개` 가 아니라 이 형태로 잡힌다.
+        Verdict none = judgeFixture("genius-mall", "none", "zzqqxyw12345");
+        assertEquals(Verdict.NONE, none.status());
+        assertEquals(Verdict.HIGH, none.confidence());
+        assertNotNull(none.evidence(), "확정 근거 문구를 남겨야 한다");
+
+        Verdict hit = judgeFixture("genius-mall", "hit", "로봇청소기");
+        assertEquals(Verdict.LIKELY, hit.status());
+        assertFalse(hit.sampleTitles().isEmpty(), "근거 없는 likely 는 화면에서 카운트만 남는다");
+        assertFalse(hit.samplePartial(), "낱말이 하나뿐인 질의에는 '일부'가 없다");
+    }
+
+    @Test
+    void 지니어스몰의_없음문구는_있음_응답에_없다() {
+        // 등급 B 의 전제다. 상시 노출되는 문구라면 상품이 있어도 늘 '없음'이 된다
+        // (온누리마켓 약관 오탐과 같은 함정). 건수를 찍는 자리라 구조적으로 함께 나올 수 없다.
+        ProbeTarget t = ProbeTargets.byId("genius-mall").orElseThrow();
+        String marker = t.noneMarkersPlain().get(0);
+        assertFalse(ProbeJudge.toText(fixture("genius-mall-hit.html")).contains(marker),
+                "있음 응답에 없음 문구가 함께 있다 — 등급 B 전제가 깨졌다");
+        assertTrue(ProbeJudge.toText(fixture("genius-mall-none.html")).contains(marker));
+    }
 }

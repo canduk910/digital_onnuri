@@ -124,3 +124,122 @@ dev-qa 재현: 오답 20회를 매번 다른 XFF로 → **403 20회, 429 0회**.
   대입 시도가 끝내 뚫렸는지를 로그로 알 수 없다. 키·비밀번호는 남기지 않는다.
 - 검증: `./gradlew cleanTest test` **52개 녹색**. 실측 로그 — 실패 WARN·성공 INFO 각 1줄에 시각과 ip만,
   비밀번호·관리자 키·"password" 문자열 0건. 앱 종료 완료.
+
+---
+
+## 2026-09-02 — 제외 사유 전수화 + 전일 색인 층 (ADR-18)
+
+### 마이그레이션
+- **V8__online_product_index.sql** — `online_product_index` 신설.
+  - 컬럼: `platform_id VARCHAR(60) NOT NULL REFERENCES online_platform(id)`, `url VARCHAR(700) NOT NULL`,
+    `name VARCHAR(300) NOT NULL`, `collected_on DATE NOT NULL`. PK `(platform_id, url)`.
+  - 인덱스: `idx_online_product_index_platform`.
+  - `platform_id` 타입은 V5 의 `online_platform.id`(VARCHAR(60))에 맞췄다 — ADR 초안의 64 가 아니다.
+  - PK 가 URL 을 포함하는 이유: 같은 상품이 목록·카테고리 양쪽에서 걷혀도 한 행이 된다.
+  - **소유권: 배치 단계 F 가 몰 단위로 교체 적재하고 앱은 읽기만 한다.** 앱이 쓰면 "반쯤 걷힌 회차"를
+    앱이 만들어 낼 수 있고 배치의 50% 가드가 그것을 막지 못한다.
+  - JPA 엔티티 없음(JdbcTemplate 직조회) → `ddl-auto=validate` 영향 없음.
+  - 검증: 일회용 postgres:16 컨테이너에 V5→V7→V8 순차 적용 성공, FK·PK·인덱스 실물 확인 후 폐기.
+
+### API 계약 변경 (프론트 통지 대상)
+- `OnlineSearchResult` **맨 뒤**에 `IndexLayer index` 추가. 기존 12개 필드의 순서·의미는 불변.
+  **null 이 아니다** — 색인이 없으면 `{asOf:null, platformCount:0, foundCount:0, notice:null, items:[]}`.
+- `IndexLayer(asOf, platformCount, foundCount, notice, items)` /
+  `IndexHit(platformId, name, matchCount, sampleTitles, samplePartial, searchUrl, collectedOn)`.
+  - `name` 은 **몰 이름**(ProbeHit 과 같은 자리), 상품명은 `sampleTitles`.
+  - `IndexHit` 에 `status` 가 **없다** — 실시간 상태 목록(none/likely/…)에 `indexed` 를 더하지 않는다.
+    "어제 올라와 있었다"와 "지금 검색된다"는 다른 주장이라 섞으면 문구가 둘 중 하나에 대해 거짓이 된다.
+  - `notice` 는 서버가 만든다(실시간 층과 같은 이유 — 프론트가 items 를 세어 헤드라인을 재계산하면
+    계약이 바뀔 때 조용히 틀린 숫자가 나온다). 4분기: 색인 없음(null) / 전체 낱말 매치 / 일부 낱말만 / 무매치.
+- 응답 예시:
+  ```json
+  "index": {
+    "asOf": "2026-09-01", "platformCount": 1, "foundCount": 1,
+    "notice": "전일 색인: 1곳에서 검색어 전체를 담은 상품명을 찾았습니다(2026-09-01 수집 기준). 어제 올라와 있던 이름이라, 지금 재고와 온누리 결제 가능 여부는 몰에서 확인하세요.",
+    "items": [ { "platformId": "genius-mall", "name": "지니어스몰", "matchCount": 2,
+                 "sampleTitles": ["다이슨 청소기 필터", "다이슨 무선 청소기 V15 컴플리트"],
+                 "samplePartial": false, "searchUrl": "https://luxurysystem.co.kr",
+                 "collectedOn": "2026-09-01" } ] }
+  ```
+
+### 판정 규칙 (IndexJudge — 순수 함수, DB·네트워크를 모른다)
+- 낱말 분리는 `ProbeQuery.countTokens()` 를 **그대로 재사용**한다. 새 분리 규칙을 만들면 두 층이
+  같은 검색어를 다르게 쪼개 서로 다른 답을 낸다. 비교는 대소문자만 접는다.
+- 상품명이 **모든** 낱말을 담으면 full → `matchCount` 에 센다. 샘플은 full 중 최대 3건.
+- full 이 0이고 1개 이상 낱말을 담은 이름이 있으면 `matchCount=0`·`samplePartial=true` 로 그 이름 3건.
+  ("다이슨 청소기"에 'LG 청소기'를 근거로 내밀면 이용자는 그 몰에 다이슨이 있다고 읽는다 — 2026-08-31 공공몰과 같은 함정.)
+- 아무 낱말도 안 걸린 몰은 items 에 넣지 않는다(다만 `platformCount` 에는 든다).
+- **색인 대상 = 색인 행이 있는 몰 − `ProbeTargets.ids()`** — 한 몰이 두 층에서 다른 말을 하지 않게.
+  플랫폼 목록(active·shopping)에 없는 id 도 뺀다(이름을 몰라 그릴 수 없다).
+- `asOf` = 포함 몰의 **min(collectedOn)**. 최신 날짜를 쓰면 "어제 기준"이라며 사흘 전 데이터를 섞어 말하게 된다.
+- `searchUrl` 은 실시간 층과 같은 `searchUrlFor` 규칙(데이터 `search_url_template` 우선, 없으면 홈).
+
+### 실시간 층과의 독립성
+- 색인 층은 킬스위치 OFF·레이트리밋·캐시 적중 어느 경우에도 계산한다(DB 읽기뿐 — 아웃바운드 0).
+  실시간이 막힌 몰을 위해 만든 층이라 실시간이 죽을 때 함께 죽으면 뜻이 없다.
+- **실시간 결과 캐시에 색인을 함께 가두지 않는다.** 캐시 적중 시 `withIndex()` 로 오늘 값을 갈아 끼운다 —
+  실시간은 60분 캐시가 맞지만 색인은 매일 밤 갈려 수명이 다르다(자정을 넘긴 뒤 옛 색인을 "전일 기준"이라 말하는 것을 막는다).
+- 색인 DB 예외는 빈 층으로 흡수한다. 보조 기능이 본 기능을 끌어내리면 안 된다.
+- 저장소 SQL 은 **예선일 뿐 판정이 아니다** — `ILIKE` 로 낱말을 하나도 안 담은 행만 버리고, 무엇을 매치로
+  셀지는 IndexJudge 가 정한다. 규칙을 SQL·Java 두 곳에 두면 갈라진다. 검색어의 `%`·`_` 는 이스케이프한다.
+
+### 제외 사유 사전 전수화
+- `EXCLUSION` 을 2곳 → **11곳 전수 명시**. 사유 3종: `robots-blocked`(8) /
+  `scope-first`(2, 놀장·시장을 방으로) / `no-static-search`(1, 인어교주해적단).
+- 한때 넣었던 `no-search-feature`(지니어스몰)는 **상수째 뺐다** — 그날 지니어스몰이 조회 대상이 되어
+  붙는 몰이 없어졌다. 해당하는 곳이 없는 사유를 남기면 화면에 설명만 있고 실체가 없는 항목이 생긴다
+  (2026-09-01 `rules-unverified` 제거와 같은 이유).
+- 기본값(`getOrDefault`)은 남겼지만 **거기 기대지 않는다** — 그 폴백이 곧 오표기의 원인이었다.
+  이전 화면은 12곳 중 10곳을 "화면에서만 만들어져 읽을 수 없음"이라 말했는데 12곳 중 어디에도 맞지 않는 문구였다.
+- robots 8곳은 **허가 없이는 보류**(사용자 결정 2026-09-02). 정적 조회 성공까지 실측돼 있어 허가만 오면 규칙 몇 줄로 편입된다.
+- 완전성을 테스트가 고정한다: `data/online_platforms.json` 의 `kind=shopping` 중 `ProbeTargets.ids()` 에
+  없는 모든 id 가 사전에 **명시적으로** 있어야 한다. 사유별 곳 수(8/2/1)·합계 11·사전과 대상의 비중첩도 함께 고정.
+
+### 조회 대상 11번째 — 지니어스몰 (2026-09-02, 팀 결정 변경)
+- 앞서 "검색 기능 자체가 없다"고 본 것이 **틀렸다.** 플랫폼 기본 검색 URL 4종만 시험하고 접었는데,
+  실제 폼은 `<form class="search_bbs" action="/product/product.html" method="GET">` + `name="search"` 였다.
+  **없는 URL 을 지어내 시험하기 전에 그 몰의 폼을 먼저 읽어야 한다** — 2026-09-01 꾹AI 에 이어 두 번째다.
+- robots.txt: `Allow : /`, 금지는 `/ko_mall/` 뿐 → `/product/` 허용.
+- 실측(UA 동일, curl): 로봇청소기 200·50,936B·상품 12건·0.20초 / zzqqxyw12345 200·29,844B·상품 0건.
+- 없음-문구: 원문은 `총 <i>0</i>개의 상품이 있습니다` 인데 **판정은 태그를 걷어낸 텍스트에 대고 한다** →
+  사전에는 `총 0 개의 상품이 있습니다` 로 적었다. 질의 비의존형이라 등급 B.
+  **있음 응답에는 이 문구가 없다**(건수가 12로 찍힌다 — 대조 확인, 테스트로 고정).
+- `echoesQuery=false` 실측 — 없는 질의가 원문에 1회 있으나 검색창 `<input value>` 라 `stripEcho` 후 토큰 0이다.
+  문구가 깨져도 토큰 0 판정이 '없다'를 받쳐 준다.
+- `titlePattern` `<em>([^<]+)</em>` — 상품명에 class 가 없다. 실측: 있음 응답 `<em>` 12개 = 상품 12개로 정확히
+  일치하고 없음 응답에는 `<em>` 이 하나도 없다(목록 밖에서 쓰이지 않는 태그).
+- 카나리아 present 질의는 `로봇청소기` 다. 가전 전문몰이라 다른 몰이 쓰는 `김치` 는 0건이다.
+  카나리아 요청량 20 → 22건/일(`ProbeTargets.ALL` 에서 자동 파생 — SelfTestService 무수정).
+- 픽스처 2개 실측 응답 그대로 저장: `src/test/resources/probe/genius-mall-{hit,none}.html`.
+- **판정 실측**
+  | 질의 | status | confidence | hits | 근거 |
+  |---|---|---|---|---|
+  | zzqqxyw12345 (absent) | none | high | 0 | `총 0 개의 상품이 있습니다` |
+  | 로봇청소기 (present) | likely | medium | 21 | 샘플 3건(에브리봇 AI 올인원로봇청소기 Q11 등) |
+  | 다이슨 청소기 | likely | medium | 21 | `samplePartial=true` — 다이슨을 담은 이름이 없다 |
+- 색인 층 대상은 `ProbeTargets.ids()` 제외 규칙에 따라 자동으로 놀장·인어교주해적단 2곳이 됐다.
+  **테스트가 이 파급을 먼저 잡았다** — 색인 예시로 쓰던 지니어스몰이 실시간 대상이 되자
+  "실시간 대상은 색인 층에서 뺀다" 테스트가 실패했다.
+
+### 테스트 (144개, +33 — 이전 111)
+- **`IndexJudgeTest`(신규 14)**: 전체 낱말 매치만 셈 / 일부 매치 표시 / 무매치 몰 제외 / 대소문자 무시 /
+  샘플 정렬·3건 상한 / **실시간 대상 제외** / 목록에 없는 몰 제외 / `asOf`=min / 빈 색인 / 검색 링크 / notice 4분기 / 문장 종결.
+- **`OnlineProductIndexRepositoryTest`(신규 3)**: 빈 대상·빈 낱말이면 질의하지 않음(`IN ()` 문법 오류 방지) / LIKE 메타문자 이스케이프.
+- **`OnlineSearchServiceTest`(+5)**: 색인 층 항상 채움 / 킬스위치 OFF 에도 색인 계산 / 캐시 적중 시 색인 재계산 /
+  색인 장애가 실시간을 죽이지 않음 / 사유 4갈래 실측.
+- **`OnlineSearchContractTest`(+4)**: `index` 가 맨 뒤 / IndexLayer·IndexHit 컴포넌트 / 직렬화 키 / 빈 층은 null 아님 /
+  `IndexHit` 에 status 부재(층 혼입 방지).
+- **`ProbeTargetsTest`(+5)**: 비대상 전수 사유 명시 / 사유 4종 화이트리스트 / 사유별 곳 수 / 대상·사전 비중첩 / 사전의 유령 id 금지.
+- 정리: `OnlineSearchServiceTest` 의 낡은 단언 교정 — 온누리5일장이 `EX_NO_FETCH` 라던 줄(이제 조회 대상),
+  지니어스몰 사유가 `EX_NO_FETCH` 라던 줄(이제 `EX_NO_SEARCH`).
+- **`ProbeJudgeTest`(+2)**: 지니어스몰이 건수 문구로 none 확정·있으면 상품명 샘플 / 없음 문구가 있음 응답에 없음(등급 B 전제).
+  기존의 `ALL` 순회 테스트 5건이 지니어스몰까지 자동으로 덮는다(픽스처 2개가 그래서 필요하다).
+- `./gradlew cleanTest test` **144개 녹색**. 계약 확장이 **테스트 컴파일 단계에서 막혀** 필드 순서 고정이 작동함을 재확인.
+
+### 남긴 우려
+- 색인 층은 **적재기가 아직 없다**(배치 단계 F 는 다른 담당). 그때까지 테이블이 비어 `index` 는 빈 층으로 나간다 —
+  화면에는 블록이 아예 나타나지 않아야 하고, `platformCount=0`·`notice=null` 이 그 신호다.
+- 한 요청이 읽는 행 수를 5,000 으로 상한했다. 몰당 하루 100~150건 규모에서는 닿지 않지만,
+  색인이 그보다 커지면 `matchCount` 가 조용히 낮아진다 — 단계 F 가 적재량을 정한 뒤 이 값을 재검토할 것.
+- 색인 조회는 요청마다 DB 를 두 번(요약·후보) 친다. 캐시하지 않은 것은 의도(수명이 다르다)이나,
+  실시간 조회 요청량이 늘면 재평가 대상이다.

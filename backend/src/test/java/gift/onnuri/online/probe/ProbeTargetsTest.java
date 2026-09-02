@@ -15,7 +15,7 @@ class ProbeTargetsTest {
 
     @Test
     void 조회대상이_모두_실측일과_robots_검토일을_가진다() {
-        assertEquals(10, ProbeTargets.ALL.size());  // 2026-09-02 온누리쇼핑 추가
+        assertEquals(11, ProbeTargets.ALL.size());  // 2026-09-02 온누리쇼핑·지니어스몰 추가
         for (ProbeTarget t : ProbeTargets.ALL) {
             assertNotNull(t.measuredOn(), t.platformId() + " measuredOn 없음");
             assertNotNull(t.robotsCheckedOn(), t.platformId() + " robotsCheckedOn 없음 — "
@@ -99,5 +99,80 @@ class ProbeTargetsTest {
         List<ProbeTarget> empty = ProbeTargets.ALL.stream()
                 .filter(t -> t.noneMarkersBound().isEmpty() && t.noneMarkersPlain().isEmpty()).toList();
         assertEquals(2, empty.size(), "등급 C 는 실측 기준 2곳이다");   // 2026-09-02 추가분은 둘 다 등급 B
+    }
+
+    /**
+     * 제외 사유 사전은 **비대상 몰 전수**를 명시해야 한다.
+     *
+     * 기본값(getOrDefault)으로 흘러간 항목이 곧 오표기다 — 2026-09-02 이전 화면은 12곳 중
+     * 10곳을 "화면에서만 만들어져 읽을 수 없음"으로 말하고 있었는데, 실제로는 8곳이
+     * robots 차단이고 1곳은 검색 기능 자체가 없고 2곳은 시장·주소 선택이 먼저였다
+     * (_workspace/20_probe_expansion_analysis.md 0절). 사전에 없으면 여기서 실패한다.
+     */
+    @Test
+    void 조회하지_않는_몰은_전부_사유가_명시돼_있다() throws Exception {
+        for (String id : shoppingIds()) {
+            if (ProbeTargets.ids().contains(id)) continue;
+            assertTrue(ProbeTargets.exclusionIds().contains(id),
+                    id + " 가 제외 사유 사전에 없다 — 기본값으로 흘러가면 화면이 틀린 사유를 말한다");
+        }
+    }
+
+    @Test
+    void 사유는_조사표의_세_갈래_중_하나다() {
+        // 붙는 몰이 없는 사유는 상수로도 두지 않는다 — 2026-09-01 rules-unverified 를
+        // 제거한 것과 같은 이유다. 화면에 설명만 있고 해당하는 곳이 없는 사유는 소음이다.
+        List<String> allowed = List.of(ProbeTargets.EX_ROBOTS,
+                ProbeTargets.EX_SCOPE_FIRST, ProbeTargets.EX_NO_FETCH);
+        for (String id : ProbeTargets.exclusionIds()) {
+            assertTrue(allowed.contains(ProbeTargets.exclusionReason(id)),
+                    id + " 의 사유가 조사표에 없는 값이다: " + ProbeTargets.exclusionReason(id));
+        }
+    }
+
+    @Test
+    void 사유별_곳_수가_조사표와_일치한다() {
+        // _workspace/20_probe_expansion_analysis.md 0·2절 실측 분류.
+        // 숫자가 어긋나면 사전이 조사와 갈라진 것이다.
+        assertEquals(8, countReason(ProbeTargets.EX_ROBOTS), "robots 차단 8곳");
+        assertEquals(2, countReason(ProbeTargets.EX_SCOPE_FIRST), "범위 선행 2곳(놀장·시장을 방으로)");
+        assertEquals(1, countReason(ProbeTargets.EX_NO_FETCH), "정적 조회 불가 1곳(인어교주해적단)");
+        // 22곳 − 조회 대상 11곳 = 11곳. 곳 수 합이 어긋나면 사전이 조사와 갈라진 것이다.
+        assertEquals(11, ProbeTargets.exclusionIds().size());
+    }
+
+    @Test
+    void 제외_사전과_조회_대상은_겹치지_않는다() {
+        for (String id : ProbeTargets.ids()) {
+            assertFalse(ProbeTargets.exclusionIds().contains(id),
+                    id + " 가 조회 대상이면서 제외 사유도 갖고 있다 — 목록이 어긋났다");
+        }
+    }
+
+    @Test
+    void 사전에_없는_몰_id는_사전에_넣지_않는다() throws Exception {
+        List<String> shopping = shoppingIds();
+        for (String id : ProbeTargets.exclusionIds()) {
+            assertTrue(shopping.contains(id),
+                    id + " 는 쇼핑 플랫폼 목록에 없는 id 다 — 오타이거나 몰이 사라졌다");
+        }
+    }
+
+    private static long countReason(String reason) {
+        return ProbeTargets.exclusionIds().stream()
+                .filter(id -> reason.equals(ProbeTargets.exclusionReason(id))).count();
+    }
+
+    /** data/online_platforms.json 의 kind=shopping id 목록(이용자가 보는 온라인 사용처). */
+    static List<String> shoppingIds() throws Exception {
+        Path p = Path.of("../data/online_platforms.json");
+        assertTrue(Files.exists(p), "플랫폼 목록을 찾지 못했다: " + p.toAbsolutePath());
+        var root = new com.fasterxml.jackson.databind.ObjectMapper().readTree(Files.readString(p));
+        List<String> ids = new java.util.ArrayList<>();
+        root.path("items").forEach(n -> {
+            if ("shopping".equals(n.path("kind").asText())) ids.add(n.path("id").asText());
+        });
+        assertFalse(ids.isEmpty(), "쇼핑 플랫폼을 하나도 읽지 못했다 — JSON 구조가 바뀌었다");
+        return ids;
     }
 }

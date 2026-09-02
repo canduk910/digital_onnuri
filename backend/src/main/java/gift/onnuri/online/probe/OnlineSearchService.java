@@ -42,44 +42,84 @@ public class OnlineSearchService {
     private static final Logger log = LoggerFactory.getLogger(OnlineSearchService.class);
 
     private final OnlineRepository repo;
+    private final OnlineProductIndexRepository indexRepo;
     private final ProbeFetcher fetcher;
     private final ProbeCache cache;
     private final boolean enabled;
     private final long budgetMs;
 
-    /** 블로킹 I/O 6건에 플랫폼 스레드를 쓰지 않는다. 동시성 상한은 ProbeFetcher 의 세마포어가 건다. */
+    /** 몰 수만큼의 블로킹 I/O 에 플랫폼 스레드를 쓰지 않는다. 동시성 상한은 ProbeFetcher 의 세마포어가 건다. */
     private final ExecutorService pool =
             Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("probe-", 0).factory());
 
-    public OnlineSearchService(OnlineRepository repo, ProbeFetcher fetcher, ProbeCache cache,
+    public OnlineSearchService(OnlineRepository repo, OnlineProductIndexRepository indexRepo,
+                               ProbeFetcher fetcher, ProbeCache cache,
                                @Value("${app.online.probe.enabled:true}") boolean enabled,
                                @Value("${app.online.probe.budget-ms:5000}") long budgetMs) {
         this.repo = repo;
+        this.indexRepo = indexRepo;
         this.fetcher = fetcher;
         this.cache = cache;
         this.enabled = enabled;
         this.budgetMs = budgetMs;
     }
 
-    /** 캐시에만 있는지 본다(없으면 null) — 컨트롤러가 한도 소비 여부를 정하는 데 쓴다. */
+    /**
+     * 캐시에만 있는지 본다(없으면 null) — 컨트롤러가 한도 소비 여부를 정하는 데 쓴다.
+     *
+     * 색인 층은 **캐시에서 꺼내지 않고 다시 계산한다.** 실시간 결과는 60분 캐시가 맞지만
+     * 색인은 매일 밤 갈리는 값이라 수명이 다르다 — 함께 캐시하면 자정을 넘긴 뒤에도
+     * 어제 이전 색인을 "전일 기준"이라며 계속 보여 준다. DB 읽기뿐이라 아웃바운드는 0이다.
+     */
     public OnlineSearchResult cached(ProbeQuery q) {
-        return cache.get(q.cacheKey());
+        OnlineSearchResult hit = cache.get(q.cacheKey());
+        return hit == null ? null : hit.withIndex(indexLayer(q, shopping()));
     }
 
     /** 캐시 우선. 적중하면 상대 사이트로 나가는 요청이 0이다. */
     public OnlineSearchResult searchCached(ProbeQuery q) {
-        OnlineSearchResult hit = cache.get(q.cacheKey());
+        OnlineSearchResult hit = cached(q);
         if (hit != null) return hit;
         OnlineSearchResult fresh = search(q);
         cache.put(q.cacheKey(), fresh);
         return fresh;
     }
 
-    public OnlineSearchResult search(ProbeQuery q) {
-        List<OnlinePlatformView> platforms = repo.findAll().stream()
+    /** 이용자가 보는 온라인 사용처(배달은 음식 주문이라 상품 검색 축이 없다). */
+    private List<OnlinePlatformView> shopping() {
+        return repo.findAll().stream()
                 .filter(p -> "active".equals(p.status()))
-                .filter(p -> !"delivery".equals(p.kind()))   // 배달은 음식 주문이라 상품 검색 축이 없다
+                .filter(p -> !"delivery".equals(p.kind()))
                 .toList();
+    }
+
+    /**
+     * 전일 색인 층(ADR-18). 실시간 조회와 **독립**이라 킬스위치가 꺼져 있어도 계산한다 —
+     * 실시간이 막힌 몰을 위해 만든 층이므로 실시간이 죽을 때 함께 죽으면 뜻이 없다.
+     *
+     * DB 가 흔들리면 빈 층으로 넘긴다. 색인 조회 실패가 실시간 층까지 죽이면
+     * 보조 기능이 본 기능을 끌어내리는 셈이 된다.
+     */
+    private IndexLayer indexLayer(ProbeQuery q, List<OnlinePlatformView> platforms) {
+        try {
+            Map<String, OnlinePlatformView> byId = platforms.stream()
+                    .collect(Collectors.toMap(OnlinePlatformView::id, Function.identity(), (a, b) -> a));
+            List<String> candidates = byId.keySet().stream()
+                    .filter(id -> ProbeTargets.byId(id).isEmpty())   // 실시간 대상은 색인 층에서 뺀다
+                    .toList();
+            var summaries = indexRepo.summarize(candidates);
+            if (summaries.isEmpty()) return IndexLayer.empty();
+            var rows = indexRepo.findMatching(candidates, q.countTokens());
+            return IndexJudge.build(q, byId, summaries, rows);
+        } catch (RuntimeException e) {
+            log.warn("전일 색인 조회 실패 — 색인 층을 비우고 실시간 결과만 보낸다 q={}", q.normalized(), e);
+            return IndexLayer.empty();
+        }
+    }
+
+    public OnlineSearchResult search(ProbeQuery q) {
+        List<OnlinePlatformView> platforms = shopping();
+        IndexLayer index = indexLayer(q, platforms);
         Map<String, OnlinePlatformView> byId = platforms.stream()
                 .collect(Collectors.toMap(OnlinePlatformView::id, Function.identity(), (a, b) -> a));
 
@@ -98,7 +138,7 @@ public class OnlineSearchService {
                 ProbeTargets.byId(p.id()).ifPresent(t ->
                         items.add(notProbed(p, t, "disabled", q, now)));
             }
-            return summarize(q, now, platforms.size(), items, false);
+            return summarize(q, now, platforms.size(), items, false).withIndex(index);
         }
 
         // 대상 몰 병렬 조회. 예산을 넘긴 것은 unknown 으로 넘기고 나머지를 그대로 쓴다.
@@ -132,7 +172,7 @@ public class OnlineSearchService {
                         t.mallWide(), searchUrlFor(t, p, q), now));
             }
         }
-        return summarize(q, now, platforms.size(), items, throttled);
+        return summarize(q, now, platforms.size(), items, throttled).withIndex(index);
     }
 
     private ProbeHit probeOne(ProbeTarget t, OnlinePlatformView p, ProbeQuery q, String now) {
@@ -190,9 +230,12 @@ public class OnlineSearchService {
                 default -> notProbed++;
             }
         }
+        // 색인 층은 여기서 만들지 않는다 — summarize 는 실시간 조회 결과만 셈한다.
+        // 서비스가 withIndex 로 갈아 끼운다(계약상 null 은 없으므로 빈 층으로 채워 둔다).
         return new OnlineSearchResult(q.normalized(), now, total, probed,
                 none, likely, unclear, unknown, notProbed, throttled,
-                notice(q, total, probed, none, likely, unclear, unknown, notProbed, wideLikely), items);
+                notice(q, total, probed, none, likely, unclear, unknown, notProbed, wideLikely),
+                items, IndexLayer.empty());
     }
 
     static String notice(ProbeQuery q, int total, int probed,

@@ -23,5 +23,18 @@ public record OnlineSearchResult(
         int notProbedCount,
         boolean throttled,
         String notice,
-        List<ProbeHit> items
-) {}
+        List<ProbeHit> items,
+        /**
+         * 전일 색인 층(ADR-18). **null 이 아니다** — 비면 platformCount 0·notice null·빈 목록.
+         * 실시간 층과 독립이라 킬스위치가 꺼져 있어도, 캐시가 적중해도 새로 계산한다
+         * (DB 읽기뿐이라 아웃바운드가 없고, 색인은 매일 바뀌어 캐시 TTL 과 수명이 다르다).
+         */
+        IndexLayer index
+) {
+    /** 캐시에서 꺼낸 결과에 **오늘의** 색인 층을 갈아 끼운다. 기존 필드는 그대로 둔다. */
+    public OnlineSearchResult withIndex(IndexLayer idx) {
+        return new OnlineSearchResult(query, checkedAt, totalPlatforms, probedCount,
+                noneCount, likelyCount, unclearCount, unknownCount, notProbedCount,
+                throttled, notice, items, idx == null ? IndexLayer.empty() : idx);
+    }
+}

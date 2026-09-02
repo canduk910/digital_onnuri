@@ -8,12 +8,14 @@ import java.util.Optional;
 import gift.onnuri.online.probe.ProbeTarget.Scope;
 
 /**
- * 실시간 조회 대상 6곳과 그 판정 규칙 (ADR-17, 실측 2026-08-31).
+ * 실시간 조회 대상과 그 판정 규칙 (ADR-17, 최초 실측 2026-08-31).
  *
- * 22곳 중 6곳인 이유:
- *   - app 컨테이너가 21-jre 라 브라우저가 없다 → 정적 HTTP 응답에 결과가 실리는 몰만 가능(8곳)
- *   - 그중 온누리굿데이·인더마켓은 robots.txt 가 `Disallow: /` + `Allow: /$` → 제외
- *   - 나머지 14곳은 검색 폼이 정적 HTML 에 없거나(SPA) URL 추정 실패
+ * 대상 수는 ALL 이 정한다 — 여기에 곳 수를 적지 않는다. 적어 둔 숫자는 6→7→9→10→11로
+ * 늘 때마다 거짓이 됐다(2026-09-02 dev-qa 적발). 대상이 되는 조건:
+ *   - app 컨테이너가 21-jre 라 브라우저가 없다 → 정적 HTTP(화면 또는 내부 API)로 결과가 실리는 몰
+ *   - 온누리 범위로 좁힐 수 있는 몰(기획전 딥링크의 범위 오염 금지)
+ *   - 없음-문구·titlePattern 이 실측된 몰. robots 차단 몰은 ADR-18 ① 로 보류(ADR-19 참조)
+ *   - 나머지는 EXCLUSION 이 사유를 전수 명시한다(기본값으로 흘리면 화면 문구가 거짓이 된다)
  * 조사 전문: _workspace/19_online_probe.md
  *
  * 없음-문구 등급:
@@ -58,6 +60,11 @@ public final class ProbeTargets {
             P("<div class=\"name\">\\s*([^<]+?)\\s*</div>");
     private static final java.util.regex.Pattern T_EPOST =    // <div class="goods_text"><p class="tit">상품명</p>
             P("<div class=\"goods_text\">\\s*<p class=\"tit\">\\s*([^<]+?)\\s*</p>");
+    // 지니어스몰은 상품명에 class 가 없다 — 카드 안 <em> 이 상품명 자리다.
+    // 실측(2026-09-02 로봇청소기): <em> 12개 = 상품 12개로 정확히 일치하고,
+    // 없음 응답에는 <em> 이 **하나도 없다**. 목록 밖에서 쓰이지 않는 태그다.
+    private static final java.util.regex.Pattern T_GENIUS =   // <em>상품명</em>
+            P("<em>([^<]+)</em>");
 
     public static final List<ProbeTarget> ALL = List.of(
 
@@ -193,7 +200,30 @@ public final class ProbeTargets {
                     // echoesQuery=false — 검색어가 <input value> 와 JS 변수에만 있어 stripEcho 후
                     // 텍스트에는 남지 않는다(카나리아가 선언 true 와 실측 false 의 차이를 잡았다).
                     // 덕분에 토큰 0 판정도 함께 쓸 수 있다.
-                    false, 5, T_SHOPPING, 0, "김치", 0, MEASURED, LocalDate.of(2026, 9, 2))
+                    false, 5, T_SHOPPING, 0, "김치", 0, MEASURED, LocalDate.of(2026, 9, 2)),
+
+            // 지니어스몰 — 2026-09-02 승격. 앞서 "검색 기능 자체가 없다"고 본 것이 **틀렸다.**
+            // 플랫폼 기본 검색 URL 4종(product.html?mode=search·list.html·search.html·search_text)
+            // 만 시험하고 접었는데, 실제 폼은 `<form class="search_bbs" action="/product/product.html"
+            // method="GET">` + `name="search"` 였다 — 파라미터 이름 하나가 달랐다.
+            // 없는 URL 을 만들어 시험하기 전에 **그 몰의 폼을 먼저 읽어야 한다**는 것이
+            // 2026-09-01 꾹AI 에 이어 두 번째로 확인된 교훈이다.
+            // robots.txt: `Allow : /` · 금지는 `/ko_mall/` 뿐 — /product/ 는 허용.
+            // 실측(2026-09-02): 로봇청소기 200·50,936B·상품 12건·0.20초 /
+            //                   zzqqxyw12345 200·29,844B·상품 0건.
+            // 없음 실측: `총 <i>0</i>개의 상품이 있습니다` — 판정은 태그를 걷어낸 텍스트에
+            //   대고 하므로 사전에는 그 형태(`총 0 개…`)로 적는다. 질의 비의존형 → 등급 B.
+            //   **있음 응답에는 이 문구가 없다**(대조 확인 — 건수가 12로 찍힌다).
+            // echoesQuery=false — 없는 질의가 원문에 1회 있으나 검색창 <input value> 라
+            //   stripEcho 후 토큰 0이다. 문구가 깨져도 토큰 0 판정이 '없다'를 받쳐 준다.
+            // 가전 전문몰이라 카나리아 present 질의는 김치가 아니라 로봇청소기다(김치 0건).
+            new ProbeTarget("genius-mall",
+                    "https://luxurysystem.co.kr/product/product.html?search={q}",
+                    StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
+                    List.of(),
+                    List.of("총 0 개의 상품이 있습니다"),
+                    false, 5, T_GENIUS, 0, "로봇청소기", 0,
+                    LocalDate.of(2026, 9, 2), LocalDate.of(2026, 9, 2))
     );
 
     /**
@@ -203,18 +233,55 @@ public final class ProbeTargets {
      * 나쁘게는 "없다"로 읽는다. 사유를 대면 링크를 눌러 볼 근거가 된다.
      * 근거는 2026-08-31 22곳 전수 실현성 조사(_workspace/19_online_probe.md 1절).
      */
-    public static final String EX_ROBOTS   = "robots-blocked";     // 몰이 자동 조회를 막아 뒀다
-    public static final String EX_NO_FETCH = "no-static-search";   // 정적 응답에 결과가 실리지 않는다
+    public static final String EX_ROBOTS      = "robots-blocked";   // 몰이 자동 조회를 막아 뒀다
+    public static final String EX_SCOPE_FIRST = "scope-first";      // 시장·주소를 먼저 골라야 검색된다
+    public static final String EX_NO_FETCH    = "no-static-search"; // 정적 응답에 결과가 실리지 않는다
+    // "검색 기능 자체가 없음"(no-search-feature) 은 두지 않는다 — 유일한 후보였던
+    // 지니어스몰이 조회 대상이 되어 붙는 몰이 없다. 해당하는 곳이 없는 사유를 상수로 남기면
+    // 화면에 설명만 있고 실체가 없는 항목이 생긴다(2026-09-01 rules-unverified 제거와 같은 이유).
 
-    private static final java.util.Map<String, String> EXCLUSION = java.util.Map.of(
-            // 기술적으로는 되지만 robots.txt 가 `Disallow: /` 다. 되는 것과 해도 되는 것은 다르다.
-            "onnuri-goodday", EX_ROBOTS,
-            "inthemarket-onnuri", EX_ROBOTS);
+    /**
+     * 11곳 **전수 명시**. 기본값으로 흘려보내지 않는다 —
+     * 2026-09-02 이전에는 굿데이·인더마켓 2곳만 적고 나머지를 `no-static-search` 로
+     * 흘려, 화면이 "화면에서만 만들어져 읽을 수 없음 10곳"이라는 **사실과 다른 사유**를
+     * 말하고 있었다. 어느 몰에도 정확히 맞지 않는 문구였다.
+     * 전수화하지 않으면 같은 일이 조용히 반복되므로 ProbeTargetsTest 가 완전성을 고정한다.
+     *
+     * robots 8곳은 **기술적으로는 되지만 하지 않는다** — 사용자 결정(2026-09-02):
+     * 허가가 오기 전에는 건드리지 않는다. 굿데이 31/0·인더마켓 33/0·팔도 60/2 로
+     * 정적 조회 성공까지 실측돼 있으므로(19_online_probe 6-6절), 허가만 오면
+     * 규칙 몇 줄로 편입된다. 되는 것과 해도 되는 것은 다르다.
+     */
+    private static final java.util.Map<String, String> EXCLUSION = java.util.Map.ofEntries(
+            // ── robots.txt 가 막은 8곳 (허가 없이는 보류) ────────────────────────────
+            java.util.Map.entry("onnuri-goodday", EX_ROBOTS),            // Disallow: / (+ Allow: /$)
+            java.util.Map.entry("inthemarket-onnuri", EX_ROBOTS),        // Disallow: / (+ Allow: /$)
+            java.util.Map.entry("onnuri-paldo-sijang", EX_ROBOTS),       // disallow: /Goods/
+            java.util.Map.entry("11st-onnuri-market", EX_ROBOTS),        // Disallow: / (Crawl-delay: 1)
+            java.util.Map.entry("hyundai-home-shopping", EX_ROBOTS),     // Disallow: /
+            java.util.Map.entry("lotte-on-sangsaeng-store", EX_ROBOTS),  // Disallow: / (Crawl-delay: 3)
+            java.util.Map.entry("cyso", EX_ROBOTS),                      // /api/ 금지 + 화면은 WAF 1.7KB
+            java.util.Map.entry("gongyoung-shopping", EX_ROBOTS),        // /search/·/api/ 금지
 
-    /** 조회 대상이 아닌 이유. 조사에서 개별 사유를 특정하지 못한 곳은 정적 조회 불가로 본다. */
+            // ── 범위(시장·주소)를 먼저 골라야 검색된다 — 전역 검색이 없다 ────────────
+            java.util.Map.entry("onnuri-noljang", EX_SCOPE_FIRST),       // 시장 선택 → /market/{id} 안에서 검색
+            java.util.Map.entry("oligopalgo", EX_SCOPE_FIRST),           // 배달 주소 선택 → /shop/address.php
+
+            // ── 검색 API 는 있으나 인증을 요구한다 ───────────────────────────────────
+            // api.tpirates.com/v3/www/product/search 실존(onnuri 필터 키까지 있다) — 직접 호출 401.
+            // SPA 라 화면 HTML 에도 결과가 없다. 색인 층(ADR-18)이 대신 답한다.
+            java.util.Map.entry("tpirates", EX_NO_FETCH));
+
+    /**
+     * 조회 대상이 아닌 이유. 사전에 없으면 정적 조회 불가로 본다 —
+     * 다만 그 폴백에 기대지 않는다(위 사전이 전수여야 하고, 테스트가 그것을 고정한다).
+     */
     public static String exclusionReason(String platformId) {
         return EXCLUSION.getOrDefault(platformId, EX_NO_FETCH);
     }
+
+    /** 사유가 **명시된** 몰. 테스트가 데이터와 대조해 완전성을 지킨다. */
+    public static java.util.Set<String> exclusionIds() { return EXCLUSION.keySet(); }
 
     public static Optional<ProbeTarget> byId(String platformId) {
         return ALL.stream().filter(t -> t.platformId().equals(platformId)).findFirst();

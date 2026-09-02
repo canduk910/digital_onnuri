@@ -120,6 +120,19 @@
   .pb-why-list{ padding:2px 14px 10px; background:var(--surface); border-bottom:1px solid var(--border); }
   .pb-why-list p{ margin:6px 0; font-size:12.5px; line-height:1.6; color:var(--text-sub); }
   .pb-why-list b{ color:var(--text); font-weight:700; }
+  /* 전일 색인 층(ADR-18) — 실시간 결과보다 한 단계 약하게. 오렌지는 링크에만 남긴다.
+     색인 항목이 "지금 검색됨"으로 읽히면 안 되므로 eyebrow 로 층 이름을 먼저 박고,
+     위 목록과 이어져 보이지 않게 층 경계선을 굵게 준다. */
+  .pb-index{ border-top:2px solid var(--border-2); background:var(--surface); }
+  .pb-idx-eyebrow{ padding:11px 14px 0; font-size:10px; font-weight:800; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--text-sub); }
+  .pb-idx-head{ padding:5px 14px 11px; font-size:12.5px; line-height:1.65; color:var(--text-sub); }
+  .pb-index .pb-list{ border-top:1px solid var(--border); background:var(--bg); }
+  .pb-index .pb-name{ color:var(--text-sub); }
+  .pb-idx-hit{ color:var(--text-sub); font-weight:700; }
+  /* '없었다'도 정보라서 읽혀야 한다 — faint(2.73:1)는 AA 미달이라 sub 로. 위계는 굵기가 맡는다. */
+  .pb-idx-miss{ color:var(--text-sub); }
+  .pb-idx-when{ font-size:11.5px; font-weight:400; color:var(--text-sub); }
   .pb-also{ margin:0; padding:11px 14px; font-size:12.5px; line-height:1.65; color:var(--text-sub);
     background:var(--surface); border-top:1px solid var(--border); }
   .pb-also b{ color:var(--text); font-weight:700; }
@@ -337,7 +350,7 @@
 <script src="chat-widget.js?v=13" defer></script>
 <script src="config.js"></script>
 <script src="online-source.js?v=2"></script>
-<script src="online-probe.js?v=5"></script>
+<script src="online-probe.js?v=6"></script>
 <script>
 (function () {
   "use strict";
@@ -794,7 +807,7 @@
   }
 
   // 실시간 조회(ADR-17) — 로컬 태그 필터가 답하지 못하는 "그 상품이 실제로 있느냐"를
-  // 몰에 직접 묻는다. **자동으로 조회하지 않는다** — 타이핑 한 글자마다 6곳을 두드리면
+  // 몰에 직접 묻는다. **자동으로 조회하지 않는다** — 타이핑 한 글자마다 조회 대상 전부를 두드리면
   // 상대 사이트 부담이 통제 불능이 된다(ADR-16이 하루 3~4곳 순환을 택한 것과 같은 이유).
   // 배너만 띄우고, 사람이 버튼을 누른 뒤에만 나간다.
   function probeSync(emptyResult) {

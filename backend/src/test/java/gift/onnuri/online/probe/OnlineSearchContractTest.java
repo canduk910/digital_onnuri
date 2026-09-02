@@ -29,10 +29,50 @@ class OnlineSearchContractTest {
 
     @Test
     void OnlineSearchResult_는_카운트와_안내를_함께_준다() {
+        // index 는 **맨 뒤**에 붙인다 — 기존 필드 순서가 바뀌면 프론트가 조용히 어긋난다.
         assertEquals(List.of("query", "checkedAt", "totalPlatforms", "probedCount",
                         "noneCount", "likelyCount", "unclearCount", "unknownCount",
-                        "notProbedCount", "throttled", "notice", "items"),
+                        "notProbedCount", "throttled", "notice", "items", "index"),
                 components(OnlineSearchResult.class));
+    }
+
+    @Test
+    void 전일_색인_층이_프론트가_소비하는_필드를_노출한다() {
+        assertEquals(List.of("asOf", "platformCount", "foundCount", "notice", "items"),
+                components(IndexLayer.class));
+        assertEquals(List.of("platformId", "name", "matchCount", "sampleTitles",
+                        "samplePartial", "searchUrl", "collectedOn"),
+                components(IndexHit.class));
+    }
+
+    @Test
+    void 색인_층_직렬화_키가_계약과_일치한다() throws Exception {
+        ObjectMapper om = new ObjectMapper();
+        IndexLayer layer = new IndexLayer("2026-09-01", 3, 1, "전일 색인: …",
+                List.of(new IndexHit("genius-mall", "지니어스몰", 2,
+                        List.of("총각김치 3kg"), false, "https://x", "2026-09-01")));
+        Map<?, ?> back = om.readValue(om.writeValueAsString(layer), Map.class);
+        assertEquals(List.of("asOf", "platformCount", "foundCount", "notice", "items"),
+                back.keySet().stream().map(Object::toString).toList());
+    }
+
+    @Test
+    void 빈_색인_층은_null_이_아니라_빈_값이다() {
+        IndexLayer e = IndexLayer.empty();
+        assertEquals(0, e.platformCount());
+        assertEquals(0, e.foundCount());
+        assertNull(e.notice());
+        assertNotNull(e.items());
+        assertTrue(e.items().isEmpty());
+    }
+
+    @Test
+    void 색인_층은_실시간_상태값을_쓰지_않는다() {
+        // "어제 올라와 있었다"와 "지금 검색된다"는 다른 주장이다. 같은 상태 목록에 담으면
+        // 화면 문구가 둘 중 하나에 대해 거짓이 된다(ADR-18).
+        assertFalse(java.util.Arrays.stream(IndexHit.class.getRecordComponents())
+                        .anyMatch(c -> c.getName().equals("status")),
+                "색인 항목에 status 가 생겼다 — 실시간 층과 섞였다");
     }
 
     @Test
@@ -48,10 +88,11 @@ class OnlineSearchContractTest {
                 back.keySet().stream().map(Object::toString).toList());
 
         OnlineSearchResult r = new OnlineSearchResult("로봇청소기", "2026-08-31 16:00",
-                22, 6, 3, 2, 1, 0, 16, false, "안내", List.of(h));
+                22, 6, 3, 2, 1, 0, 16, false, "안내", List.of(h), IndexLayer.empty());
         Map<?, ?> rb = om.readValue(om.writeValueAsString(r), Map.class);
         assertTrue(rb.containsKey("notice"), "안내 문구는 서버가 만든다 — 키 누락");
         assertTrue(rb.containsKey("notProbedCount"), "미확인 곳 수를 감추면 안 된다");
+        assertTrue(rb.containsKey("index"), "전일 색인 층이 빠졌다(ADR-18)");
     }
 
     // ── 집계 규칙 ────────────────────────────────────────────────────────

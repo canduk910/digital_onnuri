@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """야간 배치(서버 cron 00:30) — 가맹점·온라인 플랫폼 데이터 자동 갱신.
 
-다섯 단계가 서로 독립적으로 fail-open 한다(ADR-14, D는 ADR-16, E는 ADR-17):
+여섯 단계가 서로 독립적으로 fail-open 한다(ADR-14, D는 ADR-16, E는 ADR-17, F는 ADR-18):
   A 가맹점  — 공식 API 전수 재수집 → stage 테이블 적재 → ±20% 가드 → 무중단 stage-swap
   B 온라인  — 공식 e-commerce API 순회 → upsert(post_no/이름 매칭, 큐레이션 필드 보존)
   C RAG     — OPENAI_API_KEY 있을 때만 코퍼스 재빌드
   D 채록    — 온라인 취급품목·브랜드 변화 **탐지만**(하루 3~4곳 순환, 자동 반영 없음)
+  F 색인    — 실시간 조회가 닿지 않는 2곳의 **상품명·주소만** 수집해 몰 단위로 교체 적재
   E 카나리아 — 실시간 조회 판정 규칙이 아직 맞는지 앱에 물어보고 리포트만(자동 비활성화 없음)
 
 배치 전체 실패(exit≠0)로 치는 것은 **A 단계 실패뿐**이다. B·C 실패는 로그만 남기고 기존 데이터를 유지한다.
@@ -23,6 +24,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 import urllib.error
@@ -57,9 +59,20 @@ BODY_DELTA_ALERT = 0.5          # 응답 길이가 ±50% 넘게 변하면 개편
 # 2026-08-31 검증에서 굿데이를 onnurigoodday.com(실제는 onnurigood.com)으로 잘못 적었고,
 # **그 엉뚱한 도메인이 마침 Disallow: / 라 기대와 맞아떨어져 통과까지 했다.**
 # 감시 대상이 조용히 다른 사이트가 되는 것을 막으려면 주소의 출처가 하나여야 한다.
+#
+# 2026-09-02: 단계 F(전일 색인, ADR-18)가 여는 2곳과, 같은 날 실시간 조회 대상이 된
+# 지니어스몰을 감시에 넣는다. 조사 시점 상태는
+#   놀장 `Allow: /` · 인어교주해적단 robots.txt 없음(요청이 SPA 화면으로 넘어간다) ·
+#   지니어스몰 `Allow: /` + `Disallow: /ko_mall/`.
+# 셋 다 전면 차단이 아니므로 ROBOTS_BLOCKED_AT_SURVEY 에는 넣지 않는다 —
+# 어느 한 곳이 `Disallow: /` 로 바뀌면 그날 로그에 경고가 뜨고 사람이 그 몰을 재검토한다.
 ROBOTS_BLOCKED_AT_SURVEY = ("onnuri-goodday", "inthemarket-onnuri")   # 2026-08-31 조사 시점 전면 차단
 ROBOTS_WATCH_IDS = ("onnuri-hotdeal", "onnuri-chance", "onnuri-sijang", "onnuri-market",
-                    "onnuri-gonggong-mall", "epost-mall") + ROBOTS_BLOCKED_AT_SURVEY
+                    "onnuri-gonggong-mall", "epost-mall", "genius-mall",
+                    "onnuri-noljang", "tpirates") + ROBOTS_BLOCKED_AT_SURVEY
+
+# 단계 F — 전일 상품명 색인(ADR-18)
+INDEX_GUARD_MIN_RATIO = 0.5     # 몰별 새 건수가 기존의 50% 미만이면 그 몰은 유지
 
 REGIONS = ["서울", "인천", "경기", "부산"]
 GUARD_TOLERANCE = 0.20          # 지역별 ±20%
@@ -433,6 +446,131 @@ def stage_d_survey(out_dir):
     log(f"D 판정: OK — 소요 {time.time()-t0:.1f}s (데이터 자동 반영 없음, 리포트만)")
 
 
+# ---------------------------------------------------------------- 단계 F: 색인
+def _index_guard(prev_count, new_count, min_ratio=INDEX_GUARD_MIN_RATIO):
+    """이 회차의 수집분으로 그 몰의 색인을 덮어도 되는가.
+
+    단계 A 의 ±20% 가드와 같은 논리다 — **반쯤 걷힌 회차로 멀쩡한 색인을 지우지 않는다.**
+    크롤은 HTML·화면 응답에 기대므로 사이트가 느리거나 개편 중이면 절반만 걷힌다.
+    그런 회차를 그대로 반영하면 이용자에게는 "어제까지 있던 상품이 사라진" 것으로 보인다.
+
+    반대로 **처음 적재(prev=0)는 언제나 통과**시킨다. 기준이 없으면 비교할 것도 없다.
+
+    반환: (반영해도 되는가, 사유 또는 None)
+    """
+    if new_count <= 0:
+        return False, "새 수집 0건"
+    if prev_count and new_count < prev_count * min_ratio:
+        return False, (f"{prev_count}→{new_count}건 "
+                       f"(기존의 {new_count / prev_count:.0%}, 하한 {min_ratio:.0%})")
+    return True, None
+
+
+def _index_table_exists(conn):
+    with conn.cursor() as cur:
+        cur.execute("SELECT to_regclass('public.online_product_index') IS NOT NULL")
+        return bool(cur.fetchone()[0])
+
+
+def stage_f_index(conn, out_dir, today):
+    """실시간 조회가 닿지 않는 2곳(놀장·인어교주해적단)의 상품명 색인을 몰 단위로 교체 적재한다(ADR-18).
+
+    단계 D 와 달리 **이 단계는 DB 를 고친다.** 그래도 성격은 같다 — 수집은 크롤이고,
+    크롤은 조용히 절반만 성공한다. 그래서 몰마다 건수 가드를 걸고(_index_guard),
+    걸린 몰은 **어제 색인을 그대로 둔다**(빈 색인보다 하루 지난 색인이 낫다).
+
+    ok=false 로 온 몰도 손대지 않는다 — 크롤러가 스스로 "이 회차는 못 믿는다"고 말한 것이다.
+    """
+    log("=== 단계 F: 온라인 상품명 색인 ===")
+    script = ROOT / "backend" / "tools" / "index_nightly.js"
+    if not script.exists():
+        log("F 스킵: index_nightly.js 없음.")
+        return
+    node = shutil.which("node")
+    if not node:
+        log("F 스킵: node 없음(설치: nodejs).")
+        return
+    if not _index_table_exists(conn):
+        log("F 스킵: online_product_index 테이블 없음 — 마이그레이션(V8) 적용 후 동작한다.")
+        return
+
+    t0 = time.time()
+    # 리포트를 반드시 읽어야 하므로 --out 은 항상 준다(지정이 없으면 임시 디렉터리).
+    tmp = None
+    target_dir = out_dir
+    if not target_dir:
+        tmp = tempfile.mkdtemp(prefix="onnuri-index-")
+        target_dir = tmp
+    try:
+        r = subprocess.run([node, str(script), "--out", target_dir], cwd=str(ROOT))
+        if r.returncode == 2:
+            log("F 스킵: playwright 미설치 — npm i playwright && npx playwright install --with-deps chromium")
+            return
+        if r.returncode != 0:
+            log(f"F 실패(로그만): index_nightly exit={r.returncode}. 배치 실패 아님.")
+            return
+
+        # 파일명은 크롤러의 **로컬 날짜**로 붙는다(배치 로그와 같은 기준). --collected-on 으로
+        # 다른 날짜를 주더라도 파일은 오늘 것이므로, 없으면 가장 최근 파일로 되짚는다.
+        d = Path(target_dir)
+        f = d / f"product-index-{date.today().isoformat()}.json"
+        if not f.exists():
+            files = sorted(d.glob("product-index-*.json"))
+            if not files:
+                log("F 실패(로그만): 색인 리포트를 찾지 못했습니다.")
+                return
+            f = files[-1]
+            log(f"  · 오늘자 파일이 없어 최근 파일을 씁니다: {f.name}")
+        report = json.loads(f.read_text(encoding="utf-8"))
+    except Exception as e:                         # noqa: BLE001 — F 는 배치를 죽이지 않는다
+        log(f"F 실패(로그만): {e}. 배치 실패 아님.")
+        return
+    finally:
+        if tmp:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    loaded = kept = 0
+    for p in report.get("platforms", []):
+        pid = p.get("id")
+        with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM online_product_index WHERE platform_id=%s", (pid,))
+            prev = cur.fetchone()[0]
+
+        if not p.get("ok"):
+            kept += 1
+            log(f"  · {pid}: 수집 실패로 유지({prev}건) — {p.get('error') or '사유 없음'}")
+            continue
+
+        items = p.get("items") or []
+        ok, reason = _index_guard(prev, len(items))
+        if not ok:
+            kept += 1
+            log(f"  ! {pid}: 가드에 걸려 유지({prev}건) — {reason}")
+            continue
+
+        # 몰 단위 원자적 교체. 지우고 넣는 사이에 죽어도 그 몰만 비지 않는다.
+        # 한 몰이 실패해도(외래키 위반·컬럼 초과 등) 나머지 몰은 계속한다 — 단계 F 는 fail-open 이다.
+        rows = [(pid, it["url"], it["name"], today) for it in items
+                if it.get("url") and it.get("name")]
+        try:
+            with conn.transaction(), conn.cursor() as cur:
+                cur.execute("DELETE FROM online_product_index WHERE platform_id=%s", (pid,))
+                cur.executemany(
+                    "INSERT INTO online_product_index (platform_id, url, name, collected_on) "
+                    "VALUES (%s,%s,%s,%s) ON CONFLICT (platform_id, url) DO NOTHING", rows)
+                cur.execute("SELECT count(*) FROM online_product_index WHERE platform_id=%s", (pid,))
+                after = cur.fetchone()[0]
+        except Exception as e:                     # noqa: BLE001
+            kept += 1
+            log(f"  ! {pid}: 적재 실패로 유지({prev}건) — {str(e)[:140]}")
+            continue
+        loaded += 1
+        log(f"  · {pid}: {prev}→{after}건 (수집 {len(items)}건 · {p.get('pages')}페이지 "
+            f"· {p.get('seconds')}s)")
+
+    log(f"F 판정: OK — 적재 {loaded}곳 · 유지 {kept}곳 / 소요 {time.time()-t0:.1f}s")
+
+
 # ------------------------------------------------------------- 단계 E: 카나리아
 def _prev_canary(out_dir, today_name):
     """어제까지의 리포트 중 가장 최근 것. 응답 길이 비교의 기준이 된다."""
@@ -561,9 +699,11 @@ def main():
     ap.add_argument("--skip-online", action="store_true")
     ap.add_argument("--skip-rag", action="store_true")
     ap.add_argument("--skip-survey", action="store_true")
+    ap.add_argument("--skip-index", action="store_true",
+                    help="단계 F(상품명 색인) 생략 — ADR-18 의 롤백 수단")
     ap.add_argument("--skip-canary", action="store_true")
     ap.add_argument("--survey-out", default=os.environ.get("SURVEY_OUT_DIR"),
-                    help="변화 탐지 리포트를 남길 디렉터리(미지정 시 로그로만)")
+                    help="변화 탐지·색인 리포트를 남길 디렉터리(미지정 시 로그로만)")
     ap.add_argument("--no-collect", action="store_true",
                     help="가맹점 재수집 생략(기존 JSON으로 스왑만 — 로컬 검증)")
     ap.add_argument("--collected-on", default=date.today().isoformat())
@@ -574,12 +714,18 @@ def main():
     log(f"야간 배치 시작 (collected_on={today}, DSN 호스트={DSN.split()[0]})")
 
     merchant_failed = False
-    # A·B 만 DB 를 쓴다. 둘 다 스킵이면 연결하지 않는다 —
+    # A·B·F 가 DB 를 쓴다. 셋 다 스킵이면 연결하지 않는다 —
     # 단계 D(채록 탐지)는 DB 가 필요 없어서, 이 가드가 없으면 D 만 돌려보는 것이 불가능하다.
-    if args.skip_merchants and args.skip_online:
-        log("단계 A·B 스킵 — DB 연결 생략")
+    # F 가 D 와 E 사이에 있어 연결을 그 구간까지 열어 둔다(연결 하나로 A~F 를 관통).
+    needs_db = not (args.skip_merchants and args.skip_online and args.skip_index)
+    conn = None
+    if not needs_db:
+        log("단계 A·B·F 스킵 — DB 연결 생략")
     else:
-        with psycopg.connect(DSN, autocommit=True) as conn:
+        conn = psycopg.connect(DSN, autocommit=True)
+
+    try:
+        if conn is not None:
             if args.skip_merchants:
                 log("단계 A 스킵(--skip-merchants)")
             else:
@@ -591,26 +737,39 @@ def main():
             else:
                 stage_b_online(conn, today)
 
-    if args.skip_rag:
-        log("단계 C 스킵(--skip-rag)")
-    else:
-        stage_c_rag()
+        if args.skip_rag:
+            log("단계 C 스킵(--skip-rag)")
+        else:
+            stage_c_rag()
 
-    if args.skip_survey:
-        log("단계 D 스킵(--skip-survey)")
-    else:
-        try:
-            stage_d_survey(args.survey_out)
-        except Exception as e:                     # noqa: BLE001 — D 는 배치를 죽이지 않는다
-            log(f"D 실패(로그만): {e}. 배치 실패 아님.")
+        if args.skip_survey:
+            log("단계 D 스킵(--skip-survey)")
+        else:
+            try:
+                stage_d_survey(args.survey_out)
+            except Exception as e:                 # noqa: BLE001 — D 는 배치를 죽이지 않는다
+                log(f"D 실패(로그만): {e}. 배치 실패 아님.")
 
-    if args.skip_canary:
-        log("단계 E 스킵(--skip-canary)")
-    else:
-        try:
-            stage_e_canary(args.survey_out)
-        except Exception as e:                     # noqa: BLE001 — E 도 배치를 죽이지 않는다
-            log(f"E 실패(로그만): {e}. 배치 실패 아님.")
+        if args.skip_index:
+            log("단계 F 스킵(--skip-index)")
+        elif conn is None:
+            log("단계 F 스킵: DB 연결 없음.")
+        else:
+            try:
+                stage_f_index(conn, args.survey_out, today)
+            except Exception as e:                 # noqa: BLE001 — F 도 배치를 죽이지 않는다
+                log(f"F 실패(로그만): {e}. 배치 실패 아님.")
+
+        if args.skip_canary:
+            log("단계 E 스킵(--skip-canary)")
+        else:
+            try:
+                stage_e_canary(args.survey_out)
+            except Exception as e:                 # noqa: BLE001 — E 도 배치를 죽이지 않는다
+                log(f"E 실패(로그만): {e}. 배치 실패 아님.")
+    finally:
+        if conn is not None:
+            conn.close()
 
     log(f"야간 배치 종료 — 총 소요 {time.time()-t0:.1f}s, "
         f"판정 {'FAIL(가맹점)' if merchant_failed else 'OK'}")

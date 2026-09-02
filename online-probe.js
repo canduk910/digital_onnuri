@@ -5,7 +5,7 @@
  * (online-source.js 와 같은 방식). online.html 은 훅 3곳만 부른다.
  *
  * 설계에서 지키는 것:
- *   - 자동 조회하지 않는다. 타이핑마다 6곳을 두드리면 상대 사이트 부담이 통제 불능이 된다.
+ *   - 자동 조회하지 않는다. 타이핑마다 조회 대상 전부를 두드리면 상대 사이트 부담이 통제 불능이 된다.
  *   - 헤드라인 문구·카운트는 서버가 준 것을 그대로 쓴다. 여기서 다시 세면 계약이
  *     바뀔 때 조용히 틀린 숫자가 나온다.
  *   - 어떤 경로로 끝나든(성공·실패·기능 꺼짐) 이용자는 22곳 링크에 닿을 수 있어야 한다.
@@ -41,15 +41,31 @@
     "rate-limited": "요청 한도", disabled: "기능 꺼짐",
     "parse-changed": "페이지 구조가 바뀐 듯",
     // 조회하지 않은 이유(ProbeTargets.exclusionReason). 사유를 대야 링크를 눌러 볼 근거가 된다.
+    // 3종 전수(ADR-18) — 예전에는 2종만 적고 나머지를 no-static-search 로 흘려 화면이
+    // "화면에서만 만들어져 읽을 수 없음 10곳"이라고 잘못 말하고 있었다.
+    // no-search-feature 는 붙는 몰이 사라져(지니어스몰 조회 대상 승격) 함께 지웠다 —
+    // 해당하는 몰이 없는 사유 라벨은 두지 않는다(2026-09-01 rules-unverified 와 같은 원칙).
     "robots-blocked": "몰이 자동 조회를 막아 둠",
+    "scope-first": "시장·주소를 먼저 고르는 구조",
     "no-static-search": "자동 조회가 안 되는 구조",
     "not-a-probe-target": "자동 확인 대상 아님"
   };
   /** 접힌 섹션 안에서 한 번 더 풀어 쓴다 — 배지만으로는 뜻이 안 통한다. */
   var REASON_LONG = {
     "robots-blocked": "이 몰은 robots.txt로 자동 조회를 막아 뒀습니다. 링크로 들어가 직접 검색하는 것은 정상 이용입니다.",
-    "no-static-search": "검색 결과가 화면에서만 만들어져 자동으로 읽을 수 없습니다."
+    "scope-first": "시장이나 배달 주소를 먼저 골라야 상품이 나오는 몰이라 한 번에 조회할 수 없습니다.",
+    "no-static-search": "검색 결과가 화면에서만 만들어지고 검색 API 는 인증이 필요해 자동으로 읽을 수 없습니다."
   };
+  /**
+   * 모르는 사유가 오면 **원시 키를 그대로 찍지 않는다.** 서버가 사유를 더하거나 빼는 동안
+   * (배포 시차) `no-search-feature` 같은 영문 키가 이용자 화면에 보이면 안 된다.
+   *
+   * 배지는 아예 생략한다 — 이 자리는 조회 실패 사유(timeout·http-error)도 함께 쓰므로
+   * 아무 문장이나 채우면 그 몰에 대해 거짓이 될 수 있다. 상태 라벨이 이미 뜻을 담고 있다.
+   */
+  function reasonBadge(k) { return REASON[k] || null; }
+  /** 접힌 섹션은 비대상 몰만 모아 두므로, 모르는 사유는 어느 몰에도 참인 문장으로 물러선다. */
+  function reasonText(k) { return REASON_LONG[k] || REASON[k] || REASON["not-a-probe-target"]; }
 
   var current = null;   // 진행 중 요청(AbortController)
 
@@ -116,13 +132,66 @@
       + '<button type="button" class="pb-browse" id="probeBrowse">검색어 지우고 목록 보기</button></p>';
   }
 
+  /**
+   * 전일 색인 층(ADR-18) — 야간 배치가 모아 둔 상품명에서 찾은 결과.
+   *
+   * 실시간 층과 **섞지 않는다**. "어제 이 이름의 상품이 올라와 있었다"와 "지금 검색된다"는
+   * 다른 주장이고, 한 목록에 넣으면 문구가 거짓이 된다. 그래서 별도 블록·별도 헤드라인·
+   * 한 단계 약한 시각 위계로 두고, 상단에 `전일 색인` eyebrow 를 박는다.
+   *
+   * 헤드라인은 서버 notice 를 그대로 쓴다 — items 로 곳 수를 다시 세면 계약이 바뀔 때
+   * 조용히 어긋난다(2026-08-27 normKind 유형).
+   * 그릴 것이 없으면(platformCount 0 · notice 없음) 블록 자체를 만들지 않는다.
+   */
+  function indexBlock(idx) {
+    if (!idx || !idx.notice || !(idx.platformCount > 0)) return "";
+    var items = idx.items || [];
+    var rows = items.map(function (h) {
+      // matchCount 는 '검색어 전체를 담은 이름'의 건수다. 0인데 샘플이 있으면 부분 일치라
+      // 그 사실을 상태로 먼저 말해야 샘플이 '찾았다'로 읽히지 않는다.
+      var hit = h.matchCount > 0;
+      var status = hit
+        ? '<span class="pb-status pb-idx-hit">상품명 ' + esc(h.matchCount) + '건 발견</span>'
+        : '<span class="pb-status pb-idx-miss">검색어 전체와 맞는 이름은 없었습니다</span>';
+      // 스탬프 규칙 — 확인하지 않은 날짜를 올리지 않는다. 이 몰만 뒤처졌으면 그 날짜를 적는다.
+      // **지우지 말 것**: 색인 몰이 같은 밤에 함께 걷히면 날짜가 전부 같다. 갈리는 경우는
+      // 한 몰의 수집이 실패해 이전 회차 색인이 유지될 때뿐이다(배치 가드). 즉 이 병기는
+      // 부분 실패를 이용자에게 알리는 유일한 통로다 — 화면을 깔끔하게 하려고 접으면
+      // 2026-09-01 가맹점 수집 중단이 나흘간 안 알려졌던 것과 같은 침묵이 된다.
+      var when = (h.collectedOn && idx.asOf && h.collectedOn !== idx.asOf)
+        ? ' <span class="pb-idx-when">' + esc(h.collectedOn) + ' 수집분</span>' : "";
+      var samples = (h.sampleTitles || []).length
+        ? '<div class="pb-samples">' + h.sampleTitles.slice(0, 3).map(function (t) {
+            return '<span>' + esc(t) + '</span>'; }).join("")
+          + '<em>' + (h.samplePartial
+              ? '검색어의 일부 낱말만 맞는 결과입니다 — 찾는 상품이 아닐 수 있습니다.'
+              : '이름이 비슷한 다른 상품일 수 있습니다 — 몰에서 확인하세요.') + '</em></div>'
+        : "";
+      return '<li class="pb-row"><span class="pb-name">' + esc(h.name) + when + '</span>'
+        + status
+        + (h.searchUrl
+            ? '<a class="pb-link" href="' + esc(h.searchUrl) + '" target="_blank" rel="noopener">몰에서 보기 ↗</a>'
+            : "")
+        + samples + '</li>';
+    }).join("");
+    // 블록을 그릴지는 platformCount·notice 로만 판단한다(위 가드) — items 로 판단하지 않는다.
+    // **색인한 몰은 있는데 이 검색어를 담은 이름이 하나도 없는 경우가 정상**이고, 그때
+    // notice 가 "색인에 없다는 뜻이지, 그 몰에 없다는 확정은 아닙니다"를 말한다.
+    // 다만 목록 자체는 행이 있을 때만 만든다 — 빈 <ul> 은 경계선만 남긴다.
+    return '<div class="pb-index">'
+      + '<div class="pb-idx-eyebrow">전일 색인</div>'
+      + '<div class="pb-idx-head">' + esc(idx.notice) + '</div>'
+      + (rows ? '<ul class="pb-list">' + rows + '</ul>' : "") + '</div>';
+  }
+
   function renderResult(mount, data, localCount, onBrowse) {
     var probed = data.items.filter(function (h) { return h.status !== "not-probed"; });
     var skipped = data.items.filter(function (h) { return h.status === "not-probed"; });
 
     function row(h) {
       var L = LABEL[h.status] || LABEL.unknown;
-      var why = h.reason ? ' <span class="pb-reason">(' + esc(REASON[h.reason] || h.reason) + ')</span>' : "";
+      var badge = h.reason ? reasonBadge(h.reason) : null;
+      var why = badge ? ' <span class="pb-reason">(' + esc(badge) + ')</span>' : "";
       // 부분 일치는 반드시 말한다. "다이슨 청소기"를 찾았는데 '청소기'만 맞는 이름이
       // 근거로 나오면 이용자는 "그 몰에 다이슨이 있다"로 읽는다(2026-08-31 실측).
       var samples = (h.sampleTitles || []).length
@@ -141,10 +210,14 @@
         + samples + '</li>';
     }
 
+    var idxHtml = indexBlock(data.index);
+
     mount.innerHTML =
       '<div class="probe-result">'
       + '<div class="pb-head">' + esc(data.notice) + '</div>'
       + '<ul class="pb-list">' + probed.map(row).join("") + '</ul>'
+      // 실시간 목록 **아래**, 확인하지 않은 곳 **위**. 색인은 실시간의 보완이지 대체가 아니다.
+      + idxHtml
       + (skipped.length
           // 곳 수는 서버가 센 값을 쓴다. 여기서 다시 세면 계약이 바뀔 때 헤드라인과 조용히
           // 어긋난다(2026-08-27 normKind 와 같은 유형).
@@ -155,8 +228,13 @@
             + '<ul class="pb-list">' + skipped.map(row).join("") + '</ul></details>'
           : "")
       + alsoBrowse(localCount || 0, onBrowse)
-      + '<p class="pb-foot">확인 시각 ' + esc(data.checkedAt)
-      + ' · 각 몰의 검색 결과를 그 자리에서 읽은 것입니다. '
+      // 각주는 맨 아래에 한 번만 둔다 — 색인 층까지 덮어야 하므로, 색인이 있으면 두 층을
+      // 각각 무엇으로 읽어야 하는지 밝힌다. 결제 가능 여부 단서는 어느 층에도 똑같이 걸린다.
+      + '<p class="pb-foot">확인 시각 ' + esc(data.checkedAt) + ' · '
+      + (idxHtml
+          // "찾은 것입니다"라고 쓰면 아무것도 못 찾은 회차에서 각주가 거짓이 된다.
+          ? '위 목록은 각 몰의 검색 결과를 그 자리에서 읽은 것이고, 전일 색인은 미리 모아 둔 상품명에서 찾아본 결과입니다. '
+          : '각 몰의 검색 결과를 그 자리에서 읽은 것입니다. ')
       + '<b>검색된다고 해서 온누리상품권으로 결제된다는 뜻은 아닙니다</b> — 상품 상세와 결제 수단은 몰에서 확인하세요.</p>'
       + '</div>';
     var bb = mount.querySelector("#probeBrowse");
@@ -170,13 +248,14 @@
       var r = h.reason || "not-a-probe-target";
       (groups[r] = groups[r] || []).push(h.name);
     });
-    var order = ["no-static-search", "robots-blocked"];
+    // 곳 수가 많은 사유부터가 아니라 **성격이 다른 순서**로 — 허락(robots) → 구조(범위 선행)
+    // → 기술(정적 조회 불가). 셋은 우리가 열 수 없는 이유가 서로 다르다.
+    var order = ["robots-blocked", "scope-first", "no-static-search"];
     var keys = order.filter(function (k) { return groups[k]; })
       .concat(Object.keys(groups).filter(function (k) { return order.indexOf(k) === -1; }));
     if (!keys.length) return "";
     return '<div class="pb-why-list">' + keys.map(function (k) {
-      return '<p><b>' + groups[k].length + '곳</b> · '
-        + esc(REASON_LONG[k] || REASON[k] || k) + '</p>';
+      return '<p><b>' + groups[k].length + '곳</b> · ' + esc(reasonText(k)) + '</p>';
     }).join("") + '</div>';
   }
 

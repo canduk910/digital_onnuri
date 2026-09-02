@@ -205,3 +205,97 @@
 **통과.** 1차의 조건부 사유였던 F-6이 해소됐고 F-7도 반영됐다. 테스트 52/52, 공격 차단 실측, 정상 경로·타 한도·브라우저 경계면 모두 무회귀. 남은 F-9·F-10은 문서·관측 관련 **참고**이며 배포를 막지 않는다.
 
 정리: 로컬 백엔드·정적서버 종료, QA 테스트 제보 행 삭제(`report` 0건), 임시 자격증명 폐기, Gradle 데몬 종료, `onnuri-db` 유지. 커밋 없음.
+
+---
+
+## 2026-09-02 — 전일 색인 층(ADR-18) + 지니어스몰 실시간 11번째 승격 검증
+
+검증 스냅샷: 미커밋 작업트리(`git status` 기준). 검증 중 `CLAUDE.md`·`_workspace/19_online_probe.md` 가 다른 에이전트에 의해 추가 수정됨 — 아래 문서 지적은 그 시점 내용 기준이다.
+
+**판정: 조건부 통과.** 코드·계약·테스트·렌더는 결함 0. 문서·주석의 곳 수 정합 4건(D1~D4)을 고친 뒤 커밋한다.
+
+### 1. 테스트
+
+| 항목 | 결과 | 기대 |
+|---|---|---|
+| `./gradlew cleanTest test` | **144건** · 실패 0 · 오류 0 · 스킵 1 | 144 ✓ |
+| 스킵 1건 | `SelfTestLiveTest`(라이브 카나리아, `PROBE_LIVE=1` 없이는 미실행) | 설계대로 |
+| `test_survey_probe.js` | **154건** 전부 통과 | 154 ✓ |
+| `test_index_nightly.js` | **51건** 전부 통과 | 51 ✓ |
+
+신규 테스트 클래스 실행 확인: `IndexJudgeTest`(14 케이스) · `OnlineProductIndexRepositoryTest`(3) · `OnlineSearchContractTest`(필드 순서·`index` 존재 고정) · `ProbeTargetsTest`(대상 11곳·사유 8/2/1 고정).
+
+### 2. 경계면 교차 비교
+
+**(a) 응답 계약 ↔ 프론트 소비 — 일치.**
+`OnlineSearchResult` 는 기존 12필드 뒤에 `index` 를 **맨 뒤로** 붙였고 `OnlineSearchContractTest` 가 순서를 고정한다. 프론트가 읽는 키는 `data.index` / `idx.notice` · `platformCount` · `asOf` · `items` / `h.matchCount` · `name` · `collectedOn` · `sampleTitles` · `samplePartial` · `searchUrl` — 전부 record 컴포넌트명과 1:1. `IndexLayer.foundCount` 만 프론트가 읽지 않는데, 곳 수를 프론트가 다시 세지 않는다는 원칙에 따라 `notice` 가 그 값을 담고 나가므로 **설계대로**(죽은 필드 아님).
+`IndexLayer` 는 계약상 null 이 아니다(빈 층 = `platformCount 0`·`notice null`). 프론트 가드 `!idx || !idx.notice || !(idx.platformCount > 0)` 와 서버 `notice(platformCount==0) → null` 이 같은 지점에서 맞물린다.
+
+**(b) 제외 사유 집합 — 정확히 3종 일치.**
+
+| 사유 | 서버 `EXCLUSION` | 프론트 `REASON_LONG` |
+|---|---|---|
+| `robots-blocked` | 8곳 | 있음 |
+| `scope-first` | 2곳 | 있음 |
+| `no-static-search` | 1곳 | 있음 |
+
+죽은 키 0 · 누락 키 0. 폐기된 `no-search-feature` 는 양쪽 모두에서 제거됐고, 렌더 실측에서 영문 원시 키가 화면 텍스트에 노출되지 않음을 확인(`rawKeyLeak: false`).
+
+**(c) 조회 URL ↔ 데이터 `search_url_template` — 손 대조 완료.**
+11곳 중 9곳 동일. 다른 2곳은 **의도된 차이**다 — `hyundai-ezwel-onnuri`·`onnuri-5iljang` 은 몰의 내부 검색 API(JSON)를 조회하므로 데이터에는 사람이 볼 화면 주소가 들어 있고 `searchUrlFor` 가 데이터를 우선한다(2026-09-02 설계). 신규 `genius-mall` 은 화면 렌더 몰이라 조회 URL = 링크 URL 로 동일.
+분할 검증: 쇼핑 22곳 = 조회 대상 11 + 제외 명시 11. 양방향 고아 0(대상인데 데이터에 없는 id 0, 제외 사전에 있는데 쇼핑 목록에 없는 id 0).
+
+**(d) 서버 `notice` 4분기 ↔ 명세.**
+`IndexJudge.notice` 는 4분기(색인 없음 → null / 전체 낱말 매치 / 일부 낱말만 / 무매치). `_workspace/17_backend_notes.md` 는 4분기를 전부 적고 있으나 `03_content_spec` S19 표는 **무매치 문구 하나만** 축자로 적는다 → D5(경미).
+
+**(e) 색인 리포트 스키마 ↔ 단계 F ↔ V8 컬럼 — 일치.**
+`index_nightly.js` 산출 `{date, platforms:[{id, ok, count, pages, seconds, items:[{name,url}], error?}]}` ↔ `stage_f_index` 가 읽는 키 동일. 길이: `NAME_MAX 200` ≤ `VARCHAR(300)`, `URL_MAX 700` = `VARCHAR(700)`(초과분은 크롤러가 버린다), `platform_id` 60자 상한은 노드 테스트가 고정. JS 는 UTF-16 코드유닛으로 세므로 Postgres 문자 수보다 보수적 — 안전 방향.
+
+**(f) 색인 대상 ∩ 실시간 대상 = ∅.**
+`RECIPES` = `onnuri-noljang`·`tpirates`, 둘 다 `ProbeTargets.ids()` 에 없다. 런타임에서도 `IndexJudge` 가 `ProbeTargets.ids()` 를 다시 빼므로 이중 방어. 노드 테스트가 이 조건을 고정한다.
+
+### 3. 렌더 실측 (Playwright · `localhost:8655` · `fetch` 스텁 = 서버 record 형태)
+
+| 시나리오 | 결과 |
+|---|---|
+| ① 색인 있음(found 1·partial 1) | 블록 생성 · eyebrow `전일 색인` · 행 2 · `상품명 2건 발견` / `검색어 전체와 맞는 이름은 없었습니다` · 샘플 문구 2종 정확 · 링크 2 |
+| 뒤처진 몰 스탬프 | `collectedOn 2026-08-30` ≠ `asOf 2026-09-01` 인 행에만 `2026-08-30 수집분` 병기 (1건) |
+| ② 색인 빈 층(platformCount 2·items 0) | 블록·헤드라인 생성, `<ul>` **미생성**(빈 목록 경계선 없음) |
+| ③ 실시간 전부 unknown(timeout) + 색인 | 색인 블록 정상 렌더 · 실패 사유 배지 `응답 지연` |
+| ④ 색인 없음(platformCount 0·notice null) | 블록 미생성 · 각주가 단층 문구로 되돌아감 |
+| 블록 배치 | `pb-head → pb-list → pb-index → pb-more → pb-also → pb-foot` — 실시간 아래·비대상 접힘 위(명세대로) |
+| 사유 3종 whyBlock | 8곳 / 2곳 / 1곳 = 11곳, 접힘 요약 `확인하지 않은 나머지 11곳` |
+| 모바일 390px | `scrollWidth 390 == clientWidth` — 가로 스크롤 없음 |
+| pageerror | 전 시나리오 **0** |
+
+### 4. 회귀 기준값 (온라인)
+
+| 항목 | 값 | 판정 |
+|---|---|---|
+| 온라인몰 전체(active) | 30 (쇼핑 22 + 배달 8) | 유지 |
+| 카탈로그 플랫폼 / taxonomy | 22 / 11 대분류 | 유지 |
+| 검색 링크 보유 | 15 → **16** | 지니어스몰 추가 — 의도된 변경 |
+| `index.html` | 무변경 | ✓ |
+| `verify_build.py`(D-F1) | 전체 통과(참고 실행) | ✓ |
+
+### 5. 비밀값 스캔
+
+변경 파일의 추가된 줄에서 서버 IP·API 키·개인키·하드코딩 비밀번호 **0건**. 기존 검출분(`CLAUDE.md` 2026-08-10 이력의 NCP IP, `DEPLOY.md` 의 `APP_ADMIN_*` 환경변수 이름)은 이번 변경과 무관한 기존 줄이다.
+
+### 6. 지적 목록
+
+| # | 심각도 | 파일:줄 | 기대 vs 실제 | 담당 추정 |
+|---|---|---|---|---|
+| D1 | 보통(문서) | `backend/DEPLOY.md:430` | 카나리아 요청량 — 기대 `11곳 = 22건`, 실제 `10곳 = 하루 20건(2026-09-02 기준)`. `19_online_probe.md:461` 은 이미 22건으로 적혀 있어 두 문서가 서로 어긋난다 | backend |
+| D2 | 보통(문서) | `backend/DEPLOY.md:479` | `실제 6곳을 두드려 확인한다` — 실제 11곳. 2026-09-02 문서 정합 원칙상 **곳 수를 적지 않는 것**이 맞다(`SelfTestLiveTest` 가 `ALL.size()*2` 로 이미 하드코딩을 뺐다) | backend |
+| D3 | 낮음(문서) | `_workspace/19_online_probe.md:241` | `20요청/일(2026-09-02 조회 대상 10곳)` — 실제 22/11. 6-3절은 카나리아 **계약 설명**이라 실측 기록 예외에 해당하지 않는다 | backend |
+| D4 | 낮음(주석) | `backend/.../ProbeTargets.java:11,13,16` | 클래스 javadoc 이 `실시간 조회 대상 6곳` · `22곳 중 6곳인 이유` · `나머지 14곳` — 실제 11/11. 이 파일이 곳 수의 원천인데 그 위 주석이 거짓이다 | backend |
+| D5 | 낮음(문서) | `_workspace/03_content_spec.md:337~345` | 색인 층 문구 표에 `index.notice` 4분기 중 무매치 1개만 축자로 있고, 전체 매치·부분 매치 헤드라인 문구가 없다 | frontend/backend |
+| D6 | 정보(주석) | `OnlineSearchService.java:48`, `online-probe.js:19`, `online.html:808` | 주석의 `6곳`·`6건` 이 낡음. 동작 무영향 | backend/frontend |
+| D7 | 정보(문서) | `backend/DEPLOY.md:438` | run.sh 설명 주석의 `하루 1회 12요청` 낡음 | backend |
+
+### 7. 미검증(통과로 적지 않음)
+
+- **V8 마이그레이션 실제 적용·SQL 실행**: 로컬 Postgres 미기동. `OnlineProductIndexRepositoryTest` 는 빈 인자 가드와 `escapeLike` 만 검증하고 `summarize`/`findMatching` 의 SQL 은 **한 번도 DB 에 나가지 않았다.** 컬럼명·`to_char` 별칭·`IN` 자리표시자 개수는 코드 리뷰로만 확인. 배포 후 `V8` 적용과 실 질의 1회를 반드시 확인할 것.
+- **단계 F 실행**: `index_nightly.js` 를 Playwright 로 실제 구동하지 않았다(레시피 2곳의 크롤 동작·건수 가드는 단위 테스트 51건 범위).
+- **라이브 카나리아 22건**: `SelfTestLiveTest` 는 스킵됨. 지니어스몰 승격의 실측 기대치(present `로봇청소기`)는 배포 후 확인 대상.

@@ -125,7 +125,7 @@ python3 _workspace/dev_scripts/build_rag_corpus.py
 ## 야간 배치 (00:30) — ADR-14 (2026-08-12)
 
 매일 00:30(서버 로컬시각) 가맹점·온라인 데이터를 자동 갱신한다. `tools/nightly_update.py`가
-단계 A(가맹점 stage-swap 무중단)·B(온라인 upsert)·C(RAG)·D(채록 탐지)·E(조회 카나리아)를
+단계 A(가맹점 stage-swap 무중단)·B(온라인 upsert)·C(RAG)·D(채록 탐지)·F(상품명 색인)·E(조회 카나리아)를
 fail-open으로 실행한다. 배치 전체 실패로 치는 것은 **A 단계 실패뿐**이다.
 **A 실패만 배치 실패(exit≠0)**, B·C 실패는 로그만 남기고 기존 데이터를 유지한다.
 
@@ -247,6 +247,92 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 반영할 때는 `data/online_catalog.json`을 고치고 `_workspace/15_online_catalog_report.md`에 근거를 남긴다.
 **확인하지 못한 몰의 `surveyed_on`은 올리지 않는다** — 화면 스탬프가 그 날짜를 근거로 계산된다.
 
+### 단계 F — 온라인 상품명 색인 (2026-09-02, ADR-18)
+
+실시간 조회가 닿지 않는 **2곳**(온누리 놀장·인어교주해적단)을 야간에 한 번 열어
+**상품명과 주소만** 걷고, `online_product_index` 테이블을 몰 단위로 교체 적재한다.
+단계 D 다음, 단계 E 앞에 돈다.
+
+> 지니어스몰은 **색인 대상이 아니다.** 2026-09-02 에 `?search={q}` 정적 검색이 확인되어
+> 실시간 조회 대상이 됐고, 앱은 색인 층에서 실시간 대상을 걸러 낸다(ADR-18). 색인으로 걷어도
+> 화면에 닿지 않으므로 레시피를 두지 않는다.
+
+> **색인은 "지금 있다"고 말하지 않는다.** 말할 수 있는 것은 "어제 이 몰이 이 이름의 상품을
+> 올려 두고 있었다"까지다. 그래서 실시간 조회의 상태 목록(none/likely/…)에 섞지 않고
+> 별도 층으로 그린다(ADR-18). 결제 가능 여부는 각주 그대로다.
+
+이 단계는 **선택**이다. node·playwright가 없거나 `online_product_index` 테이블이 아직
+없으면(V8 마이그레이션 전) 로그만 남기고 건너뛴다 — 배치 실패가 아니다.
+
+설치는 단계 D와 같다(같은 Node 20 + Playwright를 쓴다). `run.sh`에 `export PATH=/opt/node20/bin:$PATH`가
+이미 있으면 추가 작업이 없다. 리포트는 `SURVEY_OUT_DIR`에 `product-index-YYYY-MM-DD.json`으로
+쌓인다(단계 D·E와 같은 위치).
+
+#### 적재 규칙 — 반쯤 걷힌 회차로 색인을 덮지 않는다
+
+크롤은 HTML·화면 응답에 기댄다. 사이트가 느리거나 개편 중이면 **에러 없이 절반만 걷힌다.**
+그대로 반영하면 이용자에게는 "어제까지 있던 상품이 사라진" 것으로 보인다. 그래서 몰마다 세 겹으로 막는다.
+
+| 겹 | 어디서 | 판정 | 걸리면 |
+|---|---|---|---|
+| 수집(0건) | `index_nightly.js` `harvestGuard` | 한 건도 못 걷으면 `ok:false` | 그 몰을 실패로 표시(적재 시도 안 함) |
+| 수집(커버리지) | 레시피의 `warn` | 열려던 곳의 절반도 못 읽으면 `ok:false` (놀장=sitemap 시장 수, 인어교주=온누리 매장 수) | 위와 같음 |
+| 적재 | `nightly_update.py` `_index_guard` | 새 건수가 **DB 기존 건수**의 50% 미만이면 유지 | 어제 색인을 그대로 둔다 |
+
+두 몰 다 "상품이 총 몇 개"인지 말해 주지 않는다. 그래서 건수 자체가 아니라 **커버리지**를 센다.
+
+한 몰의 적재가 실패해도(외래키 위반·컬럼 초과 등) 그 몰만 유지하고 나머지는 계속한다.
+
+첫 적재(기존 0건)는 언제나 통과한다 — 기준이 없으면 비교할 것도 없다.
+적재는 몰 단위 트랜잭션 `DELETE` → `INSERT`라 도중에 죽어도 **그 몰만** 비지 않는다.
+
+#### 예의 (상대 사이트 부담)
+
+호스트당 요청 간격 1초 이상, 몰당 페이지 상한(놀장 40·인어교주 200),
+이미지·폰트·미디어·분석 스크립트 차단(호스트명으로만 판정 — 주소 문자열 포함으로 막으면
+몰 자신의 `uploads.js` 같은 스크립트까지 걸려 화면이 안 그려진다).
+**검색 API를 직접 부르거나 번들의 토큰을 재사용하지 않는다**(ADR-18 기각 대안).
+인어교주해적단의 상품 목록은 화면을 열면 브라우저가 스스로 보내는 요청의 응답을 읽는다.
+
+두 몰의 robots.txt는 단계 E의 감시 목록(`ROBOTS_WATCH_IDS`)에 들어 있다(실시간 조회 대상이 된
+지니어스몰도 같은 목록에 있다 — 그쪽은 단계 F가 아니라 실시간 조회 때문이다).
+어느 한 곳이 `Disallow: /`로 바뀌면 그날 로그에 경고가 뜬다. 그때 그 몰을 재검토한다.
+
+단독 실행(수동 점검용):
+
+```bash
+cd ~/onnuri_batch/repo
+node backend/tools/index_nightly.js                      # 2곳 전부, 요약만
+node backend/tools/index_nightly.js --ids tpirates        # 특정 몰만
+node backend/tools/index_nightly.js --limit 5 --out /tmp  # 페이지 상한을 낮춰 시험
+python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-rag --skip-survey --skip-canary   # F만
+```
+
+#### 롤백
+
+색인 층을 통째로 내리려면 두 가지를 한다. 실시간 조회 층에는 영향이 없다.
+
+```bash
+# 1) 배치가 더는 수집·적재하지 않게
+#    run.sh 의 nightly_update.py 호출에 --skip-index 를 붙인다
+# 2) 이미 들어간 색인을 비운다 (화면의 색인 블록이 사라진다)
+docker compose exec -T db psql -U <DB_USER> -d <DB_NAME> -c 'DELETE FROM online_product_index;'
+```
+
+한 몰만 내리려면 `index_nightly.js`의 `RECIPES` 표에서 그 줄을 빼고
+`DELETE FROM online_product_index WHERE platform_id='<id>';`를 실행한다.
+(레시피 id는 테스트가 `data/online_platforms.json`과 대조하므로 오타는 즉시 잡힌다.)
+
+#### 서버 반영 시 1회 정리 (2026-09-02)
+
+지니어스몰을 색인 대상에서 뺐다. 이 커밋 이전 배치가 한 번이라도 돌아 그 행이 남아 있으면
+지운다(멱등 — 행이 없으면 0건 삭제로 끝난다). 앱은 이미 그 행을 읽지 않으므로 화면 변화는 없다.
+
+```bash
+docker compose exec -T db psql -U <DB_USER> -d <DB_NAME> \
+  -c "DELETE FROM online_product_index WHERE platform_id='genius-mall';"
+```
+
 ### 온라인 큐레이션 필드는 배치가 매일 저장소와 맞춘다 (2026-09-02)
 
 `note`·`region_limited`·`search_url_template` 은 공식 API 가 주지 않는, 우리가 손으로 정한 값이다.
@@ -341,7 +427,7 @@ docker exec -it onnuri-db psql -U onnuri -d onnuri -c \
 카운트만으로 `likely`가 된다. 어느 쪽도 에러를 내지 않는다.
 
 **배치는 파서를 갖지 않는다.** 앱의 셀프테스트를 하루 한 번 부르고 결과만 남긴다 —
-판정은 이용자가 받는 것과 정확히 같은 경로가 한다. 요청량은 몰당 2질의 × 10곳 = 하루 20건(2026-09-02 기준).
+판정은 이용자가 받는 것과 정확히 같은 경로가 한다. 요청량은 몰당 2질의 × 조회 대상 수(`ProbeTargets.ALL` 이 정한다 — 대상이 늘 때마다 여기 적힌 숫자가 거짓이 됐으므로 적지 않는다).
 
 `run.sh`에 두 줄을 더한다(`APP_ADMIN_KEY`는 제보 관리자 페이지와 같은 값이고, `$ENV`는
 run.sh가 이미 위에서 정의한 서버 `.env` 경로다):
@@ -349,7 +435,7 @@ run.sh가 이미 위에서 정의한 서버 `.env` 경로다):
 ```bash
 # app 은 포트를 호스트에 노출하지 않는다(XFF 스푸핑 방지 — 위 "신뢰 프록시 1홉" 참조).
 # 그래서 localhost:8080 이 아니라 Caddy 를 거쳐 자기 도메인으로 부른다.
-# 하루 1회 12요청이라 TLS 왕복 비용은 무시할 만하다.
+# 하루 1회, 몰당 2요청이라 TLS 왕복 비용은 무시할 만하다.
 export APP_BASE_URL=https://api.koscomlabor.cloud
 # `|| true` 가 필요하다 — run.sh 는 set -e 라 키가 없으면 grep 이 1 을 반환해
 # 배치 전체가 죽는다. 단계 E 는 fail-open 이어야 하므로 빈 값으로 넘긴다.
@@ -390,7 +476,7 @@ curl -s -m 150 -H "X-Admin-Key: $(grep ^APP_ADMIN_KEY "$ENV" | cut -d= -f2-)" \
 배치가 죽지 않고 E만 스킵되는 것도 확인했다. 첫날은 비교할 어제 리포트가 없어 응답 길이
 경고가 나오지 않는다(정상).
 
-규칙을 고친 뒤에는 실제 6곳을 두드려 확인한다(평소 CI에서는 돌지 않는다):
+규칙을 고친 뒤에는 실제 조회 대상 전부를 두드려 확인한다(평소 CI에서는 돌지 않는다):
 
 ```bash
 cd backend && PROBE_LIVE=1 ./gradlew test --tests '*SelfTestLiveTest' --rerun -i
@@ -422,6 +508,10 @@ NCP 기본 이미지는 UTC인 경우가 많다 — **반드시 `timedatectl`로
 python3 backend/tools/nightly_update.py --skip-merchants --skip-rag
 # 가맹점 스왑 로직만: 재수집(15분+) 생략, 기존 JSON으로 stage-swap 경로 검증(멱등)
 python3 backend/tools/nightly_update.py --no-collect --skip-online --skip-rag
+# 색인만(F): 크롤 10분 + 적재. DB 가 필요하다
+python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-rag --skip-survey --skip-canary
+# 채록만(D): DB 없이 돌아간다 — --skip-index 를 빼면 F 때문에 DB 를 열려고 한다
+python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-rag --skip-index --skip-canary
 ```
 
 ### 실패 시 확인

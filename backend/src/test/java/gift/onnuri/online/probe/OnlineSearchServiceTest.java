@@ -38,7 +38,15 @@ class OnlineSearchServiceTest {
         ProbeFetcher fetcher = Mockito.mock(ProbeFetcher.class);
         Mockito.when(fetcher.fetch(Mockito.any(), Mockito.any())).thenReturn(outcome);
         ProbeCache cache = new ProbeCache(60, 100);
-        return new OnlineSearchService(repo, fetcher, cache, enabled, 5000);
+        return new OnlineSearchService(repo, emptyIndex(), fetcher, cache, enabled, 5000);
+    }
+
+    /** 색인 없음(테이블이 비어 있는 상태) — 실시간 층 검증에 색인을 섞지 않는다. */
+    private static OnlineProductIndexRepository emptyIndex() {
+        OnlineProductIndexRepository idx = Mockito.mock(OnlineProductIndexRepository.class);
+        Mockito.when(idx.summarize(Mockito.any())).thenReturn(List.of());
+        Mockito.when(idx.findMatching(Mockito.any(), Mockito.any())).thenReturn(List.of());
+        return idx;
     }
 
     @Test
@@ -65,16 +73,16 @@ class OnlineSearchServiceTest {
     @Test
     void 조회_대상이_아닌_몰도_목록에_담고_홈_링크를_준다() {
         // "확인하지 않았다"와 "없다"는 다르다 — 빼버리면 이용자는 없는 줄 안다.
-        // 예시는 **검색 기능 자체가 없는** 몰로 든다(2026-09-02 실측: 검색 input 0개).
-        // 온누리쇼핑은 그날 조회 대상이 되어 더는 이 자리에 쓸 수 없다.
-        var r = svc(List.of(p("genius-mall", "지니어스몰", "shopping", "https://luxurysystem.co.kr")), true)
+        // 예시는 **정적 응답에 결과가 실리지 않는** 몰로 든다(SPA + 검색 API 가 401).
+        // 지니어스몰은 2026-09-02 조회 대상이 되어 더는 이 자리에 쓸 수 없다.
+        var r = svc(List.of(p("tpirates", "인어교주해적단", "shopping", "https://tpirates.com")), true)
                 .search(ProbeQuery.of("로봇청소기"));
         ProbeHit h = r.items().get(0);
         assertEquals(Verdict.NOT_PROBED, h.status());
         // 사유를 뭉뚱그리지 않는다 — 화면이 "왜 확인하지 않았는지"를 말해야
         // 이용자가 "없다"로 읽지 않는다(2026-09-01 사용자 요청).
         assertEquals(ProbeTargets.EX_NO_FETCH, h.reason());
-        assertEquals("https://luxurysystem.co.kr", h.searchUrl());
+        assertEquals("https://tpirates.com", h.searchUrl());
     }
 
     @Test
@@ -83,12 +91,30 @@ class OnlineSearchServiceTest {
         // robots 대상이 아니므로, 사유를 밝혀야 이용자가 링크를 눌러 볼 근거가 생긴다.
         assertEquals(ProbeTargets.EX_ROBOTS, ProbeTargets.exclusionReason("onnuri-goodday"));
         assertEquals(ProbeTargets.EX_ROBOTS, ProbeTargets.exclusionReason("inthemarket-onnuri"));
-        assertEquals(ProbeTargets.EX_NO_FETCH, ProbeTargets.exclusionReason("onnuri-5iljang"));
-        // 조회 대상 6곳에는 제외 사유가 붙을 일이 없다 — 붙으면 목록이 어긋난 것이다.
+        // 조회 대상이 된 몰은 사전에서 빠져 있어야 한다(온누리5일장은 2026-09-02 편입).
+        assertFalse(ProbeTargets.exclusionIds().contains("onnuri-5iljang"));
+        // 조회 대상에는 제외 사유가 붙을 일이 없다 — 붙으면 목록이 어긋난 것이다.
         for (ProbeTarget t : ProbeTargets.ALL) {
-            assertEquals(ProbeTargets.EX_NO_FETCH, ProbeTargets.exclusionReason(t.platformId()),
+            assertFalse(ProbeTargets.exclusionIds().contains(t.platformId()),
                     t.platformId() + " 가 제외 사전에 들어 있다 — 조회 대상과 겹친다");
         }
+    }
+
+    @Test
+    void 사유가_세_갈래로_구분돼_화면에_나간다() {
+        // 11곳을 한 사유로 뭉뚱그리면 화면이 사실과 다른 말을 한다(ADR-18).
+        var r = svc(List.of(
+                p("onnuri-noljang", "온누리 놀장", "shopping", "https://noljang.co.kr"),
+                p("oligopalgo", "시장을 방으로", "shopping", "https://oligopalgo.kr"),
+                p("tpirates", "인어교주해적단", "shopping", "https://www.tpirates.com"),
+                p("cyso", "사이소", "shopping", "https://www.cyso.co.kr")), true)
+                .search(ProbeQuery.of("로봇청소기"));
+        java.util.Map<String, String> byId = new java.util.HashMap<>();
+        r.items().forEach(h -> byId.put(h.platformId(), h.reason()));
+        assertEquals(ProbeTargets.EX_SCOPE_FIRST, byId.get("onnuri-noljang"));
+        assertEquals(ProbeTargets.EX_SCOPE_FIRST, byId.get("oligopalgo"));
+        assertEquals(ProbeTargets.EX_NO_FETCH, byId.get("tpirates"));
+        assertEquals(ProbeTargets.EX_ROBOTS, byId.get("cyso"));
     }
 
     @Test
@@ -118,9 +144,9 @@ class OnlineSearchServiceTest {
 
     @Test
     void 검색URL이_없으면_홈으로_보낸다() {
-        var r = svc(List.of(p("genius-mall", "지니어스몰", "shopping",
-                "https://luxurysystem.co.kr", "")), true).search(ProbeQuery.of("김치"));
-        assertEquals("https://luxurysystem.co.kr", r.items().get(0).searchUrl());
+        var r = svc(List.of(p("tpirates", "인어교주해적단", "shopping",
+                "https://tpirates.com", "")), true).search(ProbeQuery.of("김치"));
+        assertEquals("https://tpirates.com", r.items().get(0).searchUrl());
     }
 
     @Test
@@ -160,7 +186,7 @@ class OnlineSearchServiceTest {
         ProbeFetcher fetcher = Mockito.mock(ProbeFetcher.class);
         Mockito.when(fetcher.fetch(Mockito.any(), Mockito.any()))
                 .thenReturn(ProbeOutcome.fail(ProbeOutcome.TIMEOUT));
-        var s = new OnlineSearchService(repo, fetcher, new ProbeCache(60, 100), true, 5000);
+        var s = new OnlineSearchService(repo, emptyIndex(), fetcher, new ProbeCache(60, 100), true, 5000);
 
         s.searchCached(ProbeQuery.of("로봇청소기"));
         s.searchCached(ProbeQuery.of("로봇청소기"));
@@ -176,10 +202,82 @@ class OnlineSearchServiceTest {
         ProbeFetcher fetcher = Mockito.mock(ProbeFetcher.class);
         Mockito.when(fetcher.fetch(Mockito.any(), Mockito.any()))
                 .thenReturn(ProbeOutcome.fail(ProbeOutcome.TIMEOUT));
-        var s = new OnlineSearchService(repo, fetcher, new ProbeCache(60, 100), true, 5000);
+        var s = new OnlineSearchService(repo, emptyIndex(), fetcher, new ProbeCache(60, 100), true, 5000);
 
         s.searchCached(ProbeQuery.of("DJI 드론"));
         s.searchCached(ProbeQuery.of("dji 드론"));
         Mockito.verify(fetcher, Mockito.times(1)).fetch(Mockito.any(), Mockito.any());
+    }
+
+    // ── 전일 색인 층 (ADR-18) ────────────────────────────────────────────
+
+    /** 색인 행이 있는 저장소. 실시간 대상이 아닌 몰만 색인된다. */
+    private static OnlineProductIndexRepository indexOf(String platformId, String... names) {
+        OnlineProductIndexRepository idx = Mockito.mock(OnlineProductIndexRepository.class);
+        Mockito.when(idx.summarize(Mockito.any())).thenReturn(
+                List.of(new OnlineProductIndexRepository.Summary(platformId, names.length, "2026-09-01")));
+        Mockito.when(idx.findMatching(Mockito.any(), Mockito.any())).thenReturn(
+                java.util.Arrays.stream(names)
+                        .map(n -> new OnlineProductIndexRepository.Row(platformId, n)).toList());
+        return idx;
+    }
+
+    private static OnlineSearchService svcWithIndex(List<OnlinePlatformView> rows, boolean enabled,
+                                                    OnlineProductIndexRepository idx) {
+        OnlineRepository repo = Mockito.mock(OnlineRepository.class);
+        Mockito.when(repo.findAll()).thenReturn(rows);
+        ProbeFetcher fetcher = Mockito.mock(ProbeFetcher.class);
+        Mockito.when(fetcher.fetch(Mockito.any(), Mockito.any()))
+                .thenReturn(ProbeOutcome.fail(ProbeOutcome.TIMEOUT));
+        return new OnlineSearchService(repo, idx, fetcher, new ProbeCache(60, 100), enabled, 5000);
+    }
+
+    @Test
+    void 색인_층은_항상_채워서_보낸다() {
+        // null 층을 주면 프론트가 매번 방어 코드를 써야 하고, 한 번 빠뜨리면 화면이 깨진다.
+        var r = svc(List.of(p("onnuri-hotdeal", "온누리핫딜", "shopping", "https://onnurideal.com")), true)
+                .search(ProbeQuery.of("김치"));
+        assertNotNull(r.index());
+        assertEquals(0, r.index().platformCount());
+        assertNull(r.index().notice(), "색인이 없으면 화면에 아무 말도 하지 않는다");
+    }
+
+    @Test
+    void 킬스위치가_꺼져도_색인_층은_계산한다() {
+        // 실시간이 막힌 몰을 위해 만든 층이다 — 실시간이 죽을 때 함께 죽으면 뜻이 없다.
+        var r = svcWithIndex(List.of(
+                p("onnuri-hotdeal", "온누리핫딜", "shopping", "https://onnurideal.com"),
+                p("tpirates", "인어교주해적단", "shopping", "https://tpirates.com")),
+                false, indexOf("tpirates", "남송 꽃게 1kg")).search(ProbeQuery.of("꽃게"));
+        assertTrue(r.items().stream().anyMatch(h -> "disabled".equals(h.reason())),
+                "킬스위치가 꺼진 것이 실시간 층에 반영되지 않았다");
+        assertEquals(1, r.index().foundCount(), "킬스위치가 색인 층까지 껐다");
+    }
+
+    @Test
+    void 캐시가_적중해도_색인은_다시_계산한다() {
+        // 실시간 결과는 60분 캐시가 맞지만 색인은 매일 밤 갈린다 — 함께 캐시하면
+        // 자정을 넘긴 뒤에도 옛 색인을 "전일 기준"이라며 계속 보여 준다.
+        var idx = indexOf("tpirates", "남송 꽃게 1kg");
+        var s = svcWithIndex(List.of(p("tpirates", "인어교주해적단", "shopping", "https://tpirates.com")),
+                true, idx);
+        s.searchCached(ProbeQuery.of("꽃게"));
+        s.searchCached(ProbeQuery.of("꽃게"));
+        var r = s.searchCached(ProbeQuery.of("꽃게"));
+        assertEquals(1, r.index().foundCount());
+        Mockito.verify(idx, Mockito.times(3)).summarize(Mockito.any());
+    }
+
+    @Test
+    void 색인_조회가_실패해도_실시간_결과는_그대로_나간다() {
+        // 보조 기능이 본 기능을 끌어내리면 안 된다.
+        OnlineProductIndexRepository idx = Mockito.mock(OnlineProductIndexRepository.class);
+        Mockito.when(idx.summarize(Mockito.any()))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("db down"));
+        var r = svcWithIndex(List.of(p("onnuri-hotdeal", "온누리핫딜", "shopping", "https://onnurideal.com")),
+                true, idx).search(ProbeQuery.of("김치"));
+        assertEquals(1, r.items().size(), "색인 장애가 실시간 목록을 죽였다");
+        assertEquals(0, r.index().platformCount());
+        assertNotNull(r.index());
     }
 }
