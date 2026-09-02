@@ -208,9 +208,15 @@ public class OnlineSearchService {
         // **데이터의 링크가 먼저다.** 조회 대상이라도 그 조회 URL 이 이용자가 열 화면이라는
         // 보장이 없다 — 2026-09-02 에 추가한 두 곳은 몰의 내부 검색 API(JSON)를 부른다.
         // 그대로 링크로 주면 이용자가 JSON 을 마주한다. 사람이 볼 화면은 데이터에 있다.
+        // {q} 는 **선택**이다. 몰에 따라 이용자 링크에 검색어를 실을 수 없다 —
+        // 현대홈쇼핑 전용관 화면은 URL 의 searchTxt 를 무시하고 화면 안에서만 검색한다.
+        // 그런 몰에는 전용관 주소를 주고(그 화면에 자기 검색창이 있다), 검색어는 이용자가 넣는다.
+        // 링크가 있는데 안 쓰면 조회 URL(JSON)이 링크로 나간다 — 2026-09-02 에 겪은 그 사고다.
         String tpl = p.searchUrlTemplate();
-        if (tpl != null && !tpl.isBlank() && tpl.contains("{q}")) {
-            return tpl.replace("{q}", URLEncoder.encode(q.normalized(), StandardCharsets.UTF_8));
+        if (tpl != null && !tpl.isBlank()) {
+            return tpl.contains("{q}")
+                    ? tpl.replace("{q}", URLEncoder.encode(q.normalized(), StandardCharsets.UTF_8))
+                    : tpl;
         }
         if (t != null && !t.isApi()) return ProbeUrl.build(t, q).toString();
         return p.url() == null ? "" : p.url();

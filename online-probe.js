@@ -50,16 +50,34 @@
     // "화면에서만 만들어져 읽을 수 없음 10곳"이라고 잘못 말하고 있었다.
     // no-search-feature 는 붙는 몰이 사라져(지니어스몰 조회 대상 승격) 함께 지웠다 —
     // 해당하는 몰이 없는 사유 라벨은 두지 않는다(2026-09-01 rules-unverified 와 같은 원칙).
-    "robots-blocked": "몰이 자동 조회를 막아 둠",
+    // 2026-09-03(ADR-19): robots-blocked 도 같은 이유로 제거하고 bot-blocked 를 세웠다.
+    // 둘은 성격이 다르다 — robots.txt 는 몰이 **문서로 밝힌 금지**이고,
+    // bot-blocked 는 WAF 가 **실제로 차단**하는 것이다. 서버가 후자만 쓰게 됐다.
+    "bot-blocked": "몰이 자동 접근을 막아 둠",
     "scope-first": "시장·주소를 먼저 고르는 구조",
-    "no-static-search": "자동 조회가 안 되는 구조",
-    "not-a-probe-target": "자동 확인 대상 아님"
+    // 이 하나만 성격이 다르다 — 막힌 게 아니라 **읽어도 쓸 수 없다.** 검색은 되는데
+    // 결과가 몰 전체라 온누리 결제 범위 밖 상품이 대부분이다. 그대로 조회해 '검색됨'이라
+    // 말하면 이용자를 못 사는 상품으로 보낸다(2026-08-21 롯데ON 딥링크 오염과 같은 성격).
+    "scope-mixed": "온누리 범위로 좁힐 수 없음",
+    // 2026-09-03 재조사로 이 사유에 남은 몰이 인어교주해적단 하나가 됐다(11번가·롯데ON·공영쇼핑은
+    // scope-mixed 로, 현대홈쇼핑은 실시간 대상으로 빠졌다). 한 몰만 덮게 되어 그 몰의 사정을
+    // 그대로 설명으로 쓸 수 있다 — 이 사유에 몰이 다시 늘면 아래 설명부터 의심한다.
+    "no-static-search": "자동 조회가 안 되는 구조"
+    // `not-a-probe-target` 은 두지 않는다 — 서버가 그 값을 **한 번도 대입하지 않는다**
+    // (backend 전수 확인: ProbeHit 의 javadoc 주석에만 있고 대입 지점이 0곳).
+    // 모르는 사유의 폴백은 아래 UNKNOWN_TEXT 가 맡는다.
   };
   /** 접힌 섹션 안에서 한 번 더 풀어 쓴다 — 배지만으로는 뜻이 안 통한다. */
   var REASON_LONG = {
-    "robots-blocked": "이 몰은 robots.txt로 자동 조회를 막아 뒀습니다. 링크로 들어가 직접 검색하는 것은 정상 이용입니다.",
+    // 이용자가 겪는 사실로 쓴다 — 방화벽·WAF 같은 말은 이용자의 질문이 아니다(backend 합의).
+    "bot-blocked": "이 몰은 자동으로 보내는 조회 요청을 차단합니다. 링크로 들어가 직접 확인하는 것은 정상 이용입니다.",
     "scope-first": "시장이나 배달 주소를 먼저 골라야 상품이 나오는 몰이라 한 번에 조회할 수 없습니다.",
-    "no-static-search": "검색 결과가 화면에서만 만들어지고 검색 API 는 인증이 필요해 자동으로 읽을 수 없습니다."
+    "scope-mixed": "검색은 되지만 결과가 몰 전체라 온누리 결제 범위 밖 상품이 대부분 섞입니다. 링크는 온누리 전용관으로 갑니다.",
+    // 이 몰(인어교주해적단)은 온누리 매장 화면에 **검색 UI 요소가 0개**라(19절 6-5 실측 —
+    // 예전에 검색창으로 본 것은 구글 번역 위젯이었다) "링크로 들어가 검색하세요"라고 하면
+    // 없는 기능으로 보내는 셈이 된다. 대신 실제로 할 수 있는 두 가지를 준다 —
+    // 매장 목록 훑기(/store/onnuri)와 이 페이지의 전일 색인(이 몰은 색인 대상이다).
+    "no-static-search": "이 몰의 온누리 매장 화면에는 검색 기능이 없어 자동으로 확인할 수 없습니다. 링크로 들어가 온누리 매장 목록을 직접 훑어보거나, 이 페이지의 전일 색인을 참고하세요."
   };
   /**
    * 모르는 사유가 오면 **원시 키를 그대로 찍지 않는다.** 서버가 사유를 더하거나 빼는 동안
@@ -69,8 +87,20 @@
    * 아무 문장이나 채우면 그 몰에 대해 거짓이 될 수 있다. 상태 라벨이 이미 뜻을 담고 있다.
    */
   function reasonBadge(k) { return REASON[k] || null; }
-  /** 접힌 섹션은 비대상 몰만 모아 두므로, 모르는 사유는 어느 몰에도 참인 문장으로 물러선다. */
-  function reasonText(k) { return REASON_LONG[k] || REASON[k] || REASON["not-a-probe-target"]; }
+  /**
+   * 사유 사전에 없는 값이 왔을 때 접힌 섹션에 남는 **유일한 문장**이다(배지는 생략되므로).
+   * 서버가 사유를 더하거나 빼는 배포 시차에 이 자리가 빈다 — 어느 비대상 몰에도 참이면서
+   * 갈 곳을 주는 말이어야 한다. 짧은 배지 라벨을 여기 쓰면 설명이 일곱 글자로 끝난다.
+   */
+  var UNKNOWN_TEXT = "이 몰들은 아직 자동 조회 대상이 아닙니다 — 사유는 몰마다 다릅니다. 링크로 들어가 직접 검색해 보세요.";
+  /**
+   * 접힌 섹션은 비대상 몰만 모아 두므로, 모르는 사유는 어느 몰에도 참인 문장으로 물러선다.
+   * 폴백은 **REASON_LONG 쪽**을 먼저 본다 — REASON 은 배지용 짧은 말이라 여기 쓰면
+   * `자동 확인 대상 아님` 한마디로 끝나 갈 곳을 못 준다.
+   */
+  function reasonText(k) {
+    return REASON_LONG[k] || REASON[k] || UNKNOWN_TEXT;
+  }
 
   var current = null;   // 진행 중 요청(AbortController)
 
@@ -263,14 +293,25 @@
       var r = h.reason || "not-a-probe-target";
       (groups[r] = groups[r] || []).push(h.name);
     });
-    // 곳 수가 많은 사유부터가 아니라 **성격이 다른 순서**로 — 허락(robots) → 구조(범위 선행)
-    // → 기술(정적 조회 불가). 셋은 우리가 열 수 없는 이유가 서로 다르다.
-    var order = ["robots-blocked", "scope-first", "no-static-search"];
+    // 곳 수가 많은 사유부터가 아니라 **성격이 다른 순서**로 — 차단(몰이 막음) → 범위 선행
+    // → 범위 혼재(읽어도 못 씀) → 기술(정적 조회 불가). 넷은 우리가 열 수 없는 이유가 서로 다르다.
+    var order = ["bot-blocked", "scope-first", "scope-mixed", "no-static-search"];
     var keys = order.filter(function (k) { return groups[k]; })
       .concat(Object.keys(groups).filter(function (k) { return order.indexOf(k) === -1; }));
     if (!keys.length) return "";
-    return '<div class="pb-why-list">' + keys.map(function (k) {
-      return '<p><b>' + groups[k].length + '곳</b> · ' + esc(reasonText(k)) + '</p>';
+    // **같은 문장이 나오는 사유끼리 합친다.** 사전에 없는 사유가 둘 이상 오면(서버·프론트
+    // 배포 시차) 셋 다 폴백 문장으로 떨어져 똑같은 줄이 두 번 세 번 나온다 — 이용자에게는
+    // 같은 말을 곳 수만 쪼개 반복하는 것으로 보인다. 곳 수를 합치고 한 줄로 낸다.
+    // 합치는 기준은 사유 키가 아니라 **화면에 나가는 문장**이다(키가 달라도 말이 같으면 한 줄).
+    var rows = [], byText = {};
+    keys.forEach(function (k) {
+      var text = reasonText(k);
+      if (byText[text]) { byText[text].n += groups[k].length; return; }
+      byText[text] = { n: groups[k].length, text: text };
+      rows.push(byText[text]);      // 순서는 처음 등장한 사유의 자리를 지킨다(성격순 유지)
+    });
+    return '<div class="pb-why-list">' + rows.map(function (r) {
+      return '<p><b>' + r.n + '곳</b> · ' + esc(r.text) + '</p>';
     }).join("") + '</div>';
   }
 

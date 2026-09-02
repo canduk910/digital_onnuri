@@ -30,7 +30,8 @@ public record ProbeTarget(
         int timeoutMs,                 // 0 이면 전역 기본값. 느린 몰만 개별 지정한다
         LocalDate measuredOn,
         LocalDate robotsCheckedOn,
-        String formBody                // null 이면 GET. 값이 있으면 POST(form) 로 이 본문을 보낸다.
+        String formBody,               // null 이면 GET. 값이 있으면 POST(form) 로 이 본문을 보낸다.
+        boolean jsonApi                // GET 인데도 화면이 아니라 JSON API 를 부르는 몰(현대홈쇼핑)
 ) {
 
     /** formBody 없는 몰(대부분)을 위한 생성자 — GET 조회. */
@@ -41,11 +42,30 @@ public record ProbeTarget(
                        LocalDate measuredOn, LocalDate robotsCheckedOn) {
         this(platformId, searchUrlTemplate, charset, scope, noneMarkersBound, noneMarkersPlain,
              echoesQuery, likelyThreshold, titlePattern, noiseFloor, canaryPresentQuery,
-             timeoutMs, measuredOn, robotsCheckedOn, null);
+             timeoutMs, measuredOn, robotsCheckedOn, null, false);
     }
 
-    /** true 면 화면 HTML 이 아니라 몰의 내부 검색 API(JSON)를 부른다 — 이용자 링크로 쓰면 안 된다. */
-    public boolean isApi() { return formBody != null || searchUrlTemplate.contains("{qq}"); }
+    /** form POST 로 조회하는 몰. formBody 자체가 API 신호라 jsonApi 를 따로 세우지 않는다. */
+    public ProbeTarget(String platformId, String searchUrlTemplate, Charset charset, Scope scope,
+                       List<String> noneMarkersBound, List<String> noneMarkersPlain,
+                       boolean echoesQuery, int likelyThreshold, Pattern titlePattern,
+                       int noiseFloor, String canaryPresentQuery, int timeoutMs,
+                       LocalDate measuredOn, LocalDate robotsCheckedOn, String formBody) {
+        this(platformId, searchUrlTemplate, charset, scope, noneMarkersBound, noneMarkersPlain,
+             echoesQuery, likelyThreshold, titlePattern, noiseFloor, canaryPresentQuery,
+             timeoutMs, measuredOn, robotsCheckedOn, formBody, false);
+    }
+
+    /**
+     * true 면 화면 HTML 이 아니라 몰의 내부 검색 API(JSON)를 부른다 — 이용자 링크로 쓰면 안 된다.
+     *
+     * 신호가 셋이다: form POST(formBody)·이중 인코딩({qq})·명시 선언(jsonApi).
+     * 셋째가 필요했던 이유는 현대홈쇼핑이 **평범한 GET 인데 JSON 을 준다**는 것이다 —
+     * 앞의 두 신호로는 잡히지 않아, 그대로 뒀다면 이용자 링크로 JSON 이 나갈 수 있었다.
+     */
+    public boolean isApi() {
+        return jsonApi || formBody != null || searchUrlTemplate.contains("{qq}");
+    }
     /** 조회 범위. MALL_WIDE 는 온누리 결제 범위 밖 상품이 섞인다(기획전 딥링크 몰). */
     public enum Scope { ONNURI_SCOPE, MALL_WIDE }
 

@@ -27,6 +27,17 @@ class ProbeJudgeTest {
         }
     }
 
+    /**
+     * 히트 픽스처를 **어떤 질의로 채록했는지**. 기본은 `로봇청소기` 다.
+     *
+     * 몰마다 파는 것이 다르니 한 질의를 전부에 들이댈 수 없다 — 현대홈쇼핑 온누리샵에는
+     * 로봇청소기가 0건이다(세트 20건·쌀 10건·청소기 3건). 그 몰의 카나리아 질의와 같은 말로
+     * 채록해 픽스처와 라이브 카나리아가 같은 것을 확인하게 한다.
+     */
+    private static String fixtureQuery(String platformId) {
+        return "hyundai-home-shopping".equals(platformId) ? "세트" : "로봇청소기";
+    }
+
     private static Verdict judgeFixture(String platformId, String kind, String query) {
         ProbeTarget t = ProbeTargets.byId(platformId).orElseThrow();
         return ProbeJudge.judge(t, fixture(platformId + "-" + kind + ".html"), ProbeQuery.of(query));
@@ -48,11 +59,12 @@ class ProbeJudgeTest {
     void 히트_픽스처에서_질의어를_담은_상품명을_뽑는다() {
         for (ProbeTarget t : ProbeTargets.ALL) {
             String id = t.platformId();
+            String q = fixtureQuery(id);
             List<String> names = ProbeJudge.extractTitles(
-                    t, fixture(id + "-hit.html"), ProbeQuery.of("로봇청소기"), 3);
+                    t, fixture(id + "-hit.html"), ProbeQuery.of(q), 3);
             assertFalse(names.isEmpty(), id + " 에서 상품명을 뽑지 못했다 — 마크업이 바뀌었을 수 있다");
             for (String n : names) {
-                assertTrue(n.contains("로봇") || n.contains("청소기"),
+                assertTrue(n.contains(q),
                         id + " 가 질의와 무관한 이름을 샘플로 냈다: " + n);
                 assertTrue(n.length() >= 4 && n.length() <= 80, id + " 샘플 길이 이상: " + n);
             }
@@ -127,7 +139,7 @@ class ProbeJudgeTest {
     @Test
     void 있는_질의는_없음으로_판정되지_않는다() {
         for (String id : ProbeTargets.ids()) {
-            Verdict v = judgeFixture(id, "hit", "로봇청소기");
+            Verdict v = judgeFixture(id, "hit", fixtureQuery(id));
             assertNotEquals(Verdict.NONE, v.status(),
                     id + " — 상품이 있는데 없음으로 판정됐다(가장 위험한 오답)");
         }
@@ -241,5 +253,87 @@ class ProbeJudgeTest {
         assertFalse(ProbeJudge.toText(fixture("genius-mall-hit.html")).contains(marker),
                 "있음 응답에 없음 문구가 함께 있다 — 등급 B 전제가 깨졌다");
         assertTrue(ProbeJudge.toText(fixture("genius-mall-none.html")).contains(marker));
+    }
+
+    // ── 회귀 고정: 2026-09-03 편입 3곳에서 실제로 걸린 함정 ────────────────
+
+    @Test
+    void 인더마켓은_없음_응답이_더_커도_없음으로_판정한다() {
+        // 실측: 있음 199,404B < **없음 269,296B**. 없음 화면이 추천상품을 40건이나 붙이기 때문이다.
+        // 응답 길이로 있음·없음을 가르는 규칙을 만들었다면 정확히 거꾸로 판단했을 것이다.
+        assertTrue(fixture("inthemarket-onnuri-none.html").length()
+                        > fixture("inthemarket-onnuri-hit.html").length(),
+                "전제 확인 — 이 몰은 없음 응답이 더 크다");
+        assertEquals(Verdict.NONE, judgeFixture("inthemarket-onnuri", "none", "zzqqxyw12345").status());
+        assertEquals(Verdict.LIKELY, judgeFixture("inthemarket-onnuri", "hit", "로봇청소기").status());
+    }
+
+    @Test
+    void 없음_화면의_추천상품을_검색결과로_세지_않는다() {
+        // 굿데이·인더마켓의 '결과 없음' 화면에는 추천상품 20~40건이 함께 온다.
+        // 상품 카드 수를 근거로 삼았다면 없는 질의에도 늘 '있음'이 됐을 것이다.
+        for (String id : List.of("onnuri-goodday", "inthemarket-onnuri")) {
+            assertTrue(fixture(id + "-none.html").contains("class=\"item_name\">"),
+                    id + " 전제 확인 — 없음 화면에도 상품 카드가 있어야 한다");
+            assertEquals(Verdict.NONE, judgeFixture(id, "none", "zzqqxyw12345").status(),
+                    id + " — 추천상품을 검색결과로 셌다");
+        }
+    }
+
+    @Test
+    void 팔도시장_자동완성_스크립트의_없음문구는_판정을_뒤집지_않는다() {
+        // `검색된 정보가 없습니다.` 가 <script> 안 자동완성 코드에 **모든 응답에** 들어 있다.
+        // 원본 HTML 에 문자열 매칭했다면 상품이 있어도 늘 '없음'이 된다(온누리마켓 약관과 같은 함정).
+        String hit = fixture("onnuri-paldo-sijang-hit.html");
+        assertTrue(hit.contains("검색된 정보가 없습니다"), "전제 확인 — 있음 응답에도 그 문구가 있다");
+        assertFalse(ProbeJudge.toText(hit).contains("검색된 정보가 없습니다"),
+                "script 를 걷어내지 못했다 — 판정이 뒤집힌다");
+        assertEquals(Verdict.LIKELY, judgeFixture("onnuri-paldo-sijang", "hit", "로봇청소기").status());
+    }
+
+    @Test
+    void 팔도시장은_질의가_박힌_문구로_없음을_확정한다() {
+        // 등급 A — `‘{q}’의 대한 검색결과 총 0 개의 상품이 있습니다`.
+        // 이 몰은 질의를 되뿌리므로(echoesQuery=true) 토큰 0 판정을 쓸 수 없다.
+        // 등급 A 문구가 유일한 확정 수단이라 깨지면 바로 unclear 로 내려간다.
+        Verdict v = judgeFixture("onnuri-paldo-sijang", "none", "zzqqxyw12345");
+        assertEquals(Verdict.NONE, v.status());
+        assertEquals(Verdict.HIGH, v.confidence(), "등급 A 는 단독 확정이어야 한다");
+        assertNotNull(v.evidence());
+    }
+
+    @Test
+    void 편입_3곳의_없음문구는_있음_응답에_없다() {
+        // 등급 B 의 전제다. 상시 노출되는 문구라면 상품이 있어도 늘 '없음'이 된다.
+        for (String id : List.of("onnuri-goodday", "inthemarket-onnuri", "onnuri-paldo-sijang")) {
+            ProbeTarget t = ProbeTargets.byId(id).orElseThrow();
+            String hitText = ProbeJudge.toText(fixture(id + "-hit.html"));
+            for (String marker : t.noneMarkersPlain()) {
+                assertFalse(hitText.contains(marker),
+                        id + " — 있음 응답에 없음 문구가 함께 있다: " + marker);
+            }
+        }
+    }
+
+    @Test
+    void 현대홈쇼핑은_전용관_범위가_응답으로_확인된다() {
+        // 11번가·롯데ON·공영쇼핑을 뺀 이유(결과가 몰 전체)가 이 몰에는 해당하지 않는다.
+        // 응답이 스스로 범위를 밝히므로 그 사실을 픽스처로 고정한다 — 이 문자열이 사라지면
+        // 전용관이 아닌 무언가를 조회하고 있다는 뜻이다.
+        for (String kind : List.of("hit", "none")) {
+            assertTrue(fixture("hyundai-home-shopping-" + kind + ".html")
+                            .contains("현대홈쇼핑 온누리샵"),
+                    kind + " 응답에 전용관 이름이 없다 — 조회 범위가 바뀌었을 수 있다");
+        }
+        assertEquals(Verdict.NONE, judgeFixture("hyundai-home-shopping", "none", "zzqqxyw12345").status());
+        assertEquals(Verdict.LIKELY, judgeFixture("hyundai-home-shopping", "hit", "세트").status());
+    }
+
+    @Test
+    void 짧은_JSON_없음응답을_판정하지_못한_것으로_뭉개지_않는다() {
+        // 현대홈쇼핑의 '없음' 응답은 658바이트다. 본문 하한이 HTML 기준(500자)이면
+        // 확실한 '없음'이 unknown 으로 뭉개진다 — 2026-09-02 이지웰(316자)에서 겪은 그 함정이다.
+        ProbeTarget t = ProbeTargets.byId("hyundai-home-shopping").orElseThrow();
+        assertTrue(t.isApi(), "GET 이라도 JSON 을 주는 몰은 API 로 선언돼야 한다");
     }
 }

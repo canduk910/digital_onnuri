@@ -47,7 +47,7 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "search_url_template": "https://www.cyso.co.kr/item/list?q={q}"
+      "search_url_template": ""
     },
     {
       "id": "hyundai-ezwel-onnuri",
@@ -75,7 +75,7 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "search_url_template": ""
+      "search_url_template": "https://www.hmall.com/md/dpa/searchSpexSectItem?sectId=3132118&dispTrtyNmCd=home_eventicon_2&dispOrd"
     },
     {
       "id": "genius-mall",
@@ -131,7 +131,7 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "search_url_template": "https://www.gongyoungshop.kr/search/goodsSearch.do?kwd={q}"
+      "search_url_template": ""
     },
     {
       "id": "onnuri-paldo-sijang",

@@ -15,7 +15,7 @@ class ProbeTargetsTest {
 
     @Test
     void 조회대상이_모두_실측일과_robots_검토일을_가진다() {
-        assertEquals(11, ProbeTargets.ALL.size());  // 2026-09-02 온누리쇼핑·지니어스몰 추가
+        assertEquals(15, ProbeTargets.ALL.size());  // 2026-09-03 굿데이·인더마켓·팔도·현대홈쇼핑 추가
         for (ProbeTarget t : ProbeTargets.ALL) {
             assertNotNull(t.measuredOn(), t.platformId() + " measuredOn 없음");
             assertNotNull(t.robotsCheckedOn(), t.platformId() + " robotsCheckedOn 없음 — "
@@ -34,10 +34,10 @@ class ProbeTargetsTest {
     }
 
     @Test
-    void robots가_차단한_몰은_대상에_없다() {
-        // 온누리굿데이·인더마켓은 Disallow: / + Allow: /$ — 기술적으로는 되지만 조회하지 않는다.
-        assertFalse(ProbeTargets.ids().contains("onnuri-goodday"));
-        assertFalse(ProbeTargets.ids().contains("inthemarket-onnuri"));
+    void 자동조회를_능동_차단하는_몰은_대상에_없다() {
+        // 사이소는 화면 검색이 WAF 1.7KB 로 막혀 돌아온다. 막는 쪽을 뚫는 일은 하지 않는다.
+        assertFalse(ProbeTargets.ids().contains("cyso"));
+        assertEquals(ProbeTargets.EX_BOT_BLOCKED, ProbeTargets.exclusionReason("cyso"));
     }
 
     @Test
@@ -66,12 +66,22 @@ class ProbeTargetsTest {
         for (ProbeTarget t : ProbeTargets.ALL) {
             if (t.isApi()) {
                 // 링크가 없으면 이용자는 홈으로 떨어지고, 조회 결과를 스스로 확인할 길이 없다.
+                //
+                // 2026-09-03 완화: `{q}` 는 **선택**이다. 현대홈쇼핑 전용관 화면은 URL 의
+                // searchTxt 를 무시하고 화면 안에서만 검색한다 — 검색어를 실은 링크를 만들 수가
+                // 없다. 대신 그 전용관에 자기 검색창이 있어 링크만 줘도 이용자가 검색할 수 있다.
+                // **비어 있지 않음 검사는 유지한다** — 이 테스트가 막던 것은 링크가 없어
+                // 조회 URL(JSON)이 이용자에게 나가던 사고(2026-09-02)이고, 그 위험은 그대로다.
                 assertTrue(json.contains("\"" + t.platformId() + "\""),
                         t.platformId() + " 가 데이터에 없다");
                 int i = json.indexOf("\"" + t.platformId() + "\"");
                 String block = json.substring(i, Math.min(json.length(), i + 1200));
-                assertTrue(block.contains("search_url_template") && block.contains("{q}"),
-                        t.platformId() + " — API 로 조회하는 몰인데 이용자가 열 검색 링크가 데이터에 없다");
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("\"search_url_template\"\\s*:\\s*\"([^\"]*)\"").matcher(block);
+                assertTrue(m.find(),
+                        t.platformId() + " — API 로 조회하는 몰인데 데이터에 search_url_template 이 없다");
+                assertFalse(m.group(1).isBlank(),
+                        t.platformId() + " — API 로 조회하는 몰인데 이용자가 열 링크가 비어 있다");
                 continue;
             }
             String needle = t.searchUrlTemplate().replace("&", "\\u0026");
@@ -85,8 +95,8 @@ class ProbeTargetsTest {
         // JSON 을 링크로 주면 이용자가 무엇을 봐야 할지 알 수 없다.
         for (ProbeTarget t : ProbeTargets.ALL) {
             if (!t.isApi()) continue;
-            assertTrue(t.formBody() != null || t.searchUrlTemplate().contains("{qq}"),
-                    t.platformId() + " 가 isApi() 인데 근거(formBody·{qq})가 없다");
+            assertTrue(t.formBody() != null || t.searchUrlTemplate().contains("{qq}") || t.jsonApi(),
+                    t.platformId() + " 가 isApi() 인데 근거(formBody·{qq}·jsonApi)가 없다");
         }
     }
 
@@ -122,8 +132,9 @@ class ProbeTargetsTest {
     void 사유는_조사표의_세_갈래_중_하나다() {
         // 붙는 몰이 없는 사유는 상수로도 두지 않는다 — 2026-09-01 rules-unverified 를
         // 제거한 것과 같은 이유다. 화면에 설명만 있고 해당하는 곳이 없는 사유는 소음이다.
-        List<String> allowed = List.of(ProbeTargets.EX_ROBOTS,
-                ProbeTargets.EX_SCOPE_FIRST, ProbeTargets.EX_NO_FETCH);
+        List<String> allowed = List.of(ProbeTargets.EX_BOT_BLOCKED,
+                ProbeTargets.EX_SCOPE_FIRST, ProbeTargets.EX_SCOPE_MIXED,
+                ProbeTargets.EX_NO_FETCH);
         for (String id : ProbeTargets.exclusionIds()) {
             assertTrue(allowed.contains(ProbeTargets.exclusionReason(id)),
                     id + " 의 사유가 조사표에 없는 값이다: " + ProbeTargets.exclusionReason(id));
@@ -134,11 +145,13 @@ class ProbeTargetsTest {
     void 사유별_곳_수가_조사표와_일치한다() {
         // _workspace/20_probe_expansion_analysis.md 0·2절 실측 분류.
         // 숫자가 어긋나면 사전이 조사와 갈라진 것이다.
-        assertEquals(8, countReason(ProbeTargets.EX_ROBOTS), "robots 차단 8곳");
+        assertEquals(1, countReason(ProbeTargets.EX_BOT_BLOCKED), "능동 차단 1곳(사이소)");
         assertEquals(2, countReason(ProbeTargets.EX_SCOPE_FIRST), "범위 선행 2곳(놀장·시장을 방으로)");
+        assertEquals(3, countReason(ProbeTargets.EX_SCOPE_MIXED),
+                "범위 혼재 3곳(11번가·롯데ON·공영쇼핑) — 검색은 되지만 결과가 몰 전체다");
         assertEquals(1, countReason(ProbeTargets.EX_NO_FETCH), "정적 조회 불가 1곳(인어교주해적단)");
-        // 22곳 − 조회 대상 11곳 = 11곳. 곳 수 합이 어긋나면 사전이 조사와 갈라진 것이다.
-        assertEquals(11, ProbeTargets.exclusionIds().size());
+        // 22곳 − 조회 대상 15곳 = 7곳. 곳 수 합이 어긋나면 사전이 조사와 갈라진 것이다.
+        assertEquals(7, ProbeTargets.exclusionIds().size());
     }
 
     @Test

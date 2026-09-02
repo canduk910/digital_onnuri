@@ -86,13 +86,16 @@ class OnlineSearchServiceTest {
     }
 
     @Test
-    void robots_로_막힌_몰은_그_사유를_말한다() {
-        // 되는데 안 하는 것과 못 하는 것은 다르다. 링크를 눌러 사람이 검색하는 것은
-        // robots 대상이 아니므로, 사유를 밝혀야 이용자가 링크를 눌러 볼 근거가 생긴다.
-        assertEquals(ProbeTargets.EX_ROBOTS, ProbeTargets.exclusionReason("onnuri-goodday"));
-        assertEquals(ProbeTargets.EX_ROBOTS, ProbeTargets.exclusionReason("inthemarket-onnuri"));
-        // 조회 대상이 된 몰은 사전에서 빠져 있어야 한다(온누리5일장은 2026-09-02 편입).
+    void 능동_차단된_몰은_그_사유를_말한다() {
+        // 못 하는 것과 막힌 것은 다르다. 링크를 눌러 사람이 검색하는 것은 막힌 게 아니므로,
+        // 사유를 밝혀야 이용자가 링크를 눌러 볼 근거가 생긴다.
+        assertEquals(ProbeTargets.EX_BOT_BLOCKED, ProbeTargets.exclusionReason("cyso"));
+        // 조회 대상이 된 몰은 사전에서 빠져 있어야 한다(굿데이·인더마켓·팔도는 2026-09-03 편입).
         assertFalse(ProbeTargets.exclusionIds().contains("onnuri-5iljang"));
+        assertFalse(ProbeTargets.exclusionIds().contains("onnuri-goodday"));
+        assertFalse(ProbeTargets.exclusionIds().contains("inthemarket-onnuri"));
+        assertFalse(ProbeTargets.exclusionIds().contains("onnuri-paldo-sijang"));
+        assertFalse(ProbeTargets.exclusionIds().contains("hyundai-home-shopping"));
         // 조회 대상에는 제외 사유가 붙을 일이 없다 — 붙으면 목록이 어긋난 것이다.
         for (ProbeTarget t : ProbeTargets.ALL) {
             assertFalse(ProbeTargets.exclusionIds().contains(t.platformId()),
@@ -101,12 +104,14 @@ class OnlineSearchServiceTest {
     }
 
     @Test
-    void 사유가_세_갈래로_구분돼_화면에_나간다() {
-        // 11곳을 한 사유로 뭉뚱그리면 화면이 사실과 다른 말을 한다(ADR-18).
+    void 사유가_네_갈래로_구분돼_화면에_나간다() {
+        // 7곳을 한 사유로 뭉뚱그리면 화면이 사실과 다른 말을 한다(ADR-18·19).
+        // 특히 scope-mixed 3곳은 "읽지 못한다"가 아니라 "읽어도 대부분 온누리 밖"이다.
         var r = svc(List.of(
                 p("onnuri-noljang", "온누리 놀장", "shopping", "https://noljang.co.kr"),
                 p("oligopalgo", "시장을 방으로", "shopping", "https://oligopalgo.kr"),
                 p("tpirates", "인어교주해적단", "shopping", "https://www.tpirates.com"),
+                p("gongyoung-shopping", "공영쇼핑", "shopping", "https://www.gongyoungshop.kr"),
                 p("cyso", "사이소", "shopping", "https://www.cyso.co.kr")), true)
                 .search(ProbeQuery.of("로봇청소기"));
         java.util.Map<String, String> byId = new java.util.HashMap<>();
@@ -114,7 +119,21 @@ class OnlineSearchServiceTest {
         assertEquals(ProbeTargets.EX_SCOPE_FIRST, byId.get("onnuri-noljang"));
         assertEquals(ProbeTargets.EX_SCOPE_FIRST, byId.get("oligopalgo"));
         assertEquals(ProbeTargets.EX_NO_FETCH, byId.get("tpirates"));
-        assertEquals(ProbeTargets.EX_ROBOTS, byId.get("cyso"));
+        assertEquals(ProbeTargets.EX_SCOPE_MIXED, byId.get("gongyoung-shopping"));
+        assertEquals(ProbeTargets.EX_BOT_BLOCKED, byId.get("cyso"));
+    }
+
+    @Test
+    void 링크에_검색어를_실을_수_없는_몰은_전용관_주소를_준다() {
+        // 현대홈쇼핑 전용관 화면은 URL 의 검색어를 무시한다. {q} 없는 링크라도
+        // 데이터에 있으면 그것을 쓴다 — 안 쓰면 조회 URL(JSON)이 이용자에게 나간다.
+        var r = svc(List.of(p("hyundai-home-shopping", "현대홈쇼핑", "shopping",
+                "https://www.hmall.com/",
+                "https://www.hmall.com/md/dpa/searchSpexSectItem?sectId=3132118")), true)
+                .search(ProbeQuery.of("세트"));
+        String url = r.items().get(0).searchUrl();
+        assertEquals("https://www.hmall.com/md/dpa/searchSpexSectItem?sectId=3132118", url);
+        assertFalse(url.contains("/api/"), "JSON 조회 URL 이 이용자 링크로 나갔다: " + url);
     }
 
     @Test
@@ -130,14 +149,14 @@ class OnlineSearchServiceTest {
     void 조회_대상이_아니어도_검색URL이_있으면_그리로_보낸다() {
         // 4단계에서 22곳에 search_url_template 을 넣었다 — 확인하지 않은 몰도
         // 홈이 아니라 그 몰의 검색 결과로 바로 갈 수 있어야 한다.
-        // 조회 대상이 아닌 몰로 예시를 든다(꾹AI 는 2026-09-01 조회 대상이 됐다).
-        var r = svc(List.of(p("onnuri-goodday", "온누리굿데이", "shopping",
-                "https://www.onnurigood.com/",
-                "https://www.onnurigood.com/?pn=product.search.list&search_word={q}")), true)
+        // 조회 대상이 아닌 몰로 예시를 든다(굿데이는 2026-09-03 조회 대상이 됐다).
+        var r = svc(List.of(p("cyso", "사이소", "shopping",
+                "https://www.cyso.co.kr/",
+                "https://www.cyso.co.kr/search?q={q}")), true)
                 .search(ProbeQuery.of("김치"));
         ProbeHit h = r.items().get(0);
         assertEquals(Verdict.NOT_PROBED, h.status());
-        assertTrue(h.searchUrl().startsWith("https://www.onnurigood.com/?pn="),
+        assertTrue(h.searchUrl().startsWith("https://www.cyso.co.kr/search?q="),
                 "검색 URL 이 있는데 홈으로 보냈다: " + h.searchUrl());
         assertFalse(h.searchUrl().contains("{q}"), "치환되지 않았다");
     }

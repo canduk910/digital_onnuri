@@ -478,8 +478,95 @@ https://onnuri.ai/search?k_order=3&page_num=50
 
 ### robots 8곳 (ADR-19)
 
-사용자 결정은 "robots 무시하고 넣자"였으나 이 세션의 하네스가 그 구현 위임을 두 차례 차단해 **보류**(ADR-19 상태 참조). 1차 편입 재료(굿데이·인더마켓·팔도)는 갖춰져 있다.
+사용자 결정은 "robots 무시하고 넣자". 2026-09-02 에는 하네스가 구현 위임을 두 차례 차단해 보류했고, **2026-09-03 사용자 재지시로 진행** — 1차 3곳(굿데이·인더마켓·팔도)과 재조사에서 열린 현대홈쇼핑을 편입해 **15곳**, 나머지 4곳은 6-10절의 판정(범위 오염 3·WAF 1)대로 비대상. 결과 절의 곳 수는 그 시점 기록이다.
 
 ### 결과
 
 조회 대상 **11곳**, 확인하지 않는 곳 **11곳**(robots 8 / scope-first 2 / no-static-search 1), 색인 층 2곳. 제외 사유는 12곳 전수를 사전에 명시하고 테스트가 완전성을 고정한다 — 기본값으로 흘러가던 것이 "화면에서만 만들어져 읽을 수 없음 10곳"이라는 오표기의 원인이었다.
+
+## 6-10. SPA 4곳 재조사 (2026-09-03)
+
+ADR-19 로 robots.txt 가 대상 선정 기준에서 빠지면서, **robots 때문에 XHR 관찰조차 하지 않았던 4곳**(6-7절 표)을 처음으로 실제로 들여다봤다. 방법은 6-7·6-8절과 같다 — Playwright 로 화면 검색을 실행하며 document·XHR·fetch 를 전부 관찰하고, 질의어를 담은 요청을 `curl`(UA `Mozilla/5.0 (onnuri-guide-check)`)로 재현했다. 브라우저 위장·토큰 재사용·WAF 우회는 하지 않았다.
+
+**결론: 1곳 편입 가능, 3곳 범위 오염으로 부적합.**
+
+| 몰 | 질의어를 담은 요청 | 정적 재현 | 온누리 범위로 좁혀지나 | 결론 |
+|---|---|---|---|---|
+| 11번가 온누리마켓 | `GET search.11st.co.kr/pc/total-search?kwd=` | ○ | **✕ 11번가 전체 검색** | **범위 오염으로 부적합** |
+| **현대홈쇼핑** | `GET hmall.com/md/api/cache?url=/api/hf/dp/v1/sect-mng/plansale-ancr-paging&sectId=3132118&…&searchTxt={q}` | **○** | **○ `sectId` 가 "현대홈쇼핑 온누리샵"** | **편입 가능** |
+| 롯데ON 상생스토어 | `GET lotteon.com/csearch/search/search?…&q=&mallId=1` | ○ | **✕ 롯데ON 전체 검색** | **범위 오염으로 부적합** |
+| 공영쇼핑 | `POST gongyoungshop.kr/search/ajaxSearchGoodsList.do` (form) | ○ | **✕ 몰 전체 — 실측 40건 중 온누리 기획전은 4건** | **범위 오염으로 부적합** |
+
+robots(참고 기록, 2026-09-03): 11번가 `Disallow: /`(`www` 의 지정 봇 그룹만 `Crawl-delay: 1`, `plan.11st.co.kr` 은 `Disallow: /` + `Allow: /plan/front/`) · 현대홈쇼핑 `User-agent: * / Disallow: /`(Crawl-delay 없음) · 롯데ON `www` 는 `User-agent: *` 에 `Disallow: /` 만(Crawl-delay 는 지정 검색봇 5·SEO봇 30 그룹에만 있음 — 앞서 적었던 `3` 은 파일에 없는 숫자, 2026-09-03 crawler 정정) · 상품 응답 호스트 `pbf.lotteon.com` 은 robots 404 · 공영쇼핑 `Allow: /` + `Disallow: /search/ /api/`(Crawl-delay 없음).
+
+### 현대홈쇼핑 — 전용관 안에 자기 검색이 있었다
+
+전용관 화면에 **`#productSearchText`("상품명 검색")** 라는 입력창이 따로 있고 그 옆 안내가 `온누리샵 상품을 검색해 보세요.` 다. 헤더의 전체 검색과 별개이며, 입력하면 전용관 범위 API 하나만 나간다. 6-7절이 robots 만 보고 접었을 때 **놓친 것이 이것**이다 — 화면을 열어 봤다면 첫 화면에서 보였다.
+
+응답의 `sectInfo.sectNm` 이 `"현대홈쇼핑 온누리샵"` 으로 찍혀 범위가 응답 자체로 확인된다. 쿠키·토큰·특수 헤더 없이 UA 만으로 재현되고 **0.07초**로 조회 대상 중 가장 빠르다.
+
+| 질의 | 응답 | 상품 |
+|---|---|---|
+| 김치 | 200 · 3,016B | 1건 |
+| 세트 | 200 · 46,586B | 20건(페이지 상한) |
+| 쌀 | 200 · 24,050B | 10건 |
+| 사과 | 200 · 16,503B | 7건 |
+| 청소기 | 200 · 7,509B | 3건 |
+| zzqqxyw12345 | 200 · 850B | **0건** |
+
+전용관 전체는 `searchTxt` 를 비우면 100건 이상이 온다(listSize=100 이 다 찬다).
+
+**주의 2가지.**
+
+1. **이용자 링크가 질의어를 실을 수 없다.** 전용관 화면(`/md/dpa/searchSpexSectItem?sectId=3132118…`)은 URL 의 `searchTxt` 를 **무시한다** — 실측에서 입력창이 비어 있고 상품 요청도 나가지 않았다. 검색은 화면 안에서만 실행된다. 그런데 `ProbeTargetsTest` 는 `isApi()` 인 몰에 대해 데이터의 `search_url_template` 이 `{q}` 를 담을 것을 요구한다(6-7절에서 세운 규칙). 이 몰을 넣으려면 **그 계약을 손봐야 한다** — 지금 데이터의 `hyundai-home-shopping.search_url_template` 은 빈 문자열이고, 줄 수 있는 링크는 전용관 홈뿐이다.
+2. **응답이 캐시 프록시를 거친다.** 화면이 부르는 `/md/api/cache?url=…` 는 `__cache_metadata.status`(실측 `HIT_STALE`)를 붙여 준다. 캐시를 우회한 직접 경로 `https://www.hmall.com/api/hf/dp/v1/sect-mng/plansale-ancr-paging?…` 도 같은 파라미터로 동작한다(김치 2,780B). 화면이 보내는 것을 그대로 쓰는 원칙에 따르면 캐시 경로가 맞고, 신선도가 문제가 되면 직접 경로로 바꿀 수 있다.
+
+카나리아 present 질의는 `김치`(1건)보다 **`쌀`(10건)이나 `세트`(20건)** 를 권한다 — 1건짜리는 그 상품 하나가 빠지면 다음 날 거짓 실패가 난다.
+
+### 11번가 — 기획전 안에 검색이 없다
+
+기획전 화면의 입력창은 11번가 **GNB 통합검색**이다. 실행하면 `search.11st.co.kr/pc/total-search?kwd=` 로 나가고, 이어지는 XHR 도 `apis.11st.co.kr/search/api/tab?kwd=…&tabId=TOTAL_SEARCH` — 기획전을 가리키는 파라미터가 어디에도 없다. 기획전 HTML 에는 `검색`이라는 낱말 자체가 없다(검색 UI 는 GNB JS 가 나중에 심는다).
+
+기획전이 자기 상품을 가져오는 요청은 따로 있고 **질의어 자리가 없다**:
+`POST plan.11st.co.kr/plan/front/exhibitions/2210481/themes/{themeId}/products` (form: `templateType·page·size·themeIndex·productSortCode…`). 정적으로 재현되고(테마 1749163, 92,131B) `productName`·`productLink` 를 그대로 준다 — **실시간 조회가 아니라 색인 층(ADR-18 단계 F) 재료다.** 테마는 최소 9개(`themeNo_1`~`_9`)가 hidden input 으로 박혀 있다.
+
+같은 화면의 `GET /plan/keyword/rising/exhibitions/2210481` 은 이름과 달리 기획전 상품이 아니라 **11번가 전역 인기 검색어**(필리핀-세부·JJ지고트 원피스 …)를 준다. 이름만 보고 기획전 검색으로 오인하기 쉬운 자리다.
+
+### 롯데ON — 상생스토어 안에도 검색이 없다
+
+단축 URL 은 `https://www.lotteon.com/p/display/shop/seltDpShop/57821?ch_dtl_no=1044428` 로 풀린다(`dshopNm` = **온누리상생스토어**). 이 화면의 검색 입력창은 `#headerSearchId` 하나뿐이고 실행하면 `csearch/search/search?…&q=&mallId=1` — 6-6절이 본 그대로다. 화면의 링크 135개를 전수 열거해도 **스토어 내 검색·전체상품 탭이 없다**(백화점몰 GNB 와 인기 검색어가 전부 전체 검색으로 나간다).
+
+스토어가 자기 상품을 가져오는 요청은 `GET pbf.lotteon.com/display/v2/dpShop/seltMainShop?dshopNo=57821&mdiaCd=PC&pageNo=1&rowsPerPage=5` 이고 정적으로 재현된다(125,530B). 질의어 자리는 없다 — 11번가와 같은 성격의 색인 재료다.
+
+`dshopNo` 로 검색을 좁히는 파라미터는 **화면이 보내는 어떤 요청에도 없었다.** 이름을 지어내 시험하지 않았다(6-5·6-9절 교훈).
+
+### 공영쇼핑 — 되긴 되는데, 90%가 온누리 밖이다
+
+`/search/goodsSearch.do?kwd=` 화면이 상품을 가져오는 요청을 찾았다:
+
+```
+POST https://www.gongyoungshop.kr/search/ajaxSearchGoodsList.do
+Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+kwd={q}&reSrchFlag=false&pageNum=1&pageSize=40&sort=r&kwdType=0&brandSort=cou&logFlag=true
+```
+
+정적으로 재현된다(XML). 김치 200·10,713B·`<rsltYn>Y</rsltYn>`·`<total>2733</total>`·`<prdNm>` 40건 / zzqqxyw12345 200·1,096B·`<rsltYn>N</rsltYn>`·`<prdNm>` 0건. 판정 재료로는 흠잡을 데가 없다.
+
+**그런데 범위가 몰 전체다.** 온누리 범위는 `전국팔도온누리장터` 기획전(`ebtNo=4328`)이고, 그 기획전의 상품 목록은 `POST /exhibition/getEbtDetail.do`(`ebtNo=4328`)가 준다 — **고유 `prdId` 450개**(919,491B). 김치 검색 결과 40건의 `prdId` 를 이 450개와 대조했더니 **겹치는 것이 4건뿐이다.** 나머지 36건은 온누리상품권으로 살 수 없는 상품이다. 롯데ON 을 링크에서도 뺀 것과 **같은 이유이고 그보다 정량적**이다.
+
+기획전 응답의 VO 에 `<searchKeyword>` 필드가 있어 `getEbtDetail.do` 에 `searchKeyword` 를 얹어 봤으나 **응답 바이트가 있는 말·없는 말 모두 919,491 로 동일** — 무시된다. 이 응답에는 상품명도 없다(`prdId` 만 주고 이름은 `POST /goods/getGoodsUnitInfo.do` 가 따로 준다).
+
+**함께 적발**: 지금 데이터의 `gongyoung-shopping.search_url_template` 이 `https://www.gongyoungshop.kr/search/goodsSearch.do?kwd={q}` — **몰 전체 검색 화면**이다. 위 대조가 맞다면 이 링크는 이용자를 90%가 범위 밖인 목록으로 보낸다(2026-08-21 롯데ON 딥링크 오염, 6-6절과 같은 성격). 이번 조사 범위가 아니라 고치지 않았고, 판단은 별건으로 남긴다.
+
+색인 층으로는 길이 있다 — 기획전 `prdId` 450개 + `getGoodsUnitInfo.do` 로 이름을 받으면 **온누리 범위 그대로** 걷힌다(요청 2종).
+
+### 픽스처 후보
+
+편입 가능한 1곳만 저장했다(`scratchpad/probe4/`).
+
+| 파일 | 내용 |
+|---|---|
+| `hyundai-home-shopping_present_kimchi.json` | 김치 · 200 · 3,016B · 1건 |
+| `hyundai-home-shopping_absent.json` | zzqqxyw12345 · 200 · 850B · `"itemList":[]` |
+
+부적합 3곳의 실측 물증도 같은 디렉터리에 남겼다 — `11st_theme.txt`(기획전 상품 API), `gy_ebt.json`(기획전 450건), `gy_kimchi.txt`·`gy_none.txt`(몰 전체 검색), `lotte_shop.json`(상생스토어 API), `lotte_tabs.json`(링크 135개 전수).
