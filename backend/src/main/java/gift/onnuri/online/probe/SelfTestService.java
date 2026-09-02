@@ -98,7 +98,16 @@ public class SelfTestService {
         String html = o.html();
         Verdict v = ProbeJudge.judge(t, html, q);
         int samples = v.sampleTitles() == null ? 0 : v.sampleTitles().size();
-        boolean echoed = ProbeJudge.toText(html).contains(q.normalized());
+        // **stripEcho 로 잰다.** echoesQuery 가 뜻하는 것은 "이 몰이 어딘가에 질의어를
+        // 되뿌리는가"가 아니라 "**히트 0 판정을 쓸 수 없는가**"이고, 그 히트는 ProbeJudge 가
+        // stripEcho(제목·메타·검색창 등 에코 자리를 걷어낸 본문) 위에서 센다.
+        //
+        // toText 로 재면 <title>·<meta> 에만 남는 에코까지 잡혀 **선언이 옳은 몰을 틀렸다고
+        // 신고한다.** 2026-09-03 라이브에서 굿데이·인더마켓이 그렇게 걸렸다 — 두 몰의 에코는
+        // 전부 <title>·<meta> 뿐이라(없는 질의 3종 × 2몰 = 6건 실측) 판정에는 닿지 않는다.
+        // 그 신고를 믿고 선언을 true 로 바꿨다면 **쓸 수 있는 '없다' 확정 수단 하나를
+        // 근거 없이 버리는 것**이 됐다. 카나리아가 규칙과 다른 것을 재고 있었다.
+        boolean echoed = ProbeJudge.stripEcho(html).contains(q.normalized());
 
         boolean ok;
         String note;
@@ -118,7 +127,17 @@ public class SelfTestService {
                     : "있는 질의를 '" + v.status() + "'로 봤다 — 문구 오탐 점검(가장 위험)";
         }
         // 선언과 실측이 갈라지면 토큰 0 판정의 전제가 무너진다. 실패로 세지는 않고 리포트에 남긴다.
-        if (absent && echoed != t.echoesQuery()) {
+        //
+        // 다만 **'없다'를 확정할 수단이 아예 없는 몰은 대조하지 않는다**(onnuri-chance).
+        // 그 몰의 `echoesQuery=true` 는 사실 주장이 아니라 **정책 선언**이다 —
+        // 등급 C 라 없음-문구가 없고, 여기에 토큰 0 판정까지 열면 근거 없이 '없다'를 말하게 된다.
+        // ADR-17 1단계가 "확정 수단이 없는 몰은 없다고 말하지 않는다"로 정한 그 자리이고,
+        // 실측이 false 로 나와도 선언을 바꿀 일이 아니라서 매일 뜨는 note 는 소음일 뿐이다.
+        // note 가 소음이 되면 사람이 note 를 통째로 무시하게 된다 — 카나리아가 죽는 길이다.
+        //
+        // 조건을 `canDecideAbsent` 로 잡은 것이 중요하다. 등급 C 여도 `echoesQuery=false` 인
+        // 몰(onnuri-market)은 **그 선언이 곧 '없다'의 근거**라 사실이어야 하고, 계속 대조한다.
+        if (absent && canDecideAbsent(t) && echoed != t.echoesQuery()) {
             note = (note.isEmpty() ? "" : note + " / ")
                     + "echoesQuery 선언(" + t.echoesQuery() + ")과 실측(" + echoed + ")이 다르다";
         }

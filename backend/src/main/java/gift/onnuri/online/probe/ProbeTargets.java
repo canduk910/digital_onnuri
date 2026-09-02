@@ -88,12 +88,17 @@ public final class ProbeTargets {
             // robots.txt: Allow: / (Disallow 는 /api/, /checkout/komsco-return 뿐)
             // 없음 실측: `"zzqqxyw12345" 검색 결과 검색 결과가 없습니다`
             // 있음 실측: "로봇청소기" 20회 · [로보락] Qrevo Edge 2 로봇청소기 등
+            // echoesQuery=false 로 정정(2026-09-03) — 1단계에 true 로 둔 것은 이 몰이
+            // 질의를 되뿌린다고 본 것인데, 그 에코는 전부 **에코 블록 안**(제목·검색창)이라
+            // 판정이 보는 본문(stripEcho)에는 남지 않는다. 카나리아 기준을 규칙과 맞추자 드러났다.
+            // 등급 A 문구가 먼저 확정하므로 판정은 그대로이고, 문구가 깨졌을 때만
+            // 토큰 0 판정이 unclear 대신 none(medium) 을 낸다 — 안전한 방향이다.
             new ProbeTarget("onnuri-hotdeal",
                     "https://onnurideal.com/search?q={q}",
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
                     List.of("\"{q}\" 검색 결과 검색 결과가 없습니다"),
                     List.of(),
-                    true, 5, T_HOTDEAL, 0, "김치", 0, MEASURED, ROBOTS),
+                    false, 5, T_HOTDEAL, 0, "김치", 0, MEASURED, ROBOTS),
 
             // robots.txt: Disallow: /include/ 뿐
             // 없음 실측: 명시 문구 없음. 잡히는 것은 `원산지 데이터 없음`(상품 영역 밖 필터 UI)이라 채택 불가 → 등급 C

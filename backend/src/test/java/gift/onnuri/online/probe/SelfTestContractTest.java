@@ -73,4 +73,75 @@ class SelfTestContractTest {
         assertTrue(ProbeQuery.of(SelfTestService.ABSENT_QUERY).searchable(),
                 "없음 질의가 조회 불가하면 카나리아가 절반만 돈다");
     }
+
+    @Test
+    void 카나리아의_에코_실측은_판정과_같은_기준을_쓴다() throws Exception {
+        // echoesQuery 가 뜻하는 것은 "히트 0 판정을 쓸 수 없는가"이고, 그 히트는
+        // ProbeJudge 가 **stripEcho** 위에서 센다. 카나리아가 toText 로 재면
+        // <title>·<meta> 에만 남는 에코까지 잡혀 **선언이 옳은 몰을 틀렸다고 신고한다.**
+        // 2026-09-03 라이브에서 굿데이·인더마켓이 그렇게 걸렸고, 그 신고를 믿었다면
+        // 쓸 수 있는 '없다' 확정 수단을 근거 없이 버릴 뻔했다.
+        String src = java.nio.file.Files.readString(java.nio.file.Path.of(
+                "src/main/java/gift/onnuri/online/probe/SelfTestService.java"));
+        assertTrue(src.contains("boolean echoed = ProbeJudge.stripEcho(html)"),
+                "카나리아가 판정과 다른 기준으로 에코를 재고 있다");
+        assertFalse(src.contains("boolean echoed = ProbeJudge.toText(html)"),
+                "toText 기준으로 되돌아갔다 — 거짓 경보가 다시 난다");
+    }
+
+    @Test
+    void 제목_메타에만_남는_에코는_에코로_세지_않는다() throws Exception {
+        // 굿데이·인더마켓 실응답(2026-09-03). 없는 질의가 원문에 22~23회 있지만
+        // 전부 <title>·<meta> 라 판정이 보는 본문에는 하나도 없다.
+        for (String id : java.util.List.of("onnuri-goodday", "inthemarket-onnuri")) {
+            String html = java.nio.file.Files.readString(
+                    java.nio.file.Path.of("src/test/resources/probe/" + id + "-none.html"));
+            assertTrue(ProbeJudge.toText(html).contains("zzqqxyw12345"),
+                    id + " 전제 확인 — 제목·메타에는 질의어가 있다");
+            assertFalse(ProbeJudge.stripEcho(html).contains("zzqqxyw12345"),
+                    id + " — 판정이 보는 본문에 질의어가 남았다. echoesQuery 선언을 다시 봐야 한다");
+            assertFalse(ProbeTargets.byId(id).orElseThrow().echoesQuery(),
+                    id + " — 본문에 에코가 없는데 echoesQuery 를 true 로 선언했다");
+        }
+    }
+
+    @Test
+    void 없음을_확정할_수단이_없는_몰은_에코를_대조하지_않는다() {
+        // onnuri-chance 의 echoesQuery=true 는 사실 주장이 아니라 **정책 선언**이다 —
+        // 등급 C 라 없음-문구가 없고, 토큰 0 판정까지 열면 근거 없이 '없다'를 말하게 된다.
+        // 실측이 false 로 나와도 선언을 바꿀 일이 아니라서 매일 뜨는 note 는 소음일 뿐이고,
+        // note 가 소음이 되면 사람이 note 를 통째로 무시한다.
+        ProbeTarget chance = ProbeTargets.byId("onnuri-chance").orElseThrow();
+        assertTrue(chance.noneMarkersBound().isEmpty() && chance.noneMarkersPlain().isEmpty(),
+                "전제 확인 — 등급 C 여야 한다");
+        assertTrue(chance.echoesQuery(), "정책 선언이 유지돼야 한다");
+        assertFalse(SelfTestService.canDecideAbsent(chance),
+                "확정 수단이 없으므로 에코 대조 대상에서 빠진다");
+    }
+
+    @Test
+    void 등급C여도_선언이_없다의_근거인_몰은_계속_대조한다() {
+        // onnuri-market 은 등급 C 지만 echoesQuery=false 다 — **그 선언이 곧 '없다'의 근거**라
+        // 사실이어야 한다. 등급만 보고 대조를 끄면 이 몰의 안전망이 조용히 사라진다.
+        ProbeTarget market = ProbeTargets.byId("onnuri-market").orElseThrow();
+        assertTrue(market.noneMarkersBound().isEmpty() && market.noneMarkersPlain().isEmpty());
+        assertFalse(market.echoesQuery());
+        assertTrue(SelfTestService.canDecideAbsent(market), "대조 대상에서 빠지면 안 된다");
+    }
+
+    @Test
+    void 카나리아_에코_대조가_선언과_어긋나는_몰이_없다() throws Exception {
+        // 픽스처가 있는 조회 대상 전부에서 선언과 실측이 일치해야 한다.
+        // 어긋난 채로 두면 매일 note 가 뜨고, 그 소음이 진짜 신호를 덮는다.
+        for (ProbeTarget t : ProbeTargets.ALL) {
+            if (!SelfTestService.canDecideAbsent(t)) continue;
+            java.nio.file.Path f = java.nio.file.Path.of(
+                    "src/test/resources/probe/" + t.platformId() + "-none.html");
+            if (!java.nio.file.Files.exists(f)) continue;
+            boolean echoed = ProbeJudge.stripEcho(java.nio.file.Files.readString(f))
+                    .contains("zzqqxyw12345");
+            assertEquals(t.echoesQuery(), echoed,
+                    t.platformId() + " — echoesQuery 선언과 실측이 다르다(카나리아가 매일 신고한다)");
+        }
+    }
 }

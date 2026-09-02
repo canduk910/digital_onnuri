@@ -694,6 +694,11 @@ def stage_e_canary(out_dir):
                     f"({(now_len-b)/b*100:+.0f}%) — 개편 여부 확인")
 
     rep["robots"] = _robots_scan()
+    # 변화·오류만 찍으면 "침묵 = 정상"인지 "감시가 안 돈 것"인지 로그로 구분할 수 없다(2026-09-03 적발) —
+    # 요약 한 줄은 늘 남긴다.
+    _same = sum(1 for pid, r in rep["robots"].items()
+                if not r.get("error") and r.get("blocked_all") == (pid in ROBOTS_BLOCKED_AT_SURVEY))
+    log(f"  · robots 감시 {len(rep['robots'])}곳 조회 — 기준선과 동일 {_same}곳")
     for pid, r in rep["robots"].items():
         was_blocked = pid in ROBOTS_BLOCKED_AT_SURVEY
         if r.get("error"):

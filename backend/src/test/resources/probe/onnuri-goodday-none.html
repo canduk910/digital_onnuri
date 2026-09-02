@@ -838,22 +838,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <a href="#none" onclick="return false;" class="btn_search js_header_search_open"></a>
             </div><!-- end form_fake -->
 
-                                    <div class="og_pop_keyword">
-                <span class="og_pop_tit">인기키워드</span>
-                <div class="og_pop_list">
-                                            <a class="og_pop_item" href="/?pn=product.search.list&search_word=%EC%A1%B1%EB%B0%9C">족발</a>
-                                            <a class="og_pop_item" href="/?pn=product.search.list&search_word=%EC%82%AC%EA%B3%BC">사과</a>
-                                            <a class="og_pop_item" href="/?pn=product.search.list&search_word=%EC%BC%80%EC%9D%B4%ED%81%AC">케이크</a>
-                                            <a class="og_pop_item" href="/?pn=product.search.list&search_word=%EA%B0%80%EB%AF%BC">가민</a>
-                                            <a class="og_pop_item" href="/?pn=product.search.list&search_word=%EB%8B%AD%EA%B0%80%EC%8A%B4%EC%82%B4">닭가슴살</a>
-                                            <a class="og_pop_item" href="/?pn=product.search.list&search_word=Cios">Cios</a>
-                                            <a class="og_pop_item" href="/?pn=product.search.list&search_word=%ED%8C%8C%EB%9E%98%EA%B9%80">파래김</a>
-                                            <a class="og_pop_item" href="/?pn=product.search.list&search_word=ih">ih</a>
-                                            <a class="og_pop_item" href="/?pn=product.search.list&search_word=600ml">600ml</a>
-                                            <a class="og_pop_item" href="/?pn=product.search.list&search_word=%EB%B9%84%EB%88%84">비누</a>
-                                    </div>
-            </div>
-            
+                        
             <div class="search_open">
                 <form name="main_search" role="search" class="form_box" action="/" method="get" onsubmit="return searchFunction_header(this);">
                     <input type="hidden" name="pn" value="product.search.list">
@@ -896,7 +881,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
                                 <script type="text/javascript">
                 (function(){
-                    var ogAC = ["족발","사과","케이크","가민","닭가슴살","Cios","파래김","ih","600ml","비누"];
+                    var ogAC = [];
                     var $inp = $('form[name="main_search"] .search_word');
                     var $box = $('.og_ac_box');
                     if(!$inp.length || !$box.length || !ogAC || !ogAC.length) return;
@@ -928,22 +913,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 })();
                 </script>
 
-                                                <div class="og_pop_keyword_m">
-                    <div class="og_pop_m_tit">인기키워드</div>
-                    <div class="og_pop_m_list">
-                                                    <a class="og_pop_m_item" href="/?pn=product.search.list&search_word=%EC%A1%B1%EB%B0%9C">족발</a>
-                                                    <a class="og_pop_m_item" href="/?pn=product.search.list&search_word=%EC%82%AC%EA%B3%BC">사과</a>
-                                                    <a class="og_pop_m_item" href="/?pn=product.search.list&search_word=%EC%BC%80%EC%9D%B4%ED%81%AC">케이크</a>
-                                                    <a class="og_pop_m_item" href="/?pn=product.search.list&search_word=%EA%B0%80%EB%AF%BC">가민</a>
-                                                    <a class="og_pop_m_item" href="/?pn=product.search.list&search_word=%EB%8B%AD%EA%B0%80%EC%8A%B4%EC%82%B4">닭가슴살</a>
-                                                    <a class="og_pop_m_item" href="/?pn=product.search.list&search_word=Cios">Cios</a>
-                                                    <a class="og_pop_m_item" href="/?pn=product.search.list&search_word=%ED%8C%8C%EB%9E%98%EA%B9%80">파래김</a>
-                                                    <a class="og_pop_m_item" href="/?pn=product.search.list&search_word=ih">ih</a>
-                                                    <a class="og_pop_m_item" href="/?pn=product.search.list&search_word=600ml">600ml</a>
-                                                    <a class="og_pop_m_item" href="/?pn=product.search.list&search_word=%EB%B9%84%EB%88%84">비누</a>
-                                            </div>
-                </div>
-                
+                                
                                     <div class="search_empty_guide" style="display:none;">
                         <div class="guide_head">
                             <div class="guide_title">원하는 상품을 빠르게 찾아보세요</div>
@@ -3218,10 +3188,10 @@ var authReportPop = true;
 		
 <script>
 var bench = new Array();
-bench['wrap.header.php'] = '0.0421초'; 
-bench['inc.header.php'] = '0.0148초'; 
+bench['wrap.header.php'] = '0.0379초'; 
+bench['inc.header.php'] = '0.0146초'; 
 bench['inc.header.marketing.php'] = '0.0104초'; 
-bench['product.search.list.php'] = '1.4894초'; 
+bench['product.search.list.php'] = '0.0643초'; 
 bench['inc.latest.php'] = '0.0006초'; 
 bench['소모 메모리'] = '5.5M';
 </script>
