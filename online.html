@@ -411,6 +411,39 @@
     return null;
   }
 
+  /**
+   * 외부에서 들어온 cat 값을 state 에 반영한다(챗 navigate·URL 파라미터 공용 창구).
+   *
+   * 받아들이는 형태: 소분류 id·라벨, 대분류 id·라벨, 그리고 **"대분류/소분류"**.
+   * 마지막 형태가 필요한 이유 — RAG 코퍼스가 카테고리를 `대분류/소분류` 로 적어서
+   * 모델이 그대로 넘긴다("가전·디지털/생활·주방가전"). 예전에는 어느 것과도 맞지 않아
+   * **필터가 통째로 무시됐다**(2026-09-02 실측: 22곳 = 쇼핑 전체, 정상이면 10곳).
+   * 2026-08-27 normKind 와 같은 유형이라 같은 방식으로 창구를 둔다 —
+   * 입력 지점이 늘어도 여기만 지나면 된다.
+   */
+  function applyCat(raw) {
+    if (!raw) return;
+    var wants = [String(raw)];
+    if (wants[0].indexOf("/") !== -1) {
+      // 뒤가 소분류다. 앞(대분류)도 폴백으로 남긴다 — 소분류를 못 찾으면 대분류라도 건다.
+      var parts = wants[0].split("/");
+      wants = [parts[parts.length - 1].trim(), parts[0].trim()];
+    }
+    for (var i = 0; i < wants.length; i++) {
+      var w = wants[i], found = false;
+      TAXONOMY.forEach(function (t) {
+        (t.subs || []).forEach(function (s2) {
+          if (s2.id === w || s2.label === w) { state.cat = t.id; state.sub = s2.id; found = true; }
+        });
+      });
+      if (found) return;
+      TAXONOMY.forEach(function (t) {
+        if (t.id === w || t.label === w) { state.cat = t.id; found = true; }
+      });
+      if (found) return;
+    }
+  }
+
   function filtered() {
     var q = state.q.trim().toLowerCase();
     return PLATFORMS.filter(function (p) {
@@ -814,12 +847,7 @@
     state.kind = "전체"; state.cat = "전체"; state.sub = "전체"; state.brand = "전체"; state.q = "";
     var qi = el("q"); if (qi) qi.value = "";
     var nk = normKind(p.kind); if (nk) state.kind = nk;
-    if (p.cat) {
-      TAXONOMY.forEach(function (t) {
-        if (t.id === p.cat || t.label === p.cat) state.cat = t.id;
-        (t.subs || []).forEach(function (s2) { if (s2.id === p.cat || s2.label === p.cat) { state.cat = t.id; state.sub = s2.id; } });
-      });
-    }
+    applyCat(p.cat);
     if (p.brand) state.brand = p.brand;
     if (p.q) { state.q = p.q; if (qi) qi.value = p.q; }
     renderAll();
@@ -914,12 +942,7 @@
       } catch (e) { return; }
     }
     var ok = normKind(o.kind); if (ok) state.kind = ok;
-    if (o.cat) {
-      TAXONOMY.forEach(function (t) {
-        if (t.id === o.cat || t.label === o.cat) state.cat = t.id;
-        (t.subs || []).forEach(function (s2) { if (s2.id === o.cat || s2.label === o.cat) { state.cat = t.id; state.sub = s2.id; } });
-      });
-    }
+    applyCat(o.cat);   // 챗 훅과 같은 창구 — 형식이 늘어도 한 곳만 고친다
     if (o.brand) state.brand = o.brand;
     if (o.q) { state.q = o.q; var qi = el("q"); if (qi) qi.value = state.q; }
   }
