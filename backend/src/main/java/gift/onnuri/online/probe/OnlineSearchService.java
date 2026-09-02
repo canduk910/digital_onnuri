@@ -1,5 +1,7 @@
 package gift.onnuri.online.probe;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -163,12 +165,14 @@ public class OnlineSearchService {
      * "확인하지 않았다"고 말하면서 갈 곳을 주지 않으면 이용자는 결국 "없다"로 읽는다.
      */
     static String searchUrlFor(ProbeTarget t, OnlinePlatformView p, ProbeQuery q) {
-        if (t != null) return ProbeUrl.build(t, q).toString();
+        // **데이터의 링크가 먼저다.** 조회 대상이라도 그 조회 URL 이 이용자가 열 화면이라는
+        // 보장이 없다 — 2026-09-02 에 추가한 두 곳은 몰의 내부 검색 API(JSON)를 부른다.
+        // 그대로 링크로 주면 이용자가 JSON 을 마주한다. 사람이 볼 화면은 데이터에 있다.
         String tpl = p.searchUrlTemplate();
         if (tpl != null && !tpl.isBlank() && tpl.contains("{q}")) {
-            return tpl.replace("{q}", java.net.URLEncoder.encode(
-                    q.normalized(), java.nio.charset.StandardCharsets.UTF_8));
+            return tpl.replace("{q}", URLEncoder.encode(q.normalized(), StandardCharsets.UTF_8));
         }
+        if (t != null && !t.isApi()) return ProbeUrl.build(t, q).toString();
         return p.url() == null ? "" : p.url();
     }
 

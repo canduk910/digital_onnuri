@@ -136,7 +136,13 @@ public final class ProbeJudge {
 
         String full = toText(html);
         // 응답은 200 인데 본문이 거의 없다 = SPA 전환 등 구조 변화 신호. 판정하지 않는다.
-        if (full.length() < 500) return Verdict.unknown();
+        //
+        // 이 가드는 화면 HTML 을 전제로 만들었다. 내부 검색 API(JSON)는 **결과가 없을 때
+        // 정상 응답이 짧다** — 현대이지웰의 '없음' 응답이 316자다. 같은 기준을 들이대면
+        // 확실한 '없음'을 unknown 으로 뭉개 버린다(2026-09-02 카나리아가 잡았다).
+        // API 몰은 하한을 낮추되 완전히 없애지는 않는다 — 빈 응답·에러 페이지는 여전히 걸러야 한다.
+        int minBody = t.isApi() ? 60 : 500;
+        if (full.length() < minBody) return Verdict.unknown();
 
         String stripped = stripEcho(html);
         int hits = maxTokenHits(stripped, q, t.noiseFloor());

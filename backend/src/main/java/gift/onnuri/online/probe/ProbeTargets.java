@@ -48,6 +48,12 @@ public final class ProbeTargets {
             P("<h4 class=\"nl-name\">\\s*<b>([^<]+)</b>");
     private static final java.util.regex.Pattern T_KKUK =      // <p class="pro_title">상품명</p>
             P("<p class=\"pro_title\">([^<]+)</p>");
+    // 아래 둘은 화면 HTML 이 아니라 몰의 **내부 검색 API(JSON)** 응답을 읽는다.
+    // 정규식 기반이라 JSON 이어도 그대로 동작한다 — 판정 엔진을 고칠 필요가 없었다.
+    private static final java.util.regex.Pattern T_EZWEL =     // "GDS_NM":"상품명"
+            P("\"GDS_NM\":\"([^\"]+)\"");
+    private static final java.util.regex.Pattern T_5ILJANG =   // "product_name":"상품명"
+            P("\"product_name\":\"([^\"]+)\"");
     private static final java.util.regex.Pattern T_EPOST =    // <div class="goods_text"><p class="tit">상품명</p>
             P("<div class=\"goods_text\">\\s*<p class=\"tit\">\\s*([^<]+?)\\s*</p>");
 
@@ -137,7 +143,40 @@ public final class ProbeTargets {
                     // echoesQuery=false — 검색어가 href·input value 에는 박히지만 **화면 텍스트로는
                     // 되뿌리지 않는다**(카나리아가 선언 true 와 실측 false 의 차이를 잡아 정정).
                     // 덕분에 토큰 0 판정을 쓸 수 있어 '없다'를 확정할 수단이 하나 더 있다.
-                    false, 5, T_KKUK, 0, "김치", 0, MEASURED, LocalDate.of(2026, 9, 1))
+                    false, 5, T_KKUK, 0, "김치", 0, MEASURED, LocalDate.of(2026, 9, 1)),
+
+            // ── 2026-09-02 추가: 화면에서 결과가 만들어지던 몰의 **내부 검색 API** 를 쓴다 ──
+            // "화면에서 만들어진다"는 건 JS 가 어딘가로 요청을 보낸다는 뜻이다. 그 요청은
+            // 정적 HTTP 로 그대로 재현할 수 있고, 브라우저가 필요 없다(ADR-17 의 제약을 우회하지
+            // 않고 푼 것). 공식 화면이 보내는 것과 같은 요청이라 새 경로를 만든 것도 아니다.
+
+            // 현대이지웰 온누리전통시장
+            // robots.txt: `User-agent: Yeti / Allow: /` 만 있고 `*` 그룹이 없다 = 제약 없음
+            // ⚠ searchTerm 은 **두 번 인코딩**해야 한다({qq}) — 한 번만 하면 0건이 온다.
+            // 없음 실측: `"resultDocuments":[]` (있는 질의에는 나오지 않음을 대조 확인) → 등급 B
+            // echoesQuery=false — 없는 질의 응답(316자)에 질의어가 전혀 없다. 토큰 0 판정도 쓸 수 있다.
+            // 실측: 김치 totalSize 891 · 로봇청소기 28 · 없는 말 0
+            new ProbeTarget("hyundai-ezwel-onnuri",
+                    "https://www.onnuri-sijang.com/onnuri/main/searchList"
+                            + "?searchTerm={qq}&displaySize=50&currentPage=1&clientCd=onnuri_b2c&dvcCd=",
+                    StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
+                    List.of(),
+                    List.of("\"resultDocuments\":[]"),
+                    false, 5, T_EZWEL, 0, "김치", 0, MEASURED, LocalDate.of(2026, 9, 2)),
+
+            // 온누리5일장 — form POST. API 호스트가 본몰과 다르다(api.samaint.co.kr, robots 404 = 금지 없음).
+            // cate_gno=45 가 이 몰의 온누리 전용관 검색이다. `all` 은 검색을 무시하고 전체 목록을
+            // 주므로 쓰면 안 된다(없는 질의에도 578KB 가 온다 — 그대로 뒀으면 늘 '있음'이 됐을 것).
+            // 없음 실측: `"data":[]`(있는 질의에는 없다) → 등급 B
+            // noiseFloor=4 — 응답의 last_query 에 SQL 이 실려 검색어가 4회 반복된다.
+            new ProbeTarget("onnuri-5iljang",
+                    "https://api.samaint.co.kr/main/product_search_cate",
+                    StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
+                    List.of(),
+                    List.of("\"data\":[]"),
+                    true, 5, T_5ILJANG, 4, "김치", 0, MEASURED, LocalDate.of(2026, 9, 2),
+                    "mall_id=onnuri&member_id=&cno=&cate_gno=45&search_str={q}"
+                            + "&request_method=POST&page=1&perPage=50")
     );
 
     /**

@@ -78,11 +78,20 @@ public class ProbeFetcher {
 
             URI uri = ProbeUrl.build(t, q);
             int ms = t.timeoutMs() > 0 ? t.timeoutMs() : timeoutMs;
-            HttpRequest req = HttpRequest.newBuilder(uri)
+            HttpRequest.Builder rb = HttpRequest.newBuilder(uri)
                     .timeout(Duration.ofMillis(ms))
                     .header("User-Agent", UA)
-                    .header("Accept-Language", "ko")
-                    .GET().build();
+                    .header("Accept-Language", "ko");
+            if (t.formBody() == null) {
+                rb.GET();
+            } else {
+                // 몰의 내부 검색 API 가 form POST 를 받는 경우(온누리5일장).
+                // 화면이 보내는 것과 같은 요청이다 — 새로 만든 경로가 아니다.
+                rb.header("Content-Type", "application/x-www-form-urlencoded")
+                  .POST(HttpRequest.BodyPublishers.ofString(
+                          ProbeUrl.fill(t.formBody(), t, q), t.charset()));
+            }
+            HttpRequest req = rb.build();
             HttpResponse<InputStream> resp =
                     http.send(req, HttpResponse.BodyHandlers.ofInputStream());
             if (resp.statusCode() / 100 != 2) {
