@@ -19,7 +19,8 @@ build_rag_corpus.py — 챗봇 RAG 지식베이스 청킹·임베딩·적재 (AD
 임베딩: OpenAI text-embedding-3-small (1536차원). 재실행 = 전체 교체(멱등).
 DB: DB_URL 환경변수 (기본 localhost:5432/onnuri, onnuri/onnuri) — V2 마이그레이션 선행 필요.
 """
-import json, os, re, sys, urllib.request
+import json
+import re, os, re, sys, urllib.request
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 CORPUS_DIR = os.path.join(ROOT, "_workspace", "rag_corpus")
@@ -225,6 +226,31 @@ def load_online_platforms():
     return chunks
 
 
+def _cat_terms():
+    """카테고리 id → 그 품목을 가리키는 말들. data/cat_rules.json(채록 규칙 사본)에서 뽑는다.
+
+    왜 필요한가: 코퍼스 청크에는 '가전·디지털/생활·주방가전' 같은 **라벨만** 있었다.
+    이용자는 "로봇청소기 어디서 사?"라고 묻는데 그 말이 어디에도 없으니 검색이 닿지 않는다
+    (2026-09-02 화면 검색에서 겪은 것과 같은 문제 — 거기서는 같은 규칙을 재사용해 풀었다).
+
+    정규식에서 사람이 읽을 수 있는 낱말만 추린다. 문법 기호가 섞이면 임베딩에 잡음이 된다.
+    """
+    path = os.path.join(ROOT, "data", "cat_rules.json")
+    if not os.path.exists(path):
+        return {}
+    out = {}
+    for r in json.load(open(path, encoding="utf-8")).get("rules", []):
+        words = []
+        for w in r["re"].split("|"):
+            w = re.sub(r"\(\?[<!=][^)]*\)", "", w)      # lookahead/lookbehind 제거
+            w = w.replace("\\/", "/").replace("\\b", "").replace("\\", "").strip()
+            if w and not re.search(r"[()\[\]?*+{}^$]", w):
+                words.append(w)
+        if words:
+            out.setdefault(r["cat"], []).extend(words)
+    return {k: list(dict.fromkeys(v)) for k, v in out.items()}
+
+
 def load_online_catalog():
     d = json.load(open(os.path.join(ROOT, "data", "online_catalog.json"), encoding="utf-8"))
     plat = json.load(open(os.path.join(ROOT, "data", "online_platforms.json"), encoding="utf-8"))
@@ -248,6 +274,24 @@ def load_online_catalog():
         chunks.append({"source": "online_catalog", "section": f"온라인몰 취급품목 > {name}",
                        "content": body, "url": it.get("survey_url"),
                        "collected_on": it.get("surveyed_on", co)})
+
+    # 품목별 청크 — "로봇청소기 어디서 사?" 처럼 **상품 이름으로 묻는** 질문이 닿을 자리다.
+    # 몰별 청크는 '그 몰이 무엇을 파는가'에 답하고, 이쪽은 '이 품목을 파는 몰이 어디인가'에 답한다.
+    terms = _cat_terms()
+    by_cat = {}
+    for it in d["items"]:
+        for c in it.get("cats", []):
+            by_cat.setdefault(c, []).append(plat_names.get(it["id"], it["id"]))
+    for cat, malls in sorted(by_cat.items()):
+        label = names.get(cat, cat)
+        ex = terms.get(cat, [])
+        body = f"온라인 물품종류 '{label}'"
+        if ex:
+            body += f" — {', '.join(ex[:14])} 등이 여기에 속한다"
+        body += (f". 이 품목을 취급하는 것으로 확인된 온라인몰 {len(malls)}곳: "
+                 f"{', '.join(sorted(malls))}.")
+        chunks.append({"source": "online_catalog", "section": f"온라인 물품종류 > {label}",
+                       "content": body, "url": None, "collected_on": co})
     return chunks
 
 
