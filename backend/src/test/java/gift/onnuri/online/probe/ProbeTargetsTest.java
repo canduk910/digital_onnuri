@@ -15,7 +15,7 @@ class ProbeTargetsTest {
 
     @Test
     void 조회대상이_모두_실측일과_robots_검토일을_가진다() {
-        assertEquals(15, ProbeTargets.ALL.size());  // 2026-09-03 굿데이·인더마켓·팔도·현대홈쇼핑 추가
+        assertEquals(17, ProbeTargets.ALL.size());  // 2026-09-03 굿데이·인더마켓·팔도·현대홈쇼핑·11번가·공영쇼핑
         for (ProbeTarget t : ProbeTargets.ALL) {
             assertNotNull(t.measuredOn(), t.platformId() + " measuredOn 없음");
             assertNotNull(t.robotsCheckedOn(), t.platformId() + " robotsCheckedOn 없음 — "
@@ -76,12 +76,14 @@ class ProbeTargetsTest {
                         t.platformId() + " 가 데이터에 없다");
                 int i = json.indexOf("\"" + t.platformId() + "\"");
                 String block = json.substring(i, Math.min(json.length(), i + 1200));
-                java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("\"search_url_template\"\\s*:\\s*\"([^\"]*)\"").matcher(block);
-                assertTrue(m.find(),
-                        t.platformId() + " — API 로 조회하는 몰인데 데이터에 search_url_template 이 없다");
-                assertFalse(m.group(1).isBlank(),
-                        t.platformId() + " — API 로 조회하는 몰인데 이용자가 열 링크가 비어 있다");
+                // 링크의 출처는 둘이다 — search_url_template(검색 화면) 또는 url(전용관·기획전 홈).
+                // searchUrlFor 가 그 순서로 고르고, API 몰은 조회 URL 로 폴백하지 않는다.
+                // 그러니 **둘 중 하나가 비어 있지 않으면 된다.** 공영쇼핑은 홈 자체가
+                // 온누리 기획전이라 검색 화면 링크를 일부러 비웠다(몰 전체 검색은 90%가 범위 밖).
+                String tpl = field(block, "search_url_template");
+                String home = field(block, "url");
+                assertTrue((tpl != null && !tpl.isBlank()) || (home != null && !home.isBlank()),
+                        t.platformId() + " — API 로 조회하는 몰인데 이용자가 열 링크가 하나도 없다");
                 continue;
             }
             String needle = t.searchUrlTemplate().replace("&", "\\u0026");
@@ -147,11 +149,11 @@ class ProbeTargetsTest {
         // 숫자가 어긋나면 사전이 조사와 갈라진 것이다.
         assertEquals(1, countReason(ProbeTargets.EX_BOT_BLOCKED), "능동 차단 1곳(사이소)");
         assertEquals(2, countReason(ProbeTargets.EX_SCOPE_FIRST), "범위 선행 2곳(놀장·시장을 방으로)");
-        assertEquals(3, countReason(ProbeTargets.EX_SCOPE_MIXED),
-                "범위 혼재 3곳(11번가·롯데ON·공영쇼핑) — 검색은 되지만 결과가 몰 전체다");
+        assertEquals(1, countReason(ProbeTargets.EX_SCOPE_MIXED),
+                "범위 혼재 1곳(롯데ON) — 조회는 좁혀지나 링크가 못 싣고 없음도 확정 못 한다");
         assertEquals(1, countReason(ProbeTargets.EX_NO_FETCH), "정적 조회 불가 1곳(인어교주해적단)");
-        // 22곳 − 조회 대상 15곳 = 7곳. 곳 수 합이 어긋나면 사전이 조사와 갈라진 것이다.
-        assertEquals(7, ProbeTargets.exclusionIds().size());
+        // 22곳 − 조회 대상 17곳 = 5곳. 곳 수 합이 어긋나면 사전이 조사와 갈라진 것이다.
+        assertEquals(5, ProbeTargets.exclusionIds().size());
     }
 
     @Test
@@ -169,6 +171,13 @@ class ProbeTargetsTest {
             assertTrue(shopping.contains(id),
                     id + " 는 쇼핑 플랫폼 목록에 없는 id 다 — 오타이거나 몰이 사라졌다");
         }
+    }
+
+    /** JSON 블록에서 문자열 필드 하나를 꺼낸다(없으면 null). */
+    private static String field(String block, String name) {
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\"" + name + "\"\\s*:\\s*\"([^\"]*)\"").matcher(block);
+        return m.find() ? m.group(1) : null;
     }
 
     private static long countReason(String reason) {

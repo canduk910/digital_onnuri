@@ -74,6 +74,14 @@ public final class ProbeTargets {
             P("<div class=\"item_n\">([^<]+)</div>");
     private static final java.util.regex.Pattern T_HHOME =    // "slitmNm":"상품명" (JSON)
             P("\"slitmNm\"\\s*:\\s*\"([^\"]+)\"");
+    // 11번가 — **앵커가 필수다.** `"title"` 만 쓰면 SEO 제목 `로봇청소기 - 11번가 추천` 이
+    // 첫 샘플로 나간다(실측). 상품 객체에서 title 바로 앞에 오는 soldOut 을 앵커로 쓴다.
+    // 2026-09-03 실측 매치: 김치 106 · 로봇청소기 21 · 없는 말 15(전부 추천 블록이라
+    // 질의어를 담지 않아 extractTitles 가 걸러 낸다).
+    private static final java.util.regex.Pattern T_11ST =
+            P("\"soldOut\":(?:true|false),\"title\":\"([^\"]+)\"");
+    private static final java.util.regex.Pattern T_GONGYOUNG = // <prdNm>상품명</prdNm> (XML)
+            P("<prdNm>([^<]+)</prdNm>");
 
     public static final List<ProbeTarget> ALL = List.of(
 
@@ -333,7 +341,59 @@ public final class ProbeTargets {
                     List.of(),
                     List.of("\"itemList\":[]"),
                     true, 5, T_HHOME, 1, "세트", 0,
-                    LocalDate.of(2026, 9, 3), LocalDate.of(2026, 9, 3), null, true)
+                    LocalDate.of(2026, 9, 3), LocalDate.of(2026, 9, 3), null, true),
+
+            // ── 2026-09-03 편입 2곳 — 전체 검색의 **상세 필터**로 온누리 범위를 잡는다 ──
+            // 앞선 조사가 "전용관 안에 검색이 없다 → 범위 오염"으로 접었던 곳들이다.
+            // 전용관(범위)과 전체 검색(도구)을 따로 본 것이 잘못이었다 —
+            // **전체 검색에 범위 필터가 있으면 둘이 만난다.** 한 번의 클릭 뒤에 답이 있었다.
+
+            // 11번가 온누리마켓 — 퀵필터 `filters=ONNURI`
+            // 범위가 기획전보다 정확하다: 이 필터는 11번가가 스스로 붙인 **결제 가능 속성**이고
+            // (상품 상세에 `디지털온누리상품권 결제 가능` 배지), 기획전 242건을 포함하는 상위집합이다.
+            // 없음 실측: `"groupName":"noSearchData"` — 있음 0회 / 없음 1회 → 등급 B.
+            //   ⚠ `"totalCount":0` 도 같은 성질이라 함께 둘 수 있으나 **넣지 않았다** —
+            //   면(facet)마다 카운트가 실리는 응답이라 어느 한 면이 0이면 있는 상품을 없다고 할 수 있다.
+            //   가장 위험한 방향이고, noSearchData 가 늘 함께 나오므로 얻는 것도 없다.
+            // echoesQuery=true · noiseFloor=9 — 없는 질의 4종에서 **전부 정확히 9회**(SEO 제목·설명·안내).
+            //   이 값이 없으면 hits 9 ≥ 임계라 등급 B 문구가 있어도 unclear 로 빠진다.
+            // jsonApi=true — GET 이지만 JSON API 다. 이용자 링크는 데이터의 화면 주소를 쓴다
+            //   (`search.11st.co.kr/pc/total-search?…&filters=ONNURI` — 새로 열면 칩이 checked 로 걸린다).
+            // 실측(2026-09-03): 김치 200·841,317B·938건·0.62초 / 로봇청소기 65,963B·22건 /
+            //   zzqqxyw12345 161,052B·0건.
+            new ProbeTarget("11st-onnuri-market",
+                    "https://apis.11st.co.kr/search/api/tab"
+                            + "?kwd={q}&tabId=TOTAL_SEARCH&filters=ONNURI",
+                    StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
+                    List.of(),
+                    List.of("\"groupName\":\"noSearchData\""),
+                    true, 5, T_11ST, 9, "김치", 0,
+                    LocalDate.of(2026, 9, 3), LocalDate.of(2026, 9, 3), null, true),
+
+            // 공영쇼핑 — 혜택 필터 `benefit=trdit_mrkt_goods_yn`
+            // 이 값을 몰이 **'온누리'로 부른다**(혜택 목록 응답에 `<nm>온누리</nm>`).
+            // 기획전(ebtNo=4328) 표본 20건을 이 필터로 조회하니 20/20 이 걸렸다.
+            // ⚠ 불확실성: 이 값이 결제 가능 속성인지를 **상품 화면에서 직접 확인하지는 못했다.**
+            //   몰의 이름표와 기획전 표본 일치까지가 근거다. 필터 뜻이 바뀌면 범위가 조용히 어긋난다.
+            // 필터를 빼면 몰 전체가 나온다 — 김치 40건 중 온누리 기획전 상품이 4건뿐이었다(6-9절).
+            //   그래서 formBody 의 benefit 은 **지워서는 안 되는 값**이다.
+            // 없음 실측: `<rsltYn>N</rsltYn>` — 있음은 Y → 등급 B.
+            //   ⚠ 이 문구는 **원문에서만 잡힌다.** XML 이라 toText 가 태그를 걷으면 ` N ` 만 남는다.
+            //   ProbeJudge 가 API 몰에 한해 원문도 대조하게 고친 이유가 이것이다.
+            // echoesQuery=true · noiseFloor=4 — 없는 질의가 텍스트에 4회(input value·kwd·recKwd 2회).
+            // 이용자 링크는 데이터의 기획전 홈이다({q} 없음 — 2026-09-03 계약 완화 적용).
+            //   몰 전체 검색 화면을 링크로 주면 90%가 범위 밖이라 그렇게 하지 않는다.
+            // 실측(2026-09-03): 김치 200·10,688B·184건·0.10초 / 로봇청소기 1,136B·0건 /
+            //   zzqqxyw12345 1,124B·0건.
+            new ProbeTarget("gongyoung-shopping",
+                    "https://www.gongyoungshop.kr/search/ajaxSearchGoodsList.do",
+                    StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
+                    List.of(),
+                    List.of("<rsltYn>N</rsltYn>"),
+                    true, 5, T_GONGYOUNG, 4, "김치", 0,
+                    LocalDate.of(2026, 9, 3), LocalDate.of(2026, 9, 3),
+                    "kwd={q}&reSrchFlag=false&pageNum=1&pageSize=40&sort=r&kwdType=0"
+                            + "&benefit=trdit_mrkt_goods_yn&brandSort=cou&logFlag=true")
     );
 
     /**
@@ -359,7 +419,7 @@ public final class ProbeTargets {
     // 그건 우리 사정이 아니라 이용자를 위한 선택이므로 화면이 그렇게 말할 수 있어야 한다.
 
     /**
-     * 7곳 **전수 명시**. 기본값으로 흘려보내지 않는다 —
+     * 5곳 **전수 명시**. 기본값으로 흘려보내지 않는다 —
      * 2026-09-02 이전에는 2곳만 적고 나머지를 `no-static-search` 로 흘려, 화면이
      * "화면에서만 만들어져 읽을 수 없음 10곳"이라는 **사실과 다른 사유**를 말하고 있었다.
      * 전수화하지 않으면 같은 일이 조용히 반복되므로 ProbeTargetsTest 가 완전성을 고정한다.
@@ -374,17 +434,19 @@ public final class ProbeTargets {
             java.util.Map.entry("onnuri-noljang", EX_SCOPE_FIRST),   // 시장 선택 → /market/{id} 안에서 검색
             java.util.Map.entry("oligopalgo", EX_SCOPE_FIRST),       // 배달 주소 선택 → /shop/address.php
 
-            // ── 검색은 정적으로 되지만 결과가 몰 전체다 (2026-09-03 실측) ────────────
-            // 기획전 안에 자기 검색이 없다. 화면 입력창은 11번가 GNB 통합검색이라
-            // search.11st.co.kr 로 나가고 기획전을 가리키는 파라미터가 없다.
-            java.util.Map.entry("11st-onnuri-market", EX_SCOPE_MIXED),
-            // 상생스토어 안에 검색이 없다. 화면 검색은 mallId=1(롯데ON 전체)로 나간다.
-            // 화면 링크 135개를 전수 열거해도 스토어 내 검색·전체상품 탭이 없다.
+            // ── 검색은 정적으로 되지만 결과를 온누리 범위로 좁힐 수 없다 ─────────────
+            // 롯데ON: 프로모션 필터 `u31=onnuri` 로 **조회는** 범위가 잡힌다(김치 1,149건,
+            // 반환 상품 전부가 온누리 표식을 갖는다). 그럼에도 편입하지 않는 이유가 둘이다.
+            //   ① **이용자 링크가 필터를 못 싣는다.** 롯데ON 은 필터를 주소에 넣지 않아,
+            //      `&u31=onnuri` 를 붙여 새로 열어도 칩이 꺼지고 조회에도 실리지 않는다(실측).
+            //      조회는 온누리 범위인데 링크는 몰 전체가 되면 이용자는
+            //      "여기 있다더니 다른 게 나온다"를 겪는다.
+            //   ② **'없다'를 확정할 수단이 없다.** 결과가 없으면 본문이 **0바이트**로 온다.
+            //      지금 판정은 API 몰 하한 60자 아래를 unknown 으로 접는다 — 빈 응답과 장애
+            //      응답을 구분할 수 없어서다. 그대로 넣으면 없는 상품에 늘 unknown 이 나간다.
+            //      쓰려면 "빈 본문 = 없음"을 타깃 단위로 선언하는 장치가 필요하고,
+            //      그건 일부러 세운 가드를 무르는 일이라 별도 판단이 있어야 한다.
             java.util.Map.entry("lotte-on-sangsaeng-store", EX_SCOPE_MIXED),
-            // 검색 자체는 흠잡을 데 없다(김치 40건·없는 말 0건). 그런데 범위가 몰 전체다 —
-            // 김치 40건의 상품 id 를 온누리 기획전 450개와 대조하니 **겹치는 것이 4건**.
-            // 나머지 36건은 온누리상품권으로 살 수 없다.
-            java.util.Map.entry("gongyoung-shopping", EX_SCOPE_MIXED),
 
             // ── 정적 응답에 결과가 실리지 않는다 ─────────────────────────────────────
             // api.tpirates.com/v3/www/product/search 실존(onnuri 필터 키까지 있다) — 직접 호출 401.

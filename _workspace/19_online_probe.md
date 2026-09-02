@@ -570,3 +570,119 @@ kwd={q}&reSrchFlag=false&pageNum=1&pageSize=40&sort=r&kwdType=0&brandSort=cou&lo
 | `hyundai-home-shopping_absent.json` | zzqqxyw12345 · 200 · 850B · `"itemList":[]` |
 
 부적합 3곳의 실측 물증도 같은 디렉터리에 남겼다 — `11st_theme.txt`(기획전 상품 API), `gy_ebt.json`(기획전 450건), `gy_kimchi.txt`·`gy_none.txt`(몰 전체 검색), `lotte_shop.json`(상생스토어 API), `lotte_tabs.json`(링크 135개 전수).
+
+### 6-10-1. 전체 검색의 **상세 필터**로 온누리 범위가 잡힌다 (2026-09-03, 앞 절 정정)
+
+사용자 질문("11번가와 롯데ON은 상세검색에 필터가 있지 않나?")으로 다시 봤다. **앞 절이 틀렸다** — 두 몰 다 검색 필터에 **온누리 전용 항목**이 있고, 전용관 밖에서 그것을 고르면 범위가 잡힌다. 앞 절은 전용관 **안**의 검색만 보고 "전체 검색뿐이니 범위 오염"으로 접었다. 필터를 열어 보지 않은 것이다.
+
+| 몰 | 필터 항목 | 화면이 보내는 인자 | 결론 |
+|---|---|---|---|
+| **11번가** | 퀵필터 `온누리상품권` | `filters=ONNURI` | **범위 지정 가능 — 실시간 편입 후보** |
+| **롯데ON** | 프로모션 필터 `온누리상품권 사용` | `u31=onnuri` | **범위 지정 가능하나 이용자 링크가 못 싣는다** |
+
+#### 11번가 — `filters=ONNURI`
+
+`GET apis.11st.co.kr/search/api/tab-filter?kwd={q}&tabId=TOTAL_SEARCH` 가 필터 그룹 전부를 준다: 속성(`attributes`) · 할인/적립(`benefits`) · 브랜드(`brandCd`, 500종) · 배송혜택(`benefits`) · 판매처(`sellerNos` — 백화점·대형몰·홈쇼핑·전문몰) · 결과 내 재검색 · 가격 · 상품 유형(`verticalType`) · **퀵필터(`filters`)** · 카테고리(`searchCategoryLarge`) · 정렬(`sortCd`) · 토글(`prdPrmtInfoList`).
+
+퀵필터 첫 항목이 `{"name":"온누리상품권","code":"ONNURI","paramKey":"filters","count":810}` 다. 화면에서 실제로 눌러 확인한 인자가 `filters=ONNURI` 이고, **주소창에도 남는다.**
+
+- 조회: `https://apis.11st.co.kr/search/api/tab?kwd={q}&tabId=TOTAL_SEARCH&filters=ONNURI`
+- 이용자 링크: `https://search.11st.co.kr/pc/total-search?kwd={q}&tabId=TOTAL_SEARCH&filters=ONNURI` — 이 주소로 새로 열면 퀵필터가 **checked=true** 로 걸리고 API 도 `filters=ONNURI` 로 나간다(실측).
+
+**범위가 기획전보다 정확하다.** 결과 상품의 상세 페이지에 `디지털온누리상품권 결제 가능` 배지와 안내문 `'디지털온누리상품권 결제 가능'으로 표기된 상품만 결제 가능합니다.` 가 붙어 있다 — 11번가가 스스로 표시한 **결제 가능 속성**이지 기획전 큐레이션이 아니다. 기획전(2210481) 상품은 테마 9개를 전수 받아 **고유 242건**인데, 그중 표본 4건을 상품명으로 ONNURI 검색하니 3건이 결과에 들어 있었다(나머지 1건은 질의어를 12자로 자른 탓에 0건). 즉 **필터 집합이 기획전을 포함하는 상위집합**이다.
+
+| 질의 | 필터 없음 | `filters=ONNURI` | 응답 |
+|---|---|---|---|
+| 김치 | 278,339 | **938** | 842KB · 0.54초 |
+| 로봇청소기 | — | **22** | 65.9KB |
+| zzqqxyw12345 | — | **0** | 161.9KB · `isNr:true` |
+
+규칙 재료:
+- **없음-문구** `"groupName":"noSearchData"` — 있음 0회 / 없음 1회. 등급 B(구조적으로 함께 나올 수 없다). `"totalCount":0` 도 같은 성질이라 함께 둘 수 있다.
+- **titlePattern** `"soldOut":(?:true|false),"title":"([^"]+)"` — 있음 106 / 없음 12(전부 추천 블록이라 질의어를 담지 않아 걸러진다). **앵커를 빼고 `"title"` 만 쓰면 안 된다** — SEO 제목 `김치 - 11번가 추천` 이 상품명 샘플로 나간다(6-5절 제목 에코 함정).
+- **echoesQuery = true**, **noiseFloor = 9** — 없는 질의 4종(zzqqxyw12345·qqzzxxyy9988·zzzz9999·wjqhdxkalsem)에서 **전부 정확히 9회**였다(SEO 제목·설명·안내 문구). 이 값을 안 두면 `hits=9 ≥ likelyThreshold` 라 등급 B 문구가 있어도 `unclear` 로 빠진다.
+
+#### 롯데ON — `u31=onnuri`, 그런데 링크가 못 싣는다
+
+검색 화면 HTML 이 필터 정의를 그대로 담고 있다.
+
+```
+promotionFilter: {group:'promotion', items:[
+  {"name":"공식브랜드","value":"official"},
+  {"name":"온누리상품권 사용","value":"onnuri"},
+  {"name":"집밥상점","value":"mpb"}]}
+storeFilter: {group:'store', items:[롯데백화점 le / 롯데마트 lm / 롯데홈쇼핑 li / 하이마트 lh / 입점 판매자 sr]}
+```
+
+판매처 필터는 롯데 계열 4종 + 입점 판매자뿐 — **개별 스토어(`dshopNo`)를 고르는 항목은 없다.** 앞 절의 "`dshopNo` 로 좁히는 파라미터가 없다"는 그대로 유효하다. 대신 프로모션 필터에 온누리 항목이 있다.
+
+화면에서 눌러 확인한 조회 인자:
+`GET https://www.lotteon.com/csearch/search/search?u2=0&u3=60&u16=ranking.desc&u31=onnuri&u37=true&u39=0&render=qapi&platform=pc&collection_id=9&q={q}&mallId=1`
+
+| 질의 | 필터 없음 | `u31=onnuri` | 응답 |
+|---|---|---|---|
+| 김치 | 53,150 | **1,149** | 220.9KB · 0.62초 · itemList 60 |
+| 로봇청소기 | 8,225 | **31** | 114.9KB |
+| zzqqxyw12345 | — | 0 | **본문 0바이트** |
+
+**범위는 응답 자체로 확인된다** — 반환 상품이 김치 60/60, 로봇청소기 31/31 전부 `additionalFlagList {"type":"onnuri","name":"온누리상품권"}` 와 `emblemInfo.emblemName:"온누리"` 를 갖는다. 상생스토어(`dshopNo=57821`) 상품 3건을 상품명으로 조회하니 2건이 필터 결과에 들어 있었다(3번째는 상위 60건 밖이라 판단 보류) — 여기서도 필터가 스토어를 **포함하는 상위집합**이다.
+
+**그럼에도 편입을 권하지 않는 이유 둘.**
+
+1. **이용자 링크에 필터를 실을 수 없다.** 롯데ON 은 필터를 주소에 넣지 않는다 — 필터를 걸어도 주소창은 `…&sort=ranking` 그대로였고, `&u31=onnuri` 를 붙여 화면을 새로 열어도 **칩이 꺼져 있고 조회 요청에도 `u31` 이 없다**(실측). 링크는 몰 전체 검색이 되므로 **6-6절이 링크에서 뺀 이유가 그대로 남는다.** 조회는 온누리 범위인데 링크는 아닌 상태로 내보내면, 이용자는 "여기 있다더니 다른 게 나온다"를 겪는다.
+2. **'없다'를 확정할 수단이 없다.** 결과가 없으면 롯데ON 은 `content-type: text/html` 에 **`content-length: 0`** 을 준다(없는 말 3종 전부 동일, 필터 유무 무관). 지금 `ProbeJudge` 는 API 몰 본문 하한을 60자로 두고 그 아래는 `unknown` 으로 접는다 — 빈 응답과 장애 응답을 구분할 수 없기 때문이다(6-7절). 그대로 넣으면 이 몰은 **없는 상품에 늘 `unknown`** 을 낸다. 쓰려면 "빈 본문 = 없음"을 타깃 단위로 선언하는 장치가 필요하고, 그건 6-7절이 일부러 세운 가드를 무르는 일이라 별도 판단이 필요하다.
+
+titlePattern 후보는 `"pdName":\s*"([^"]+)"` 이고, 없음 응답이 비어 있어 echoesQuery 는 실측상 무의미하다(토큰 0).
+
+#### 픽스처 후보 추가
+
+| 파일 | 내용 |
+|---|---|
+| `11st-onnuri-market_present_kimchi.json` | 김치 · 200 · 842,341B · totalCount 938 |
+| `11st-onnuri-market_absent.json` | zzqqxyw12345 · 200 · 161,865B · `noSearchData` |
+| `lotte-on-sangsaeng-store_present_kimchi.json` | 김치 · 200 · 220,868B · total 1,149 |
+| `lotte-on-sangsaeng-store_absent.txt` | zzqqxyw12345 · 200 · **0B** |
+
+#### 남는 교훈
+
+두 몰 다 **한 번의 클릭 뒤에 답이 있었다.** 6-7절은 robots 를 보고 접었고, 6-10절은 전용관 화면만 보고 접었다. 전용관(범위)과 전체 검색(도구)을 각각 따로 본 것이 문제였다 — **전체 검색에 범위 필터가 있으면 둘이 만난다.** 남은 몰(공영쇼핑)에도 같은 질문을 다시 던져 볼 값이 있다.
+
+#### 공영쇼핑도 같았다 — `benefit=trdit_mrkt_goods_yn`
+
+같은 질문을 공영쇼핑에 던지니 여기도 있었다. `POST /search/ajaxSearchBenefit.do` 가 혜택 필터를 준다:
+
+```
+<gbn>trditmrk</gbn><nm>온누리</nm><val>trdit_mrkt_goods_yn</val><cnt>184</cnt>
+```
+
+화면에서 그 체크박스를 눌러 확인한 인자가 `benefit=trdit_mrkt_goods_yn` 이고, 기존 조회 본문에 그대로 얹힌다.
+
+```
+POST https://www.gongyoungshop.kr/search/ajaxSearchGoodsList.do
+kwd={q}&reSrchFlag=false&pageNum=1&pageSize=40&sort=r&kwdType=0&benefit=trdit_mrkt_goods_yn&brandSort=cou&logFlag=true
+```
+
+| 질의 | 필터 없음 | `benefit=trdit_mrkt_goods_yn` | 응답 |
+|---|---|---|---|
+| 김치 | 2,733 | **184** | 10,688B · 0.12초 · `<prdNm>` 40 |
+| 로봇청소기 | — | **0** | 1,136B · `<rsltYn>N</rsltYn>` |
+| zzqqxyw12345 | — | **0** | 1,124B · `<rsltYn>N</rsltYn>` |
+
+**앞 절의 "4/40" 판정은 착시였다.** 기획전(`ebtNo=4328`) 상품 표본 20건을 `POST /goods/getGoodsUnitInfo.do` 로 조회하니 **20건 전부 `trditMrktGoodsYn=Y`** 다. 필터 집합이 기획전을 포함하는 상위집합이고, 김치 상위 40건에서 겹친 것이 4건뿐이었던 것은 **정렬 상위만 봤기 때문**이다. 11번가·롯데ON 과 같은 구조다.
+
+규칙 재료: 없음-문구 `<rsltYn>N</rsltYn>`(있음은 `Y`, 등급 B) · titlePattern `<prdNm>([^<]+)</prdNm>`(있음 40 / 없음 0) · echoesQuery **true**, noiseFloor **4**(`kwd`·`recKwd` 2회·`preKwd` — 없는 질의에서 4회 실측).
+
+다만 **링크 제약은 롯데ON 과 같다.** `goodsSearch.do?kwd={q}&benefit=trdit_mrkt_goods_yn` 로 열어도 체크박스는 꺼져 있고 조회 요청의 `benefit=` 이 빈 값으로 나간다(실측). 데이터의 현재 `search_url_template` 은 몰 전체 검색이라 `{q}` 계약은 만족하지만 이용자는 필터 없는 목록을 본다.
+
+또 하나 남는 불확실성: 이 필드의 이름은 `trdit_mrkt_goods_yn`(전통시장 상품 여부)이고 몰이 그것을 `온누리` 로 부른다. 11번가(`디지털온누리상품권 결제 가능` 배지)·롯데ON(`additionalFlagList type=onnuri`)처럼 **결제 가능 속성임을 상품 화면에서 확인하지는 못했다** — 상세 페이지의 `온누리` 8회가 전부 카드 컴포넌트의 Vue 템플릿이었다. 편입 전에 공영쇼핑 온누리 안내 문구를 한 번 더 확인할 값이 있다.
+
+#### 6-10 결론 정정
+
+| 몰 | 6-10(2026-09-03 오전) | **6-10-1 정정** |
+|---|---|---|
+| 11번가 온누리마켓 | 범위 오염으로 부적합 | **편입 가능** — `filters=ONNURI`, 링크도 범위를 싣는다 |
+| 현대홈쇼핑 | 편입 가능 | 유지 — 전용관 `sectId` (링크가 질의어를 못 실음) |
+| 롯데ON 상생스토어 | 범위 오염으로 부적합 | **조회는 가능**(`u31=onnuri`)하나 링크가 범위를 못 실고 '없음' 확정 수단이 없다 → **보류** |
+| 공영쇼핑 | 범위 오염으로 부적합 | **편입 가능** — `benefit=trdit_mrkt_goods_yn` (링크가 필터를 못 실음) |
+
+**11번가만 조회·링크가 모두 온누리 범위로 잡힌다.** 나머지 셋은 조회는 범위 안이지만 이용자 링크가 그 범위를 재현하지 못한다 — 6-7절이 세운 "API 로 조회하면 데이터에 사람이 볼 검색 링크가 반드시 있어야 한다" 계약을 **'범위까지 같아야 하는가'로 한 겹 더 밀어붙일지**가 결정 사항이다.

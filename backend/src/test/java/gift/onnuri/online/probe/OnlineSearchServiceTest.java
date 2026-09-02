@@ -96,6 +96,8 @@ class OnlineSearchServiceTest {
         assertFalse(ProbeTargets.exclusionIds().contains("inthemarket-onnuri"));
         assertFalse(ProbeTargets.exclusionIds().contains("onnuri-paldo-sijang"));
         assertFalse(ProbeTargets.exclusionIds().contains("hyundai-home-shopping"));
+        assertFalse(ProbeTargets.exclusionIds().contains("11st-onnuri-market"));
+        assertFalse(ProbeTargets.exclusionIds().contains("gongyoung-shopping"));
         // 조회 대상에는 제외 사유가 붙을 일이 없다 — 붙으면 목록이 어긋난 것이다.
         for (ProbeTarget t : ProbeTargets.ALL) {
             assertFalse(ProbeTargets.exclusionIds().contains(t.platformId()),
@@ -111,7 +113,7 @@ class OnlineSearchServiceTest {
                 p("onnuri-noljang", "온누리 놀장", "shopping", "https://noljang.co.kr"),
                 p("oligopalgo", "시장을 방으로", "shopping", "https://oligopalgo.kr"),
                 p("tpirates", "인어교주해적단", "shopping", "https://www.tpirates.com"),
-                p("gongyoung-shopping", "공영쇼핑", "shopping", "https://www.gongyoungshop.kr"),
+                p("lotte-on-sangsaeng-store", "롯데ON 온누리상생스토어", "shopping", "https://s.lotteon.com/x"),
                 p("cyso", "사이소", "shopping", "https://www.cyso.co.kr")), true)
                 .search(ProbeQuery.of("로봇청소기"));
         java.util.Map<String, String> byId = new java.util.HashMap<>();
@@ -119,7 +121,7 @@ class OnlineSearchServiceTest {
         assertEquals(ProbeTargets.EX_SCOPE_FIRST, byId.get("onnuri-noljang"));
         assertEquals(ProbeTargets.EX_SCOPE_FIRST, byId.get("oligopalgo"));
         assertEquals(ProbeTargets.EX_NO_FETCH, byId.get("tpirates"));
-        assertEquals(ProbeTargets.EX_SCOPE_MIXED, byId.get("gongyoung-shopping"));
+        assertEquals(ProbeTargets.EX_SCOPE_MIXED, byId.get("lotte-on-sangsaeng-store"));
         assertEquals(ProbeTargets.EX_BOT_BLOCKED, byId.get("cyso"));
     }
 

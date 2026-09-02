@@ -2,9 +2,9 @@
 /**
  * index_nightly.js — 온라인 상품명 **전일 색인** 수집(단계 F, 2026-09-02, ADR-18)
  *
- * 하는 일: 실시간 조회가 닿지 않는 몰 5곳을 야간에 한 번 열어 **상품명과 주소만** 걷는다.
+ * 하는 일: 실시간 조회가 닿지 않는 몰 3곳을 야간에 한 번 열어 **상품명과 주소만** 걷는다.
  *   레시피는 두 종류다 — 화면이 그려져야 상품이 보이는 곳은 **브라우저**로(놀장·인어교주),
- *   기획전·스토어가 자기 상품을 정적 요청으로 주는 곳은 **fetch 만으로**(11번가·롯데ON·공영쇼핑).
+ *   스토어가 자기 상품을 정적 요청으로 주는 곳은 **fetch 만으로**(롯데ON).
  * 하지 않는 일: 가격·재고·리뷰를 담지 않고, 상품 상세 페이지를 열지 않으며, 데이터를 고치지 않는다.
  *   적재는 nightly_update.py 단계 F 가 한다(이 스크립트는 JSON 파일만 남긴다).
  *
@@ -13,7 +13,7 @@
  *   "지금 검색된다"가 아니다. 그래서 실시간 조회의 상태 목록(none/likely/…)에 섞지 않는다(ADR-18).
  *
  * 사용:
- *   node backend/tools/index_nightly.js                     # 5곳 전부, 요약만 출력
+ *   node backend/tools/index_nightly.js                     # 3곳 전부, 요약만 출력
  *   node backend/tools/index_nightly.js --out DIR           # DIR/product-index-YYYY-MM-DD.json 저장
  *   node backend/tools/index_nightly.js --ids tpirates      # 지정한 몰만
  *   node backend/tools/index_nightly.js --limit 10          # 몰당 페이지 상한을 낮춰 시험
@@ -23,13 +23,13 @@
  *   몰 하나가 실패해도 나머지는 계속하고, 전 몰이 실패해도 0 으로 끝낸다 — 단계 F 는 fail-open 이다.
  *
  * 예의(상대 사이트 부담):
- *   · 호스트당 요청 간격 — 기본 1초, 롯데ON 은 3초(아래 각 레시피의 robots 기록 참고)
+ *   · 호스트당 요청 간격 — 기본 1초, 롯데ON 은 3초(레시피 주석의 robots 실측 기록 참고)
  *   · 몰당 페이지 상한(레시피별 선언)
  *   · 이미지·폰트·미디어·분석 스크립트는 차단해 바이트를 줄인다
  *   · robots.txt 를 지킨다 — 지니어스몰의 /ko_mall/ 은 열지 않는다(2026-09-02 실측)
  *   · 검색 API 를 직접 부르거나 번들의 토큰을 재사용하지 않는다(ADR-18 기각 대안).
  *     인어교주해적단의 상품 목록은 **화면을 열면 브라우저가 스스로 보내는 요청**의 응답을 읽는다.
- *     정적 레시피 3곳도 마찬가지로 **화면이 보내는 것과 같은 요청**만 보낸다(19절 6-10 실측).
+ *     정적 레시피도 마찬가지로 **화면이 보내는 것과 같은 요청**만 보낸다(19절 6-10 실측).
  *   · 정적 레시피의 UA 는 `Mozilla/5.0 (onnuri-guide-check)` — 실현성 조사에서 쓴 것과 같고,
  *     브라우저인 척하지 않는다. 브라우저 레시피는 실제 브라우저라 크롬 UA 를 그대로 쓴다.
  */
@@ -108,9 +108,9 @@ function isOnnuriStore(store) {
 /**
  * XML·HTML 에서 걷은 텍스트의 엔티티를 되돌린다.
  *
- * 정적 레시피는 브라우저를 거치지 않으므로 `&amp;`·`&#39;` 가 그대로 남는다.
- * 공영쇼핑 `<prdNm>` 과 11번가 기획전 HTML 이 실제로 그렇다. 그대로 저장하면
- * 이용자가 검색창에 친 `&` 와 색인의 `&amp;` 가 서로 닿지 않는다.
+ * 정적 레시피는 브라우저를 거치지 않으므로 응답의 `&amp;`·`&#39;` 가 그대로 남는다.
+ * 그대로 저장하면 이용자가 검색창에 친 `&` 와 색인의 `&amp;` 가 서로 닿지 않는다.
+ * (브라우저 레시피는 textContent 라 이미 풀려 오지만, 같은 창구를 쓰면 경로가 갈리지 않는다.)
  */
 function decodeXmlText(s) {
   if (typeof s !== 'string') return '';
@@ -130,7 +130,7 @@ function decodeXmlText(s) {
  * 정당한 요청까지 걸리고, 반대로 검사를 없애면 엉뚱한 사이트를 긁어도 아무도 모른다.
  *
  * `co.kr`·`or.kr` 같은 2단계 국가 도메인은 라벨을 셋 잡는다 — 둘만 잡으면
- * `11st.co.kr` 과 `naver.co.kr` 이 같은 `co.kr` 로 뭉개진다.
+ * `noljang.co.kr` 과 `naver.co.kr` 이 같은 `co.kr` 로 뭉개져 아무 사이트나 통과한다.
  */
 const SECOND_LEVEL = new Set(['co', 'or', 'ne', 'go', 'ac', 'pe', 're', 'com', 'net', 'org']);
 function registrableDomain(host) {
@@ -403,65 +403,7 @@ async function crawlTpirates(ctx, recipe, limit, log) {
   return { items: dedupeItems(items), pages, warn };
 }
 
-// ─────────────────────────────────────────────────── 레시피 3: 11번가 온누리마켓
-
-/**
- * 11번가 온누리마켓 — 기획전 2210481 의 테마별 상품 목록을 그대로 받는다.
- *
- * **기획전 안에 검색이 없다**(19절 6-10). 화면의 입력창은 11번가 GNB 통합검색이라
- * 실행하면 11번가 전체가 나오고, 그 결과의 대부분은 온누리 범위 밖이다. 그래서 실시간
- * 조회 대상이 아니라 색인 재료다 — 기획전이 자기 상품을 가져오는 요청에는 질의어 자리가 없다.
- *
- * robots(2026-09-03 실측, `plan.11st.co.kr/robots.txt`): `User-agent: * / Disallow: / +
- * Allow: /plan/front/ + Allow: /plan/mobile/`. 우리가 부르는 `/plan/front/exhibitions/...` 는
- * **명시적으로 허용된 경로**다. 이 파일에 Crawl-delay 는 없다(간격 1초는 우리 기준).
- *
- * 테마 번호는 **손으로 박지 않는다.** 기획전 화면의 hidden input `themeNo_1..N` 에서 뽑는다 —
- * 상수로 적으면 기획전이 테마를 갈아 끼운 날 조용히 옛 테마만 걷는다.
- *
- * 함정: `page` 는 페이지 번호가 아니라 **목록 안의 시작 위치**다. 실측에서 page=0 이 45건,
- * page=1 이 (첫 건을 뺀) 44건, page=2 가 43건이었다 — 페이지를 넘기면 같은 상품이 다시 온다.
- * size 를 200 으로 올려도 45 라 한 테마는 요청 한 번으로 끝난다.
- */
-async function crawl11st(ctx, recipe, limit, log) {
-  const detail = 'https://plan.11st.co.kr/plan/front/exhibitions/2210481/detail';
-  const html = await get(detail, recipe);
-  let pages = 1;
-
-  const themes = [...new Set(
-    [...html.matchAll(/name="themeNo_\d+"\s+value="(\d+)"/g)].map((m) => m[1]))];
-  if (!themes.length) throw new Error('기획전 화면에서 테마 번호를 찾지 못했습니다');
-  log(`    테마 ${themes.length}개`);
-
-  const items = [];
-  let themesOk = 0;
-  for (const themeNo of themes) {
-    if (pages >= limit) break;
-    pages++;
-    try {
-      const body = 'templateType=4&page=0&size=200&themeIndex=1&productSortCode=02'
-                 + '&deliveryType=&isUsableProductNetFunnel=false&recommendedProducts='
-                 + '&recommendRequestId=&isAcme=false';
-      const raw = await get(
-        `https://plan.11st.co.kr/plan/front/exhibitions/2210481/themes/${themeNo}/products`,
-        recipe, { method: 'POST', body, referer: detail,
-                  contentType: 'application/x-www-form-urlencoded; charset=UTF-8' });
-      const json = JSON.parse(raw);
-      for (const p of (json.themeProducts || [])) {
-        items.push({ name: decodeXmlText(p.productName), url: p.productLink });
-      }
-      themesOk++;
-    } catch (e) {
-      log(`    · 테마 ${themeNo} 실패: ${String(e.message || e).slice(0, 90)}`);
-    }
-  }
-  log(`    상품을 읽은 테마 ${themesOk}곳 / ${themes.length}곳`);
-  const warn = themesOk < themes.length * 0.5
-    ? `테마 ${themes.length}개 중 ${themesOk}개만 읽음 — 절반 미만` : null;
-  return { items: dedupeItems(items), pages, warn };
-}
-
-// ─────────────────────────────────────────────────── 레시피 4: 롯데ON 상생스토어
+// ─────────────────────────────────────────────────── 레시피 3: 롯데ON 상생스토어
 
 /**
  * 롯데ON 상생스토어 — 스토어(dshopNo=57821)가 자기 화면을 그리는 응답 하나를 받는다.
@@ -508,68 +450,6 @@ async function crawlLotteOn(ctx, recipe, limit, log) {
   return { items: dedupeItems(items), pages: 1, warn };
 }
 
-// ─────────────────────────────────────────────────── 레시피 5: 공영쇼핑
-
-/**
- * 공영쇼핑 — `전국팔도온누리장터` 기획전(ebtNo=4328)의 상품만 걷는다.
- *
- * **몰 전체 검색을 쓰지 않는 이유가 정량적으로 남아 있다**(19절 6-10): 김치 검색 40건의
- * `prdId` 를 기획전 450건과 대조했더니 겹치는 것이 4건뿐이었다. 나머지 36건은 온누리상품권으로
- * 살 수 없는 상품이다. 그래서 기획전 목록만 재료로 쓴다.
- *
- * robots(2026-09-03 실측): `User-agent: * / Allow: /` 에 `/search/`·`/api/`·`/common/` 등이 금지다.
- * 우리가 부르는 `/exhibition/`·`/goods/` 는 **금지 목록에 없다** — 금지된 `/search/` 를 쓰지 않는 것은
- * 범위 오염 때문이기도 하고 robots 때문이기도 하다.
- *
- * 요청 두 종류다 — 기획전은 `prdId` 만 주고 **상품명을 주지 않는다**:
- *   ① `POST /exhibition/getEbtDetail.do` (form `ebtNo=4328`) → prdId 450개
- *   ② `POST /goods/getGoodsUnitInfo.do` (JSON) → 그 id 들의 `<prdNm>`
- * 화면도 같은 두 요청을 보낸다. 상품 상세 페이지는 열지 않는다.
- */
-const GY_BATCH = 50;                 // 화면은 4~12건씩 보내지만, 450건을 그 단위로 나누면 요청이 40번을 넘는다
-async function crawlGongyoung(ctx, recipe, limit, log) {
-  const origin = 'https://www.gongyoungshop.kr';
-  const ref = `${origin}/exhibition/ebtDetail.do?ebtNo=4328`;
-
-  const xml = await get(`${origin}/exhibition/getEbtDetail.do`, recipe, {
-    method: 'POST', body: 'ebtNo=4328', referer: ref,
-    contentType: 'application/x-www-form-urlencoded; charset=UTF-8' });
-  let pages = 1;
-  const ids = [...new Set([...xml.matchAll(/<prdId>(\d+)<\/prdId>/g)].map((m) => m[1]))];
-  if (!ids.length) throw new Error('기획전 응답에서 prdId 를 찾지 못했습니다');
-  log(`    기획전 상품 ${ids.length}종`);
-
-  const items = [];
-  let done = 0;
-  for (let i = 0; i < ids.length && pages < limit; i += GY_BATCH) {
-    const batch = ids.slice(i, i + GY_BATCH);
-    pages++;
-    try {
-      const body = JSON.stringify({
-        isSearchYn: false, includeBrdCstTgtPrd: false, isSlStsCd130: false,
-        prdInfoList: batch.map((prdId, idx) => ({ idx, prdId })),
-      });
-      const raw = await get(`${origin}/goods/getGoodsUnitInfo.do`, recipe, {
-        method: 'POST', body, referer: ref, contentType: 'application/json' });
-      // 응답은 상품마다 <goodsUnitInfoList> 블록 하나다. prdId 와 prdNm 을 짝지어 꺼낸다.
-      for (const block of raw.split('<goodsUnitInfoList>').slice(1)) {
-        const id = /<prdId>(\d+)<\/prdId>/.exec(block);
-        const nm = /<prdNm>([^<]*)<\/prdNm>/.exec(block);
-        if (!id || !nm) continue;
-        items.push({ name: decodeXmlText(nm[1]),
-                     url: `${origin}/goods/selectGoodsDetail.do?prdId=${id[1]}` });
-        done++;
-      }
-    } catch (e) {
-      log(`    · ${i}~${i + batch.length}번째 실패: ${String(e.message || e).slice(0, 90)}`);
-    }
-  }
-  log(`    이름을 받은 상품 ${done}종 / ${ids.length}종`);
-  const warn = done < ids.length * 0.5
-    ? `기획전 상품 ${ids.length}종 중 ${done}종만 이름을 받음 — 절반 미만` : null;
-  return { items: dedupeItems(items), pages, warn };
-}
-
 // ────────────────────────────────────────────────────────────── 레시피 표
 
 /**
@@ -588,8 +468,11 @@ async function crawlGongyoung(ctx, recipe, limit, log) {
  * Crawl-delay 가 없다). 각 레시피 주석에 그 몰의 robots 실측을 적어 두었다.
  *
  * pageLimit 는 요청 수 상한이다: 놀장은 sitemap 의 시장 수, 인어교주는 매장 수 + 목록 1건,
- * 11번가는 기획전 1 + 테마 9, 롯데ON 은 1, 공영쇼핑은 기획전 1 + 50건 배치 9.
- * `--limit` 를 주면 전부 그 값으로 낮춘다(시험용).
+ * 롯데ON 은 1. `--limit` 를 주면 전부 그 값으로 낮춘다(시험용).
+ *
+ * **11번가 온누리마켓·공영쇼핑은 여기 없다.** 2026-09-03 에 전체 검색의 온누리 필터로
+ * 실시간 조회 대상이 됐고(19절 6-10-1), 앱은 색인 층에서 실시간 대상을 걸러 낸다
+ * (ADR-18 — 한 몰이 두 층에서 다른 말을 하지 않게). 걷어 봐야 화면에 닿지 않으므로 레시피를 두지 않는다.
  *
  * **지니어스몰은 여기 없다.** 2026-09-02 에 `?search={q}` 정적 검색이 확인되어 실시간 조회
  * 대상이 됐고, 앱은 색인 층에서 실시간 대상을 걸러 낸다(ADR-18 — 한 몰이 두 층에서 다른 말을
@@ -600,12 +483,8 @@ const RECIPES = [
     pageLimit: 40,  intervalMs: 1000, browser: true,  run: crawlNoljang },
   { id: 'tpirates', host: 'tpirates.com', hosts: ['tpirates.com', 'pub-api.tpirates.com'],
     pageLimit: 200, intervalMs: 1000, browser: true,  run: crawlTpirates },
-  { id: '11st-onnuri-market', host: 'plan.11st.co.kr', hosts: ['plan.11st.co.kr'],
-    pageLimit: 20,  intervalMs: 1000, browser: false, run: crawl11st },
   { id: 'lotte-on-sangsaeng-store', host: 'pbf.lotteon.com', hosts: ['pbf.lotteon.com'],
     pageLimit: 5,   intervalMs: 3000, browser: false, run: crawlLotteOn },
-  { id: 'gongyoung-shopping', host: 'www.gongyoungshop.kr', hosts: ['www.gongyoungshop.kr'],
-    pageLimit: 30,  intervalMs: 1000, browser: false, run: crawlGongyoung },
 ];
 
 // ────────────────────────────────────────────────────────────── 시각 표기

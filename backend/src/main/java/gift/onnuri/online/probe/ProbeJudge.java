@@ -155,8 +155,17 @@ public final class ProbeJudge {
         }
 
         // 등급 B — 질의 비의존 문구. 상품 신호가 약할 때만 인정한다.
+        //
+        // API 몰은 **원문에도 대조한다.** toText 가 태그를 걷어내므로 XML 응답의
+        // `<rsltYn>N</rsltYn>` 같은 문구는 텍스트에서 ` N ` 으로 뭉개져 사라진다
+        // (2026-09-03 공영쇼핑에서 실측). 태그 제거는 HTML 산문에서 문구가 쪼개지는 것을
+        // 막으려고 넣은 규칙인데, 구조화된 API 응답에서는 **그 구조 자체가 신호**라
+        // 같은 규칙이 정반대로 작용한다.
+        // JSON 응답에는 태그가 없어 원문과 텍스트가 사실상 같으므로 기존 API 몰 4곳의
+        // 판정은 달라지지 않는다(테스트로 확인). 화면 HTML 몰은 이 경로를 타지 않는다 —
+        // 원문 매칭을 허용하면 태그로 쪼개진 문구를 놓치던 옛 결함이 되살아난다.
         for (String plain : t.noneMarkersPlain()) {
-            if (full.contains(plain)) {
+            if (full.contains(plain) || (t.isApi() && html.contains(plain))) {
                 if (hits < t.likelyThreshold() && samples.isEmpty()) {
                     return Verdict.none(Verdict.HIGH, plain, hits);
                 }

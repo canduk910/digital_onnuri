@@ -33,7 +33,7 @@
       "source_url": "https://www.onnuri.gift/visit/market",
       "collected_on": "2026-08-06",
       "status": "active",
-      "search_url_template": ""
+      "search_url_template": "https://search.11st.co.kr/pc/total-search?kwd={q}&tabId=TOTAL_SEARCH&filters=ONNURI"
     },
     {
       "id": "cyso",

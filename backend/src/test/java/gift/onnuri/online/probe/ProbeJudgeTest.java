@@ -35,7 +35,12 @@ class ProbeJudgeTest {
      * 채록해 픽스처와 라이브 카나리아가 같은 것을 확인하게 한다.
      */
     private static String fixtureQuery(String platformId) {
-        return "hyundai-home-shopping".equals(platformId) ? "세트" : "로봇청소기";
+        // 현대홈쇼핑 온누리샵·공영쇼핑 온누리 필터에는 로봇청소기가 0건이다(둘 다 식품 중심).
+        return switch (platformId) {
+            case "hyundai-home-shopping" -> "세트";
+            case "gongyoung-shopping" -> "김치";
+            default -> "로봇청소기";
+        };
     }
 
     private static Verdict judgeFixture(String platformId, String kind, String query) {
@@ -335,5 +340,57 @@ class ProbeJudgeTest {
         // 확실한 '없음'이 unknown 으로 뭉개진다 — 2026-09-02 이지웰(316자)에서 겪은 그 함정이다.
         ProbeTarget t = ProbeTargets.byId("hyundai-home-shopping").orElseThrow();
         assertTrue(t.isApi(), "GET 이라도 JSON 을 주는 몰은 API 로 선언돼야 한다");
+    }
+
+    @Test
+    void XML_응답의_없음문구는_원문에서_잡는다() {
+        // 공영쇼핑은 XML 이라 toText 가 태그를 걷으면 `<rsltYn>N</rsltYn>` 이 ` N ` 으로
+        // 뭉개져 사라진다. 태그 제거는 HTML 산문에서 문구가 쪼개지는 것을 막는 규칙인데,
+        // 구조화된 API 응답에서는 그 구조 자체가 신호라 정반대로 작용한다.
+        String none = fixture("gongyoung-shopping-none.html");
+        assertTrue(none.contains("<rsltYn>N</rsltYn>"), "전제 확인 — 원문에는 있어야 한다");
+        assertFalse(ProbeJudge.toText(none).contains("<rsltYn>N</rsltYn>"),
+                "전제 확인 — 텍스트에서는 사라진다");
+        assertEquals(Verdict.NONE, judgeFixture("gongyoung-shopping", "none", "zzqqxyw12345").status());
+        assertEquals(Verdict.LIKELY, judgeFixture("gongyoung-shopping", "hit", "김치").status());
+    }
+
+    @Test
+    void 화면_HTML_몰은_원문_매칭을_쓰지_않는다() {
+        // 원문 매칭을 화면 몰까지 허용하면 태그로 쪼개진 문구를 놓치던 옛 결함이 되살아난다.
+        // API 가 아닌 몰은 이 경로를 타지 않아야 한다.
+        for (ProbeTarget t : ProbeTargets.ALL) {
+            if (t.isApi()) continue;
+            for (String marker : t.noneMarkersPlain()) {
+                assertFalse(marker.contains("<"),
+                        t.platformId() + " — 화면 몰의 없음 문구에 태그가 들어 있다: " + marker);
+            }
+        }
+    }
+
+    @Test
+    void 십일번가_상품명_앵커를_빼면_SEO_제목이_섞인다() {
+        // `"title"` 만 쓰면 `로봇청소기 - 11번가 추천` 이 첫 샘플로 나간다(6-5절 제목 에코 함정).
+        String hit = fixture("11st-onnuri-market-hit.html");
+        assertTrue(hit.contains("\"title\":\"로봇청소기 - 11번가 추천\""),
+                "전제 확인 — 응답에 SEO 제목이 들어 있다");
+        List<String> names = ProbeJudge.extractTitles(
+                ProbeTargets.byId("11st-onnuri-market").orElseThrow(), hit,
+                ProbeQuery.of("로봇청소기"), 3);
+        assertFalse(names.isEmpty());
+        for (String n : names) {
+            assertFalse(n.contains("11번가 추천"), "SEO 제목이 상품명 샘플로 나갔다: " + n);
+        }
+    }
+
+    @Test
+    void 십일번가는_에코_9회를_상품_신호로_세지_않는다() {
+        // 없는 질의 4종에서 전부 정확히 9회였다(SEO 제목·설명·안내 문구).
+        // noiseFloor 가 없으면 hits 9 가 임계를 넘겨 등급 B 문구가 있어도 unclear 로 빠진다.
+        ProbeTarget t = ProbeTargets.byId("11st-onnuri-market").orElseThrow();
+        assertEquals(9, t.noiseFloor());
+        Verdict v = judgeFixture("11st-onnuri-market", "none", "zzqqxyw12345");
+        assertEquals(Verdict.NONE, v.status(), "에코를 상품 신호로 세어 없음 확정을 놓쳤다");
+        assertEquals(0, v.matchCount(), "noiseFloor 를 뺀 히트가 0이어야 한다");
     }
 }
