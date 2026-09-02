@@ -252,18 +252,16 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 실시간 조회가 닿지 않는 몰(아래 표 — 곳 수는 RECIPES 가 정한다)을 야간에 한 번 열어 **상품명과 주소만** 걷고,
 `online_product_index` 테이블을 몰 단위로 교체 적재한다. 단계 D 다음, 단계 E 앞에 돈다.
 
-레시피는 두 종류다. **어느 쪽도 검색이 아니다** — 다섯 곳 모두 기획전·스토어·시장이 자기 상품을
-내놓는 경로이고, 질의어를 실을 자리가 없다.
+레시피는 두 종류다. **어느 쪽도 검색이 아니다** — 전부 스토어·시장이 자기 상품을 내놓는
+경로이고, 질의어를 실을 자리가 없다.
 
 | 종류 | 몰 | 무엇을 받나 | 요청 |
 |---|---|---|---|
 | 브라우저 | 온누리 놀장 | sitemap 의 시장 페이지에 그려진 상품명(Next.js 서버 렌더라 DOM 에서 걷는다) | 시장 수(14) |
 | 브라우저 | 인어교주해적단 | 온누리 매장 목록 → 매장 화면이 스스로 받는 메뉴 목록 | 매장 수 + 1 |
-| 정적 | 11번가 온누리마켓 | 기획전 2210481 의 테마별 상품(`productName`·`productLink`) | 기획전 1 + 테마 9 |
 | 정적 | 롯데ON 상생스토어 | 스토어 `dshopNo=57821` 의 진열 응답 하나(`spdNm`·`spdNo`) | 1 |
-| 정적 | 공영쇼핑 | 기획전 `ebtNo=4328` 의 `prdId` → 그 id 들의 `prdNm` | 기획전 1 + 배치 9 |
 
-**정적 레시피는 브라우저가 필요 없다.** playwright가 없거나 크롬이 뜨지 않으면 그 3곳은 그대로
+**정적 레시피는 브라우저가 필요 없다.** playwright가 없거나 크롬이 뜨지 않으면 롯데ON은 그대로
 걷히고 브라우저 레시피 2곳만 실패로 표시된다(단계 F는 실패한 몰의 어제 색인을 그대로 둔다).
 대상이 전부 브라우저 레시피일 때만 종료코드 2로 끝난다.
 정적 레시피는 Node의 내장 `fetch`를 쓰므로 **Node 18 이상**이 필요하다(서버의 `/opt/node20`이 이를 만족한다.
@@ -273,9 +271,11 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 > 실시간 조회 대상이 됐고, 앱은 색인 층에서 실시간 대상을 걸러 낸다(ADR-18). 색인으로 걷어도
 > 화면에 닿지 않으므로 레시피를 두지 않는다.
 
-> **범위 오염 금지.** 세 정적 몰은 몰 전체 검색이 아니라 기획전·스토어 안의 목록만 쓴다.
-> 공영쇼핑이 그 이유를 정량적으로 보여 준다(19절 6-10) — 몰 전체 검색으로 김치를 찾으면 40건이
-> 나오는데 그중 온누리 기획전에 속한 것은 **4건뿐**이다. 나머지는 온누리상품권으로 살 수 없다.
+> **11번가 온누리마켓·공영쇼핑도 색인 대상이 아니다.** 2026-09-03에 전체 검색의 온누리 필터로
+> 실시간 조회 대상이 됐다(19절 6-10-1). 같은 원칙(색인 ∩ 실시간 = ∅)으로 레시피를 지웠다.
+
+> **범위 오염 금지.** 롯데ON은 몰 전체 검색이 아니라 스토어(`dshopNo=57821`) 안의 진열만 쓴다.
+> 응답이 스스로 밝히는 `dshopNm`이 `온누리상생스토어`인지 확인하고, 아니면 그 회차를 실패로 표시한다.
 
 > **색인은 "지금 있다"고 말하지 않는다.** 말할 수 있는 것은 "어제 이 몰이 이 이름의 상품을
 > 올려 두고 있었다"까지다. 그래서 실시간 조회의 상태 목록(none/likely/…)에 섞지 않고
@@ -296,7 +296,7 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 | 겹 | 어디서 | 판정 | 걸리면 |
 |---|---|---|---|
 | 수집(0건) | `index_nightly.js` `harvestGuard` | 한 건도 못 걷으면 `ok:false` | 그 몰을 실패로 표시(적재 시도 안 함) |
-| 수집(커버리지) | 레시피의 `warn` | 열려던 곳의 절반도 못 읽으면 `ok:false` — 놀장=sitemap 시장 수, 인어교주=온누리 매장 수, 11번가=테마 수, 공영쇼핑=기획전 상품 수 | 위와 같음 |
+| 수집(커버리지) | 레시피의 `warn` | 열려던 곳의 절반도 못 읽으면 `ok:false` — 놀장=sitemap 시장 수, 인어교주=온누리 매장 수 | 위와 같음 |
 | 수집(범위) | 롯데ON 레시피 | 응답의 `dshopNm` 에 '온누리'가 없으면 `ok:false` — 스토어가 바뀌면 다른 몰 상품이 들어온다 | 위와 같음 |
 | 적재 | `nightly_update.py` `_index_guard` | 새 건수가 **DB 기존 건수**의 50% 미만이면 유지 | 어제 색인을 그대로 둔다 |
 
@@ -312,35 +312,36 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 #### 예의 (상대 사이트 부담)
 
 호스트당 요청 간격 1초 이상(롯데ON만 3초 — 응답이 3MB라 넉넉히 둔다),
-몰당 요청 상한(놀장 40·인어교주 200·11번가 20·롯데ON 5·공영쇼핑 30),
+몰당 요청 상한(놀장 40·인어교주 200·롯데ON 5),
 이미지·폰트·미디어·분석 스크립트 차단(호스트명으로만 판정 — 주소 문자열 포함으로 막으면
 몰 자신의 `uploads.js` 같은 스크립트까지 걸려 화면이 안 그려진다).
 **검색 API를 직접 부르거나 번들의 토큰을 재사용하지 않는다**(ADR-18 기각 대안).
 인어교주해적단의 상품 목록은 화면을 열면 브라우저가 스스로 보내는 요청의 응답을 읽고,
-정적 3곳도 화면이 보내는 것과 같은 요청만 보낸다(19절 6-10 실측).
+롯데ON도 화면이 보내는 것과 같은 요청만 보낸다(19절 6-10 실측).
 정적 레시피의 UA는 `Mozilla/5.0 (onnuri-guide-check)` — 브라우저인 척하지 않는다.
 
-각 몰의 robots.txt는 2026-09-03에 실측해 레시피 주석에 적어 두었다. 요약하면
-11번가 `plan.11st.co.kr`은 `Disallow: /`이지만 우리가 쓰는 `/plan/front/`는 **Allow**,
-공영쇼핑은 금지 경로(`/search/`·`/api/`)를 피해 `/exhibition/`·`/goods/`만 쓰며,
-롯데ON은 우리가 부르는 `pbf.lotteon.com`에 robots.txt가 없다(404).
-**세 곳 어디에도 `Crawl-delay`가 없다** — 간격 1초·3초는 규칙이 아니라 우리가 고른 값이다.
+롯데ON의 robots.txt는 2026-09-03에 실측해 레시피 주석에 적어 두었다. 우리가 부르는
+`pbf.lotteon.com`에는 robots.txt가 없고(404), `www.lotteon.com`은 부르지 않는다(Referer에
+이름이 들어가고 상품 링크가 그쪽을 가리킬 뿐 — 링크는 사람이 누르는 것이라 robots 대상이 아니다).
+그 파일의 `User-agent: *`는 `Disallow: /`이고 **`Crawl-delay`는 없다**(5·30은 검색봇·SEO봇 그룹 값).
+**간격 3초는 규칙이 아니라 우리가 고른 보수값이다.**
 
 브라우저 레시피 두 몰의 robots.txt는 단계 E의 감시 목록(`ROBOTS_WATCH_IDS`)에 들어 있다
 (실시간 조회 대상이 된 지니어스몰도 같은 목록에 있다 — 그쪽은 단계 F가 아니라 실시간 조회 때문이다).
 어느 한 곳이 `Disallow: /`로 바뀌면 그날 로그에 경고가 뜬다.
 
-**정적 3곳은 그 목록에 넣지 않았다.** 감시 코드(`_robots_scan`)는 `Disallow: /` 한 줄만 보는데,
-11번가는 `Disallow: /` + `Allow: /plan/front/` 구조라 **매일 거짓 경고**가 뜬다. 그리고 여기서
-정작 바뀔 만한 값은 Crawl-delay와 경로별 허용인데 그 스캔은 둘 다 보지 않는다.
+**롯데ON은 그 목록에 넣지 않았다.** 감시 코드(`_robots_scan`)는 `Disallow: /` 한 줄만 보는데,
+우리가 부르는 `pbf.lotteon.com`에는 robots.txt가 없고 데이터의 주소는 `s.lotteon.com`이라
+엉뚱한 호스트를 보게 된다. 그리고 여기서 정작 바뀔 만한 값은 Crawl-delay와 경로별 허용인데
+그 스캔은 둘 다 보지 않는다(`Disallow: /` + `Allow: /특정경로` 구조는 전면 차단으로 잘못 읽는다).
 감시가 필요하면 스캐너를 고치는 것이 먼저다(별건).
 
 단독 실행(수동 점검용):
 
 ```bash
 cd ~/onnuri_batch/repo
-node backend/tools/index_nightly.js                      # 5곳 전부, 요약만
-node backend/tools/index_nightly.js --ids 11st-onnuri-market,lotte-on-sangsaeng-store,gongyoung-shopping   # 정적 3곳(브라우저 불필요)
+node backend/tools/index_nightly.js                      # 3곳 전부, 요약만
+node backend/tools/index_nightly.js --ids lotte-on-sangsaeng-store   # 정적 1곳(브라우저 불필요)
 node backend/tools/index_nightly.js --ids tpirates        # 특정 몰만
 node backend/tools/index_nightly.js --limit 5 --out /tmp  # 페이지 상한을 낮춰 시험
 python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-rag --skip-survey --skip-canary   # F만
@@ -373,12 +374,15 @@ docker compose exec -T db psql -U <DB_USER> -d <DB_NAME> -c 'DELETE FROM online_
 
 #### 서버 반영 시 1회 정리 (2026-09-02)
 
-지니어스몰을 색인 대상에서 뺐다. 이 커밋 이전 배치가 한 번이라도 돌아 그 행이 남아 있으면
-지운다(멱등 — 행이 없으면 0건 삭제로 끝난다). 앱은 이미 그 행을 읽지 않으므로 화면 변화는 없다.
+지니어스몰·11번가 온누리마켓·공영쇼핑을 색인 대상에서 뺐다(셋 다 실시간 조회 대상이 됐다).
+이 커밋 이전 배치가 한 번이라도 돌아 그 행이 남아 있으면 지운다(멱등 — 행이 없으면 0건 삭제로 끝난다).
+앱은 이미 그 행을 읽지 않으므로 화면 변화는 없다.
 
 ```bash
 docker compose exec -T db psql -U <DB_USER> -d <DB_NAME> \
   -c "DELETE FROM online_product_index WHERE platform_id='genius-mall';"
+docker compose exec -T db psql -U <DB_USER> -d <DB_NAME> \
+  -c "DELETE FROM online_product_index WHERE platform_id IN ('11st-onnuri-market','gongyoung-shopping');"
 ```
 
 ### 온라인 큐레이션 필드는 배치가 매일 저장소와 맞춘다 (2026-09-02)
