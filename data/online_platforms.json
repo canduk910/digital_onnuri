@@ -424,6 +424,20 @@
       "search_url_template": ""
     },
     {
+      "id": "ec-35",
+      "no": 35,
+      "kind": "delivery",
+      "name": "온누리 권율로",
+      "summary": "우리 동네 모든 것, 온누리 권율로",
+      "note": "앱 전용 — 링크가 앱 설치·실행 화면으로 이동합니다",
+      "url": "https://m.sangsaengmarket.co.kr/app",
+      "region_limited": false,
+      "source_url": "https://www.onnuri.gift/visit/market",
+      "collected_on": "2026-09-03",
+      "status": "active",
+      "search_url_template": ""
+    },
+    {
       "id": "daeguro",
       "no": null,
       "kind": "delivery",
