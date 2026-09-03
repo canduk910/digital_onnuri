@@ -1136,10 +1136,12 @@
         + esc(META.survey) + "</span> 기준" + esc(META.surveyNote) + " · <span class='num'>" + nf(PLATFORMS.length) + "곳</span> — 쇼핑 <span class='num'>" + s + "</span> · 배달 <span class='num'>" + d + "</span>";
       el("noticeMain").innerHTML = "<strong>각 쇼핑몰이 취급하는 물품종류와 대표 브랜드를 " + esc(META.survey)
         + "에 플랫폼 단위로 확인해 태그한 목록입니다.</strong> 상품 재고·전체 브랜드 목록이 아니며, 온누리 결제 가능 범위는 각 몰의 전용관·기획전 기준입니다 — 결제 전 해당 몰에서 확인하세요.";
+      // 2026-09-03: 저장소 경로(조사 로그)·"N곳은 옛 확인분"·"이후 취급 변화 미반영" 세 조각을 뺐다(사용자 요청).
+      // 저장소 경로는 이용자에게 뜻이 없고, 날짜 안내는 바로 위 meta-line 이 이미 말한다
+      // (`취급품목 실측 YYYY-MM-DD 기준 · N곳은 YYYY-MM-DD 확인분` — META.surveyNote).
+      // META.behindCount·behindOldest 는 그 meta-line 이 계속 쓰므로 계산은 남겨 둔다.
       el("footMethod").innerHTML = "※ 취급 품목·브랜드 태그는 각 몰의 카테고리 메뉴·기획전·브랜드관을 " + esc(META.survey)
-        + "에 실측해 기록한 것입니다(조사 로그: 저장소 _workspace/15_online_catalog_report.md)."
-        + (META.behindCount ? " 다만 " + META.behindCount + "곳은 그날 확인하지 못해 " + esc(META.behindOldest) + " 실측분을 그대로 두었습니다 — 확인하지 못한 곳의 날짜는 올리지 않습니다." : "")
-        + " 이후 각 몰의 취급 변화는 반영되지 않을 수 있습니다." + "<br>" + " 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong>정확하지 않을 수 있습니다</strong> — 내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.";
+        + "에 실측해 기록한 것입니다." + "<br>" + " 이 가이드의 안내와 챗봇 답변은 AI의 도움으로 작성·생성되어 <strong>정확하지 않을 수 있습니다</strong> — 내부 참고용이며 공식 안내가 아닙니다. 결제·이용 전 공식 채널(디지털온누리 앱, 고객센터 1670-1600)에서 최종 확인하세요.";
       applyUrlParams();
       renderAll();
     }).catch(function (e) {
