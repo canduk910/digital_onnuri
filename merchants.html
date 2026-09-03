@@ -488,7 +488,7 @@
       <div class="result-map">
         <div class="map-wrap">
           <div id="map"></div>
-          <button id="boundsBtn" class="bounds-btn" type="button" hidden>이 지도 범위로 목록 보기</button>
+          <button id="boundsBtn" class="bounds-btn" type="button" title="선택한 시도 안에서 지금 지도에 보이는 범위로 목록을 좁힙니다(시도를 벗어난 곳은 포함되지 않습니다)" hidden>이 지도 범위로 목록 보기</button>
           <div id="mapTrunc" class="map-trunc" hidden></div>
           <button id="streetBtn" class="street-btn" type="button" aria-label="거리뷰 모드 켜기/끄기" aria-pressed="false">거리뷰</button>
           <button id="locBtn" class="loc-btn" type="button" aria-label="현재 위치를 지도에 표시">
@@ -1357,7 +1357,7 @@
       var base = jBase(items), full = jFull(base), R = { total: full.length };
       var start = (state.page - 1) * PAGE_SIZE;
       R.list = full.slice(start, start + PAGE_SIZE);
-      if (scope === "all") {
+      if (scope === "all" || scope === "facet") {
         R.facetCat = {}; base.forEach(function (x) { R.facetCat[x.cat] = (R.facetCat[x.cat] || 0) + 1; });
         R.catTotal = base.length;
         var bc = {}; base.forEach(function (x) { if (x.brand) bc[x.brand] = (bc[x.brand] || 0) + 1; });
@@ -1365,9 +1365,9 @@
           .sort(function (a, b) { return b.count - a.count || a.key.localeCompare(b.key, "ko"); });
         var mc = {}; base.forEach(function (x) { if (x.market_type) mc[x.market_type] = (mc[x.market_type] || 0) + 1; });
         R.facetMtype = Object.keys(mc).map(function (k) { return { key: k, count: mc[k] }; });
-        R.regionTotal = jRegionFiltered(items).length;
+        if (scope === "all") R.regionTotal = jRegionFiltered(items).length;
       }
-      if (scope !== "page") {
+      if (scope !== "page" && scope !== "facet") {
         R.mapTotal = full.length;
         R.mapTruncated = full.length > MAP_MAX;
         R.mapPins = R.mapTruncated ? [] : full;
@@ -1378,13 +1378,17 @@
   }
   // API 4콜을 apiQuery/jsonQuery 공통 정규화 형태로 래핑.
   function apiQuery(scope) {
-    var wantFacets = scope === "all", wantMap = scope !== "page";
+    // "facet" = 리스트+집계만. 지도는 같은 idle 에서 viewportRender 가 이미 그리므로 다시 받지 않고,
+    // 지역 총계(regionTotal)는 지역 축이 안 바뀌었으니 유지한다 — 지도 이동마다 4콜을 다 쏘지 않기 위함.
+    var wantFacets = (scope === "all" || scope === "facet");
+    var wantMap = (scope !== "page" && scope !== "facet");
+    var wantRegionTotal = (scope === "all");
     var full = fullParams();
     return Promise.all([
       apiGet("/merchants", assign(full, { page: state.page - 1, size: PAGE_SIZE })),
       wantFacets ? apiGet("/merchants/facets", baseParams()) : Promise.resolve(null),
       wantMap ? apiGet("/merchants/map", full) : Promise.resolve(null),
-      wantFacets ? apiGet("/merchants", assign(regionParams(), { size: 1 })) : Promise.resolve(null)
+      wantRegionTotal ? apiGet("/merchants", assign(regionParams(), { size: 1 })) : Promise.resolve(null)
     ]).then(function (res) {
       var list = res[0], fac = res[1], mp = res[2], rc = res[3], R = { list: list.items || [], total: list.total };
       if (fac) {
@@ -1457,6 +1461,7 @@
   // scope로 필요한 호출만 수행(불필요한 재조회 방지):
   //   "all"    지역·디지털·시도 변경 → 리스트+집계+지도+지역총계 (집계·지역총계는 이 축에서만 바뀜)
   //   "filter" 업종·브랜드·유형·검색 → 리스트+지도 (집계는 base 컨텍스트라 불변)
+  //   "facet"  지도 범위 모드에서 지도 이동 → 리스트+집계 (지도는 같은 idle 의 viewportRender 가 그린다)
   //   "page"   페이지·정렬 → 리스트만 (지도 대상 집합·집계 불변)
   var refreshSeq = 0;
   function refresh(scope) {
@@ -1756,8 +1761,12 @@
   }
 
   function render() {
+    // 2026-09-04: 종전에는 "지도 범위 N곳" 이었다 — **그 N 은 화면 안 전부가 아니라
+    // '선택한 시도 안에서' 화면에 들어온 수**다(regionParams 가 region 을 늘 얹고 bounds 를
+    // AND 로 더한다). 서울 탭인 채 지도를 경기로 옮기면 0곳이 나오는데 화면은 "지도 범위"라고만
+    // 말해 "여긴 가맹점이 없다"로 읽힌다. 어느 시도 기준인지 함께 적는다.
     el("mScope").textContent = LIST_BY_MAP
-      ? "지도 범위 " + nf(SNAP.total || 0) + "곳"
+      ? "지도 범위 · " + state.sido + " " + nf(SNAP.total || 0) + "곳"
       : state.sido + " " + nf(SNAP.sidoTotal || 0) + "곳";
     el("countText").textContent = nf(SNAP.regionTotal) + "곳 중 " + nf(SNAP.total) + "곳 표시";
 
@@ -1927,7 +1936,12 @@
       // 지도 범위로 목록 보기가 켜져 있으면, 지도를 움직일 때 리스트도 그 범위로 재검색(리스트만 — 지도 재유발 없음).
       if (LIST_BY_MAP && MODE === "api") {
         clearTimeout(listByMapTimer);
-        listByMapTimer = setTimeout(function () { state.page = 1; refresh("page"); }, 450);
+        // 2026-09-04: 종전에는 refresh("page") — 리스트만 다시 받았다. 그런데 지도를 옮기면
+        // **집계 컨텍스트(baseParams)에 들어가는 bounds 도 함께 바뀐다.** 그래서 목록은 0곳인데
+        // 업종 칩은 옮기기 전 수(예: '전체 92')를 그대로 달고 있었다 — 칩을 눌러도 0곳이라
+        // 이용자는 필터가 고장 난 것으로 읽는다. 집계까지 다시 받는다("all" 은 지역 총계·지도까지
+        // 재유발하므로 쓰지 않는다 — 지도는 같은 idle 에서 viewportRender 가 이미 그린다).
+        listByMapTimer = setTimeout(function () { state.page = 1; refresh("facet"); }, 450);
       }
     });
     mapReady = true;
@@ -2190,13 +2204,14 @@
     function showPins(rows) {
       if (seq !== viewportSeq) return;
       CLUSTER_MODE = false; clusterSeq++; clearClusterMarkers(); clearMarkers();
-      if (note) note.innerHTML = "화면 영역 <b>" + nf(rows.length) + "곳</b> 표시 · 마커를 누르면 상세를 보여줍니다.";
+      // "화면 영역"만 쓰면 화면 안 전부로 읽힌다 — 실제로는 선택한 시도 안에서 센 수다(위 mScope 주석).
+      if (note) note.innerHTML = "화면 영역 · " + esc(state.sido) + " <b>" + nf(rows.length) + "곳</b> 표시 · 마커를 누르면 상세를 보여줍니다.";
       drawPins(rows, false);
     }
     function showCells(cells, total) {
       if (seq !== viewportSeq) return;
       CLUSTER_MODE = true; clusterSeq++;
-      if (note) note.innerHTML = "화면 영역 <b>" + nf(total) + "곳</b> — 확대하면 개별 마커로 바뀝니다.";
+      if (note) note.innerHTML = "화면 영역 · " + esc(state.sido) + " <b>" + nf(total) + "곳</b> — 확대하면 개별 마커로 바뀝니다.";
       drawCells(cells, false);
     }
     if (MODE === "json") {
@@ -2469,6 +2484,10 @@
     state.cat = "전체"; state.brand = "전체"; state.mtype = "전체";
     state.digitalOnly = false; state.q = ""; state.page = 1;
     el("q").value = ""; el("qClear").style.display = "none"; el("digitalOnly").checked = false;
+    // 2026-09-04: '지도 범위로 목록 보기'는 되돌리지 않고 있었다 — 이용자가 0곳을 보고
+    // '검색 초기화'를 눌러도 **여전히 0곳**이라 빠져나갈 길이 없었다(가장 흔한 막다른 길).
+    // 화면에 보이는 필터를 전부 되돌린다는 것이 이 버튼의 약속이다.
+    if (LIST_BY_MAP) { LIST_BY_MAP = false; updateBoundsBtn(); }
     loadRegionOptions().then(function () { renderRegionSelects(); refresh(); });
   }
 
