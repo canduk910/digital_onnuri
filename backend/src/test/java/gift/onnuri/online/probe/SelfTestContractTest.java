@@ -22,8 +22,9 @@ class SelfTestContractTest {
 
     @Test
     void 리포트_필드가_계약과_일치한다() {
+        // 새 필드는 맨 뒤에 붙인다 — 앞 순서가 바뀌면 배치가 조용히 어긋난다.
         assertEquals(List.of("checkedAt", "probeEnabled", "total", "passed", "failed",
-                        "skipped", "cases"),
+                        "skipped", "cases", "probeEndpoints", "robotsUserAgent", "robots"),
                 components(SelfTestReport.class));
         assertEquals(List.of("platformId", "query", "kind", "expected", "actual", "ok",
                         "reason", "matchCount", "sampleCount", "bodyLength",
@@ -36,11 +37,21 @@ class SelfTestContractTest {
         ObjectMapper om = new ObjectMapper();
         var c = new SelfTestCase("onnuri-hotdeal", "김치", SelfTestCase.PRESENT,
                 Verdict.LIKELY, Verdict.LIKELY, true, null, 20, 3, 333760, true, true, "");
-        var r = new SelfTestReport("2026-08-31 03:10", true, 12, 10, 1, 1, List.of(c));
+        var r = new SelfTestReport("2026-08-31 03:10", true, 12, 10, 1, 1, List.of(c),
+                List.of(new ProbeEndpoint("onnuri-hotdeal", "onnurideal.com", "/search")),
+                ProbeFetcher.ROBOTS_TOKEN,
+                List.of(new RobotsCheck("onnuri-hotdeal", true, null, "*", null)));
         var back = om.readValue(om.writeValueAsString(r), java.util.Map.class);
+        // 새 필드는 **맨 뒤**에 붙인다 — 앞 순서가 바뀌면 배치가 조용히 어긋난다.
         assertEquals(List.of("checkedAt", "probeEnabled", "total", "passed", "failed",
-                        "skipped", "cases"),
+                        "skipped", "cases", "probeEndpoints", "robotsUserAgent", "robots"),
                 back.keySet().stream().map(Object::toString).toList());
+        assertEquals(List.of("platformId", "host", "path"),
+                java.util.Arrays.stream(ProbeEndpoint.class.getRecordComponents())
+                        .map(java.lang.reflect.RecordComponent::getName).toList());
+        assertEquals(List.of("platformId", "allowed", "rule", "group", "error"),
+                java.util.Arrays.stream(RobotsCheck.class.getRecordComponents())
+                        .map(java.lang.reflect.RecordComponent::getName).toList());
     }
 
     @Test
@@ -177,5 +188,72 @@ class SelfTestContractTest {
             assertFalse(SelfTestService.absentQuery().matches(".*\\d.*"),
                     "숫자가 섞였다");
         }
+    }
+
+    // ── 조회 호스트·경로와 robots 판정 (ADR-19 후속) ────────────────────
+
+    @Test
+    void 조회_대상_전부가_엔드포인트_목록에_있다() {
+        // 배치가 도메인을 손으로 적지 않게 하는 것이 이 목록의 목적이다 —
+        // 2026-08-31 에 굿데이를 엉뚱한 도메인으로 적었는데 **그 도메인이 마침
+        // Disallow:/ 라 기대치와 맞아떨어져 통과**했다. 빠진 몰이 있으면 그 사고가 되살아난다.
+        var eps = SelfTestService.endpoints();
+        assertEquals(ProbeTargets.ALL.size(), eps.size());
+        for (var e : eps) {
+            assertNotNull(e.host(), e.platformId() + " 호스트를 못 뽑았다");
+            assertFalse(e.host().isBlank());
+            assertTrue(e.path().startsWith("/"), e.platformId() + " 경로가 이상하다: " + e.path());
+        }
+        assertEquals(ProbeTargets.ids().stream().sorted().toList(),
+                eps.stream().map(ProbeEndpoint::platformId).sorted().toList());
+    }
+
+    @Test
+    void 엔드포인트에_질의어가_섞이지_않는다() {
+        // 리포트는 배치 로그에 남는다. 템플릿의 {q} 자리가 그대로 실리면 안 된다.
+        // 쿼리 자체는 붙인다 — robots 매칭이 경로+쿼리를 보기 때문이다. 다만 값은 고정 토큰이다.
+        for (var e : SelfTestService.endpoints()) {
+            assertFalse(e.path().contains("{q}"), e.platformId() + " 경로에 질의 자리가 남았다");
+            assertFalse(e.path().contains("{qq}"), e.platformId() + " 경로에 질의 자리가 남았다");
+            assertFalse(e.host().contains("{"), e.platformId() + " 호스트가 이상하다");
+        }
+    }
+
+    @Test
+    void 경로에_쿼리를_붙여야_robots_판정이_맞는다() {
+        // 굿데이·인더마켓은 조회 주소의 경로가 `/` 뿐이고 검색 조건이 전부 쿼리에 있다.
+        // 경로만 보면 그 몰들의 `Allow: /$`(루트만 연다)에 걸려 **허용으로 잘못 읽힌다** —
+        // 2026-09-03 실측에서 실제로 그렇게 나왔고, 쿼리를 붙이자 `Disallow: /` 로 뒤집혔다.
+        var byId = new java.util.HashMap<String, String>();
+        SelfTestService.endpoints().forEach(e -> byId.put(e.platformId(), e.path()));
+        String goodday = byId.get("onnuri-goodday");
+        assertTrue(goodday.startsWith("/?"), "쿼리가 빠졌다: " + goodday);
+
+        String robots = "User-agent: *\nDisallow: /\nAllow: /$\n";
+        var rules = RobotsRules.parse(robots, ProbeFetcher.ROBOTS_TOKEN);
+        assertTrue(rules.decide("/").allowed(), "전제 확인 — 루트만은 열려 있다");
+        assertFalse(rules.decide(goodday).allowed(),
+                "우리가 두드리는 주소는 루트가 아니다 — 허용으로 읽으면 사실과 다르다");
+    }
+
+    @Test
+    void 조회_호스트는_이용자_링크_호스트와_다를_수_있다() {
+        // **이 사실이 이번 수정의 이유다.** 감시가 이용자 링크 호스트를 보고 있었는데,
+        // 우리가 두드리는 곳은 다른 호스트다. 11번가가 그 실례다.
+        var byId = new java.util.HashMap<String, String>();
+        SelfTestService.endpoints().forEach(e -> byId.put(e.platformId(), e.host()));
+        assertEquals("apis.11st.co.kr", byId.get("11st-onnuri-market"),
+                "11번가 조회는 apis 호스트로 나간다 — 이용자 링크(search.11st.co.kr)와 다르다");
+        assertEquals("www.lotteon.com", byId.get("lotte-on-sangsaeng-store"),
+                "롯데ON 조회는 몰 본체로 나간다");
+        assertEquals("api.samaint.co.kr", byId.get("onnuri-5iljang"),
+                "온누리5일장 조회는 본몰이 아닌 API 호스트다");
+    }
+
+    @Test
+    void robots_판정에_쓰는_이름을_리포트에_남긴다() {
+        // 나중에 누가 봐도 "어떤 이름으로 판정했는지"를 알 수 있어야 한다.
+        assertEquals("onnuri-guide", ProbeFetcher.ROBOTS_TOKEN);
+        assertTrue(ProbeFetcher.ROBOTS_TOKEN.length() > 3, "토큰이 너무 짧으면 아무 그룹에나 걸린다");
     }
 }

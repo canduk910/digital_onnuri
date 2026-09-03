@@ -61,6 +61,51 @@ public class ProbeFetcher {
                 .build();
     }
 
+    /** robots 판정에 쓰는 우리 제품 토큰. 위 UA 문자열 안의 이름과 같아야 한다. */
+    public static final String ROBOTS_TOKEN = "onnuri-guide";
+
+    /**
+     * robots.txt 가 "없다" = 금지가 없다. 오류가 아니라 빈 규칙으로 다룬다.
+     *
+     * 404 와 **410**(영구 삭제) 둘 다다 — 배치와 DEPLOY.md 가 그렇게 보고 있어 맞춘다.
+     * 같은 사실을 두 곳이 다르게 판단하는 것이 이번 라운드가 없애려던 병이다.
+     *
+     * RFC 9309 는 4xx 전체를 "unavailable"로 보고 접근을 허용해도 된다(MAY)고 하지만
+     * **그렇게 넓히지 않는다.** 401·403 은 파일이 없다는 뜻이 아니라 **우리를 막는다**는 신호에
+     * 가깝고, 그것을 "금지 없음"으로 적으면 모르는 것을 허용으로 바꿔 적는 셈이 된다.
+     * 그런 응답은 예외로 떨어져 `error` 로 남는다 — 모르면 모른다고 적는다.
+     */
+    static boolean robotsMissing(int status) {
+        return status == 404 || status == 410;
+    }
+
+    /**
+     * 호스트 하나의 robots.txt. 조회 대상이 아니라 **정책 문서**라 몰 단위 한도를 쓰지 않는다
+     * (같은 몰의 상품 조회 한도를 이 요청이 갉아먹으면 정작 조회가 막힌다).
+     * 전역 동시 상한은 그대로 지킨다. 못 읽으면 예외 대신 null 을 준다 — 판정 쪽에서 사유로 남긴다.
+     */
+    public String fetchRobots(String host) throws Exception {
+        boolean got = false;
+        try {
+            got = global.tryAcquire(1500, TimeUnit.MILLISECONDS);
+            if (!got) throw new IllegalStateException("busy");
+            HttpRequest req = HttpRequest.newBuilder(URI.create("https://" + host + "/robots.txt"))
+                    .timeout(Duration.ofMillis(timeoutMs))
+                    .header("User-Agent", UA)
+                    .GET().build();
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (robotsMissing(resp.statusCode())) return "";
+            if (resp.statusCode() / 100 != 2) {
+                throw new IllegalStateException("HTTP " + resp.statusCode());
+            }
+            String body = resp.body();
+            // robots.txt 는 작은 파일이다. 비정상적으로 크면 그대로 파싱하지 않는다.
+            return body.length() > 200_000 ? body.substring(0, 200_000) : body;
+        } finally {
+            if (got) global.release();
+        }
+    }
+
     public ProbeOutcome fetch(ProbeTarget t, ProbeQuery q) {
         if (!enabled) return ProbeOutcome.fail(ProbeOutcome.DISABLED);
 

@@ -51,44 +51,31 @@ APP_ADMIN_KEY = os.environ.get("APP_ADMIN_KEY", "")
 CANARY_TIMEOUT = 120            # 가장 느린 몰이 8초 × 12건이라 넉넉히 잡는다
 BODY_DELTA_ALERT = 0.5          # 응답 길이가 ±50% 넘게 변하면 개편 신호로 본다
 
-# robots.txt 재조회 대상 8곳 — 2026-08-31 실현성 조사에서 정적 HTTP 로 결과를 얻은 전부다.
-# 조회 대상 6곳 + 그때 `Disallow: /` 라 **제외한** 2곳. 제외한 곳도 계속 본다 —
-# 허용으로 바뀌면 커버리지를 넓힐 수 있고, 그 사실을 아무도 다시 확인하지 않으면 영영 모른다.
+# robots.txt 감시 — 우리가 **실제로 두드리는 호스트**를 매일 다시 본다.
 #
-# 도메인은 손으로 쓰지 않고 data/online_platforms.json 에서 뽑는다. 처음엔 상수로 적었다가
-# 2026-08-31 검증에서 굿데이를 onnurigoodday.com(실제는 onnurigood.com)으로 잘못 적었고,
-# **그 엉뚱한 도메인이 마침 Disallow: / 라 기대와 맞아떨어져 통과까지 했다.**
-# 감시 대상이 조용히 다른 사이트가 되는 것을 막으려면 주소의 출처가 하나여야 한다.
+# ADR-19 가 robots 를 대상 선정 기준에서 빼면서 내건 균형점이 "정책이 강해지면 즉시 끈다"이고,
+# 그 방아쇠가 이 감시다. 그러니 관측점이 어긋나면 근거가 반만 선다.
 #
-# 2026-09-02: 단계 F(전일 색인, ADR-18)가 여는 곳 중 놀장·인어교주와, 같은 날 실시간 조회 대상이 된
-# 지니어스몰을 감시에 넣는다(롯데ON 제외 사유는 아래 2026-09-03 주석). 조사 시점 상태는
-#   놀장 `Allow: /` · 인어교주해적단 robots.txt 없음(요청이 SPA 화면으로 넘어간다) ·
-#   지니어스몰 `Allow: /` + `Disallow: /ko_mall/`.
-# 셋 다 전면 차단이 아니므로 ROBOTS_BLOCKED_AT_SURVEY 에는 넣지 않는다 —
-# 어느 한 곳이 `Disallow: /` 로 바뀌면 그날 로그에 경고가 뜨고 사람이 그 몰을 재검토한다.
-# 2026-09-03(ADR-19, dev-qa 4차 F-1): 감시는 **실시간 조회 대상 전부**를 덮어야 한다 — robots 를 안 따르는
-# 대신 "정책이 더 강해지면 즉시 뺀다"가 ADR-19 의 균형점이고, 그 방아쇠가 이 목록이다. 편입만 하고
-# 여기 안 넣으면 그 몰은 관측 밖이 된다(3차 게이트 때 6곳, 4차 때 8곳 공백). 기준선은 2026-09-03 실측
-# (스캐너와 같은 판정 — `Disallow: /` 한 줄이 있으면 blocked, UA 그룹은 구분하지 않는다):
-#   전면 차단 표시: 굿데이·인더마켓(2026-08-31)·공영쇼핑·현대홈쇼핑·꾹AI(GPTBot 등 AI 봇 그룹의 `Disallow: /`)
-#   아님: 11번가(search 호스트)·현대이지웰·5일장·온누리쇼핑·팔도(`/Goods/` 만)
-# 단계 F 색인은 놀장·인어교주 2곳이고 둘 다 감시한다.
-# **롯데ON 은 색인에서 빠지고 실시간 조회 대상이 되어(19절 6-10-2) 감시에 넣었다** — 색인 대상이던
-# 동안에는 "우리가 부르는 pbf.lotteon.com 에 robots.txt 가 없다"는 이유로 뺐지만, 실시간 대상은
-# 전부 덮는다는 위 원칙이 우선한다. 기준선은 blocked=True — www.lotteon.com 은 `Disallow: /` 가
-# 여러 그룹에 있어 스캐너 판정(UA 그룹 미구분)으로 전면 차단이다(2026-09-03 실측 200·4,082B).
-# 주의: 데이터의 search_url_template 이 비어 있는 동안에는 url 이 단축주소(s.lotteon.com)라
-# 스캐너가 301 루프로 **조회 실패**를 찍는다. 잘못된 판정이 아니라 "관측 못 함"이고,
-# backend 가 www 검색 URL 을 넣으면 자동으로 정상 관측으로 돌아온다.
-ROBOTS_BLOCKED_AT_SURVEY = ("onnuri-goodday", "inthemarket-onnuri",              # 2026-08-31
-                            "gongyoung-shopping", "hyundai-home-shopping", "kkuk-ai-onnuri-mall",
-                            "lotte-on-sangsaeng-store")                          # 2026-09-03
-ROBOTS_WATCH_IDS = ("onnuri-hotdeal", "onnuri-chance", "onnuri-sijang", "onnuri-market",
-                    "onnuri-gonggong-mall", "epost-mall", "genius-mall",
-                    "onnuri-paldo-sijang", "hyundai-ezwel-onnuri", "onnuri-5iljang",
-                    "onnuri-shopping", "11st-onnuri-market",
-                    "onnuri-noljang", "tpirates") + ROBOTS_BLOCKED_AT_SURVEY
-
+# 2026-09-03 개편(3건). 그 전에는 이랬다 —
+#   ① 호스트를 `search_url_template or url` 에서 뽑았다. 그건 **이용자에게 줄 링크의 호스트**이지
+#      우리가 두드리는 호스트가 아니다. 11번가는 감시가 search.11st.co.kr 인데 조회는 apis.11st.co.kr,
+#      롯데ON 은 감시가 단축주소 s.lotteon.com(301 루프)인데 조회는 www.lotteon.com 이었다.
+#   ② 키가 몰 id 였다. robots.txt 는 **호스트 단위 파일**이라 한 몰이 호스트를 둘 쓰면(인어교주)
+#      표현되지 않고, 두 몰이 한 호스트를 나눠 쓰면 같은 파일을 두 번 조회했다.
+#   ③ 기준선이 손으로 관리하는 상수(ROBOTS_BLOCKED_AT_SURVEY)였다. 몰을 편입하면서 거기 넣는 걸
+#      잊으면 조용히 거짓 통과가 난다 — 2026-08-31 굿데이 도메인 오기와 같은 자리다.
+#
+# 이제 호스트의 출처는 셋이고 **어느 것도 손으로 적지 않는다**:
+#   1) 앱 셀프테스트 응답의 판정(있으면 최우선 — ProbeTargets 를 아는 건 앱뿐이고 판정도 앱이 한다)
+#   2) 색인 크롤러의 RECIPES.hosts (`node index_nightly.js --print-hosts`)
+#      — 놀장·인어교주는 ProbeTargets 에 없어서 앱 응답만으로는 관측 밖이 된다
+#   3) **어제 리포트**의 조회 대상(폴백) — 앱이 안 뜬 회차에만. "어제까지 우리가 두드리던 곳"이다.
+# 기준선도 상수가 아니라 어제 리포트다(응답 길이 비교가 이미 쓰는 패턴). 첫 회차는 기준선만 남긴다.
+#
+# 2026-09-03 추가: 폴백 목록도 손으로 적지 않는다. 처음엔 id 20개를 상수로 적었는데, 조회 대상이
+# 늘 때 거기 넣는 걸 잊으면 **폴백 회차에서만 조용히 빠진다** — 방금 없앤 ROBOTS_BLOCKED_AT_SURVEY 와
+# 정확히 같은 노후화다. 리포트가 하나도 없는 첫 실행에서는 **아무것도 관측하지 않고 사유를 남긴다**
+# (손으로 적은 목록으로 흉내 내는 것보다 "확인하지 않았다"가 정직하다).
 # 단계 F — 전일 상품명 색인(ADR-18)
 INDEX_GUARD_MIN_RATIO = 0.5     # 몰별 새 건수가 기존의 50% 미만이면 그 몰은 유지
 
@@ -484,13 +471,46 @@ def _index_guard(prev_count, new_count, min_ratio=INDEX_GUARD_MIN_RATIO):
     return True, None
 
 
+def _index_recipe_ids():
+    """색인 크롤러가 도는 몰 id. 크롤러가 직접 말한다(`--print-hosts`) — 배치가 적지 않는다."""
+    script = ROOT / "backend" / "tools" / "index_nightly.js"
+    node = shutil.which("node")
+    if not script.exists() or not node:
+        return []
+    try:
+        r = subprocess.run([node, str(script), "--print-hosts"], cwd=str(ROOT),
+                           capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return []
+        return [row["id"] for row in json.loads(r.stdout) if row.get("id")]
+    except Exception:                              # noqa: BLE001
+        return []
+
+
+def _index_ids_to_crawl(recipe_ids, realtime_ids):
+    """이번 회차에 크롤할 몰과 건너뛸 몰을 가른다.
+
+    실시간 조회 대상이 된 몰은 앱이 색인 행을 아예 읽지 않으므로(ADR-18) 걷어도 헛일이다.
+    **앱 응답이 없어 realtime_ids 가 비면 아무것도 건너뛰지 않는다** — 모르면 하던 대로다.
+    여기서 건너뛰면 앱이 잠깐 안 뜬 날 색인이 통째로 비어 50% 가드에 걸린다.
+
+    반환: (크롤할 id 목록 또는 None=전부, 건너뛸 id 목록)
+    """
+    if not realtime_ids:
+        return None, []
+    drop = [i for i in recipe_ids if i in realtime_ids]
+    if not drop:
+        return None, []
+    return [i for i in recipe_ids if i not in realtime_ids], drop
+
+
 def _index_table_exists(conn):
     with conn.cursor() as cur:
         cur.execute("SELECT to_regclass('public.online_product_index') IS NOT NULL")
         return bool(cur.fetchone()[0])
 
 
-def stage_f_index(conn, out_dir, today):
+def stage_f_index(conn, out_dir, today, app_rep=None):
     """실시간 조회가 닿지 않는 2곳(놀장·인어교주해적단)의 상품명 색인을 몰 단위로 교체 적재한다(ADR-18).
 
     둘 다 화면이 그려져야 상품이 보여 브라우저가 필요하다. playwright 가 없으면
@@ -515,6 +535,26 @@ def stage_f_index(conn, out_dir, today):
         log("F 스킵: online_product_index 테이블 없음 — 마이그레이션(V8) 적용 후 동작한다.")
         return
 
+    # 실시간 조회 대상이 된 몰은 **크롤하지 않는다.**
+    # 앱의 IndexJudge 가 색인 층에서 실시간 대상을 빼므로(ADR-18 — 한 몰이 두 층에서 다른 말을
+    # 하지 않게), 그 몰을 걷어 적재해도 **앱이 그 행을 아예 읽지 않는다.** 몰당 수십~수백
+    # 페이지를 걷어 상대 사이트에 부담만 주고 얻는 것이 0이고, 로그는 정상으로 찍혀 조용하다.
+    # 실제로 이틀 사이 넷이 색인→실시간으로 옮겨 갔다(지니어스몰·11번가·공영쇼핑·롯데ON).
+    #
+    # 저장소에서는 `RECIPES ∩ ProbeTargets = ∅` 를 테스트가 지키지만 그건 **저장소 상태**다.
+    # 배치는 git pull 한 클론에서 돌고 앱은 CD 로 따로 배포되니, pull 이 실패한 날이나 배포
+    # 시차에는 앱이 앞서고 배치가 뒤처진 상태가 실재한다(2026-09-01 에 pull 실패로 배치가 죽었다).
+    #
+    # **앱 응답이 없으면 평소대로 크롤한다** — 모르면 하던 대로다. 여기서 건너뛰면 앱이 잠깐
+    # 안 뜬 날 색인이 통째로 비어 50% 가드에 걸린다.
+    only_ids, drop = _index_ids_to_crawl(_index_recipe_ids(), _realtime_ids(app_rep))
+    for pid in drop:
+        log(f"  ! 색인 건너뜀: {pid} 는 실시간 조회 대상이다(앱이 색인 행을 읽지 않는다). "
+            f"레시피에서 지울 것.")
+    if drop and not only_ids:
+        log("F 스킵: 레시피의 몰이 전부 실시간 조회 대상이 됐다 — 걷어도 화면에 닿지 않는다.")
+        return
+
     t0 = time.time()
     # 리포트를 반드시 읽어야 하므로 --out 은 항상 준다(지정이 없으면 임시 디렉터리).
     tmp = None
@@ -523,7 +563,10 @@ def stage_f_index(conn, out_dir, today):
         tmp = tempfile.mkdtemp(prefix="onnuri-index-")
         target_dir = tmp
     try:
-        r = subprocess.run([node, str(script), "--out", target_dir], cwd=str(ROOT))
+        cmd = [node, str(script), "--out", target_dir]
+        if only_ids:
+            cmd += ["--ids", ",".join(only_ids)]
+        r = subprocess.run(cmd, cwd=str(ROOT))
         if r.returncode == 2:
             log("F 스킵: playwright 미설치 — npm i playwright && npx playwright install --with-deps chromium")
             return
@@ -593,12 +636,126 @@ def stage_f_index(conn, out_dir, today):
 
 
 # ------------------------------------------------------------- 단계 E: 카나리아
-def _prev_canary(out_dir, today_name):
-    """어제까지의 리포트 중 가장 최근 것. 응답 길이 비교의 기준이 된다."""
+def _norm_host(value):
+    """URL 이든 호스트든 소문자 호스트명만 남긴다. 읽을 수 없으면 None."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    v = value.strip()
+    m = re.match(r"https?://([^/:\s]+)", v, re.I)
+    if m:
+        return m.group(1).lower()
+    if re.fullmatch(r"[A-Za-z0-9.\-]+\.[A-Za-z]{2,}", v):
+        return v.lower()
+    return None
+
+
+def _hosts_from_index():
+    """색인 크롤러가 두드리는 호스트. `--print-hosts` 로 크롤러가 직접 말한다.
+
+    놀장·인어교주는 ProbeTargets 에 없어 앱 응답만으로는 관측 밖이 된다.
+    여기서도 도메인을 손으로 적지 않는다 — RECIPES 가 유일한 출처다.
+    """
+    out = {}
+    script = ROOT / "backend" / "tools" / "index_nightly.js"
+    node = shutil.which("node")
+    if not script.exists() or not node:
+        return out
+    try:
+        r = subprocess.run([node, str(script), "--print-hosts"], cwd=str(ROOT),
+                           capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            log(f"  · robots 색인 호스트 조회 실패(exit={r.returncode}) — 폴백만 쓴다")
+            return out
+        for row in json.loads(r.stdout):
+            for h in row.get("hosts", []):
+                nh = _norm_host(h)
+                if nh:
+                    out.setdefault(nh, set()).add(row.get("id", "?"))
+    except Exception as e:                         # noqa: BLE001
+        log(f"  · robots 색인 호스트 조회 실패: {str(e)[:100]} — 폴백만 쓴다")
+    return out
+
+
+def _hosts_from_prev(prev_doc):
+    """폴백 — **어제 리포트의 조회 대상**에서 호스트를 뽑는다.
+
+    앱이 안 뜬 회차에만 쓴다. "어제까지 우리가 두드리던 곳"이라는 뜻이 정확하고,
+    무엇보다 **손으로 적는 목록이 없다** — 조회 대상이 늘면 다음 날 리포트에 자동으로 들어온다.
+
+    반환: (호스트→몰id 목록, 어느 날짜 리포트를 썼나)
+    데이터의 링크 주소를 쓰지 않는 이유: 그건 *이용자에게 줄 링크*의 호스트이지 우리가 두드리는
+    호스트가 아니다(11번가·5일장·롯데ON 이 실제로 갈린다 — 그게 이번 라운드가 고친 병이다).
+    """
+    out = {}
+    if not isinstance(prev_doc, dict):
+        return out, None
+    for pid, r in (prev_doc.get("probe") or {}).items():
+        h = _norm_host((r or {}).get("host"))
+        if h:
+            out.setdefault(h, set()).add(pid)
+    return out, prev_doc.get("date")
+
+
+def _robots_scan(hosts):
+    """호스트별 robots.txt 재조회. 전면 차단 여부만 본다 — 경로 단위 해석은 아직 사람이 한다."""
+    out = {}
+    for host in hosts:
+        url = f"https://{host}/robots.txt"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                body = r.read(20000).decode("utf-8", "replace")
+            # `Disallow: /` 한 줄(뒤에 경로가 더 없는 것)이 전면 차단이다.
+            blocked = any(re.fullmatch(r"disallow:\s*/\s*", ln.strip(), re.I)
+                          for ln in body.splitlines())
+            out[host] = {"status": r.status, "blocked_all": blocked, "bytes": len(body)}
+        except urllib.error.HTTPError as e:
+            # 404·410 은 **파일이 없다** = 금지 없음이다(온누리시장이 그렇다).
+            # 그 밖의 응답 코드는 판정이 아니라 **관측 실패**로 남긴다 — 403 을 "금지 없음"으로,
+            # 리다이렉트 루프(단축주소 호스트가 그렇다)를 "허용"으로 적으면 없는 사실을 만든다.
+            if e.code in (404, 410):
+                out[host] = {"status": e.code, "blocked_all": False, "bytes": 0}
+            else:
+                out[host] = {"status": e.code, "error": f"HTTP {e.code}"}
+        except Exception as e:                     # noqa: BLE001
+            out[host] = {"status": None, "error": str(e)[:120]}
+    return out
+
+
+def _robots_delta(prev, now, skipped=()):
+    """어제 대비 무엇이 달라졌나. 기준선 상수 대신 어제 리포트를 쓴다.
+
+    상수는 몰을 편입하면서 갱신을 잊는 순간 조용히 거짓 통과가 난다(굿데이 사고 자리).
+    어제와 비교하면 잊을 것이 없다 — 유지비가 0 이다.
+
+    첫 회차(prev 없음)는 변화 없음으로 본다. 비교 대상이 없는 것을 "바뀌었다"고 말하면
+    매번 새 서버에서 거짓 경고가 난다.
+
+    `skipped` 는 **오늘 일부러 안 본 호스트**다(그 층이 꺼져 있었다). 오늘 없다고 해서
+    "감시에서 빠졌다"고 말하면 거짓이 된다 — 빠진 게 아니라 확인하지 않은 것이다.
+    반환: (차단여부 변화, 새로 감시 시작한 호스트, 감시에서 빠진 호스트)
+    """
+    changed, added, removed = [], [], []
+    if not isinstance(prev, dict) or not prev:
+        return changed, added, removed
+    for host, r in now.items():
+        p = prev.get(host)
+        if p is None:
+            added.append(host)
+            continue
+        if r.get("error") or p.get("error"):
+            continue                               # 어느 한쪽이 관측 실패면 비교하지 않는다
+        if r.get("blocked_all") != p.get("blocked_all"):
+            changed.append((host, p.get("blocked_all"), r.get("blocked_all")))
+    removed = [h for h in prev if h not in now and h not in set(skipped)]
+    return changed, added, removed
+
+
+def _prev_report(out_dir, prefix, today_name):
+    """어제까지의 리포트 중 가장 최근 것."""
     if not out_dir:
         return None
-    d = Path(out_dir)
-    files = sorted(f for f in d.glob("probe-canary-*.json") if f.name != today_name)
+    files = sorted(f for f in Path(out_dir).glob(f"{prefix}-*.json") if f.name != today_name)
     if not files:
         return None
     try:
@@ -607,50 +764,237 @@ def _prev_canary(out_dir, today_name):
         return None
 
 
-def _robots_targets():
-    """감시 대상 id → robots.txt 주소. 주소의 출처는 데이터 한 곳뿐이다."""
-    src = ROOT / "data" / "online_platforms.json"
+def _fetch_selftest():
+    """셀프테스트를 **한 회차에 한 번만** 부른다.
+
+    이 호출은 앱이 몰들에 실제 조회를 보내는 카나리아다 — 두 번 부르면 상대 사이트에 가는
+    요청이 두 배가 된다. 그래서 단계 F(색인)와 단계 E(카나리아)가 같은 응답을 나눠 쓴다.
+    반환: (응답 또는 None, 못 받은 사유 또는 None)
+    """
+    if not APP_ADMIN_KEY:
+        return None, "APP_ADMIN_KEY 없음(.env 에 설정하면 켜진다)"
+    url = APP_BASE_URL.rstrip("/") + "/api/online/search/selftest"
     try:
-        items = {i["id"]: i for i in json.loads(src.read_text(encoding="utf-8"))["items"]}
+        req = urllib.request.Request(url, headers={"X-Admin-Key": APP_ADMIN_KEY, "User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=CANARY_TIMEOUT) as r:
+            return json.loads(r.read().decode("utf-8")), None
     except Exception as e:                         # noqa: BLE001
-        log(f"  · robots 대상 로드 실패: {e}")
-        return {}
-    out = {}
-    for pid in ROBOTS_WATCH_IDS:
-        it = items.get(pid)
-        if not it:
-            log(f"  ! robots {pid}: data/online_platforms.json 에 없다 — id 확인 필요")
-            continue
-        base = it.get("search_url_template") or it.get("url") or ""
-        m = re.match(r"(https?://[^/]+)", base)
-        if not m:
-            log(f"  ! robots {pid}: 주소를 읽을 수 없다 ({base!r})")
-            continue
-        out[pid] = m.group(1) + "/robots.txt"
+        return None, f"셀프테스트 호출 실패 {e}"
+
+
+def _realtime_ids(rep):
+    """앱이 아는 **실시간 조회 대상** id 집합. `robots[]`·`probeEndpoints[]` 어느 쪽이 와도 읽는다.
+
+    새로 실을 것이 없다 — 앱이 `ProbeTargets` 에서 파생시킨 값이라 대상이 늘거나 줄면 따라온다.
+    응답이 없으면 **빈 집합**을 돌려 호출자가 "모르면 하던 대로" 하게 한다.
+    """
+    if not isinstance(rep, dict):
+        return set()
+    out = set()
+    for key in ("robots", "probeEndpoints"):
+        for row in rep.get(key) or []:
+            if isinstance(row, dict) and row.get("platformId"):
+                out.add(row["platformId"])
     return out
 
 
-def _robots_scan():
-    """robots.txt 8곳 재조회. 전면 차단 여부만 본다 — 세부 경로 해석은 사람이 한다."""
+def _probe_robots_from_app(rep):
+    """앱이 내린 조회 대상 robots 판정을 그대로 옮긴다. **배치는 판정하지 않는다.**
+
+    파서를 한 곳에만 둔다 — 앱은 `ProbeTargets` 옆에 있어 우리가 두드리는 정확한 경로와
+    쿼리를 알고, 경로별 허용(`Disallow: /` + `Allow: /plan/front/`)을 표준 규칙으로 읽는다.
+    배치가 자기 판정을 따로 하면 같은 몰을 두고 앱은 허용, 배치는 전면 차단이라고 말하게 된다.
+
+    계약(2026-09-03, backend):
+      · `probeEndpoints[]` = {platformId, host, path} — **실제 조회 주소**(조회가 꺼져도 온다)
+      · `robots[]`         = {platformId, allowed, rule, group, error}
+    `allowed` 는 전면 차단 여부가 아니라 **그 경로가 허용되는가** 다. 그래서 키는 호스트가 아니라
+    엔드포인트(platformId)다 — 한 호스트라도 경로가 다르면 답이 다를 수 있다. 호스트는 함께 적는다.
+
+    `error` 가 채워진 행은 robots 를 못 읽은 것이고 그때 `allowed` 는 거짓이다. 모르는 것을
+    허용으로 적지 않으려는 값이므로 **차단과 구분해서** 다룬다.
+    """
     out = {}
-    for pid, url in _robots_targets().items():
+    if not isinstance(rep, dict):
+        return out
+    ep = {}
+    for e in rep.get("probeEndpoints") or []:
+        if isinstance(e, dict) and e.get("platformId"):
+            ep[e["platformId"]] = (_norm_host(e.get("host")), e.get("path"))
+    for r in rep.get("robots") or []:
+        if not isinstance(r, dict) or not r.get("platformId"):
+            continue
+        pid = r["platformId"]
+        host, path = ep.get(pid, (None, None))
+        out[pid] = {"grade": "app", "host": host, "path": path,
+                    "allowed": bool(r.get("allowed")), "rule": r.get("rule"),
+                    "group": r.get("group"), "error": r.get("error")}
+    return out
+
+
+def _probe_delta(prev, now):
+    """조회 대상 판정의 어제 대비 변화. `allowed` 뿐 아니라 **`rule` 이 바뀌는 것도 신호**다.
+
+    등급이 다른 판정끼리는 비교하지 않는다 — 앱의 경로 단위 판정과 배치의 거친 판정을
+    맞대면 매번 거짓 변화가 난다.
+    """
+    changed, added, removed = [], [], []
+    if not isinstance(prev, dict) or not prev:
+        return changed, added, removed
+    for pid, r in now.items():
+        p = prev.get(pid)
+        if p is None:
+            added.append(pid)
+            continue
+        if p.get("grade") != r.get("grade"):
+            continue                               # 등급이 다르면 비교하지 않는다
+        if r.get("error") or p.get("error"):
+            if bool(r.get("error")) != bool(p.get("error")):
+                changed.append((pid, f"관측 {'실패' if r.get('error') else '복구'}",
+                                p.get("error") or "정상", r.get("error") or "정상"))
+            continue
+        if bool(p.get("allowed")) != bool(r.get("allowed")):
+            changed.append((pid, "허용", p.get("allowed"), r.get("allowed")))
+        elif (p.get("rule") or None) != (r.get("rule") or None):
+            changed.append((pid, "근거 규칙", p.get("rule") or "(없음)", r.get("rule") or "(없음)"))
+    removed = [pid for pid in prev if pid not in now]
+    return changed, added, removed
+
+
+def _probe_skip_reason(app_rep):
+    """조회 대상 판정을 왜 못 받았나 — 성격이 다른 셋을 구분해 적는다.
+
+    킬 스위치는 **의도된 중단**이고, 나머지 둘은 우리 쪽 사정이다. 한 낱말로 뭉뚱그리면
+    "운영사 요청으로 껐다"와 "배치 설정을 안 했다"가 로그에서 같아 보인다.
+    """
+    if not APP_ADMIN_KEY:
+        return "no-admin-key(배치 설정 미비 — .env 에 APP_ADMIN_KEY)"
+    if app_rep is None:
+        return "app-unreachable(앱 응답 없음)"
+    return "kill-switch-off(실시간 조회가 꺼져 있다 — 꺼진 몰은 두드리지 않는다)"
+
+
+def _robots_watch(out_dir, app_rep, probe_on, index_on):
+    """robots 감시 — 판정은 앱에서 받고, 앱이 모르는 호스트만 배치가 거칠게 본다.
+
+    2026-09-03 정리. 두 가지를 고쳤다.
+      ① **판정이 두 곳에서 나던 것**을 하나로. 조회 대상은 앱의 `robots[]` 를 그대로 옮기고
+         배치는 그 호스트를 **다시 가져오지 않는다**(같은 파일을 하루 두 번 두드리지 않는다).
+      ② **꺼진 층은 두드리지 않는다.** 킬 스위치를 켜는 대표적 상황이 운영사 항의를 받아 끄는
+         것인데, 그 상태에서 그 몰의 robots.txt 를 계속 긁으면 요청을 받고도 계속 두드리는 셈이다.
+
+    등급이 둘이다 — 섞어 읽으면 안 된다.
+      · `app`    : 경로·쿼리까지 본 판정. `allowed`(그 경로가 허용되는가) + 근거 규칙.
+      · `coarse` : 배치의 한 줄 스캐너. **전면 차단 여부만** 본다. 색인 몰과 폴백 회차에 쓴다.
+    """
+    # ── 1) 조회 대상: 앱 판정을 그대로 옮긴다(우리는 두드리지 않는다)
+    probe, probe_skip = {}, None
+    if probe_on:
+        probe = _probe_robots_from_app(app_rep)
+        if not probe:
+            probe_skip = "app-no-robots(앱이 robots 판정을 아직 안 실어 준다)"
+    else:
+        probe_skip = _probe_skip_reason(app_rep)
+
+    today_name = f"robots-{datetime.now().strftime('%Y-%m-%d')}.json"
+    prev_doc = _prev_report(out_dir, "robots", today_name) or {}
+
+    # 앱을 못 부른 회차만 **어제 리포트의 조회 대상**을 거칠게 본다. 손으로 적은 목록은 없다.
+    fallback, fallback_date = {}, None
+    if probe_skip and probe_skip.startswith(("no-admin-key", "app-unreachable")):
+        raw, fallback_date = _hosts_from_prev(prev_doc)
+        fallback = {h: sorted(ids) for h, ids in raw.items()}
+        if not fallback:
+            probe_skip += " · 폴백 없음(어제 리포트가 없다 — 첫 실행이면 정상)"
+
+    # ── 2) 색인 몰: 앱이 모르는 호스트다(ProbeTargets 에 없다). 여기만 배치가 조회한다.
+    index_hosts = {h: sorted(ids) for h, ids in _hosts_from_index().items()}
+    coarse_targets = dict(fallback)
+    if index_on:
+        for h, ids in index_hosts.items():
+            coarse_targets.setdefault(h, []).extend(i for i in ids if i not in coarse_targets[h])
+
+    # **앱이 이미 판정한 호스트는 빼고 조회한다** — 같은 파일을 하루 두 번 가져오지 않는다.
+    # 오늘 데이터로는 겹침이 0이지만 그건 성질이 아니라 우연이다(두 집합이 마침 안 겹칠 뿐).
+    # 서로 다른 몰이 한 도메인을 쓰면(한 운영사가 두 몰을 올리는 경우) 그날부터 겹친다.
+    app_judged = {v["host"] for v in probe.values() if v.get("host")}
+    for h in sorted(set(coarse_targets) & app_judged):
+        coarse_targets.pop(h)
+
+    coarse = {}
+    if coarse_targets:
+        for h, r in _robots_scan(sorted(coarse_targets)).items():
+            coarse[h] = {**r, "grade": "coarse", "owners": coarse_targets[h]}
+
+    skipped = sorted((set() if index_on else set(index_hosts)) | app_judged)
+
+    # ── 3) 어제와 비교(같은 등급끼리만)
+    p_ch, p_add, p_rm = _probe_delta(prev_doc.get("probe", {}), probe)
+    c_ch, c_add, c_rm = _robots_delta(
+        {h: v for h, v in (prev_doc.get("coarse") or {}).items() if v.get("grade") == "coarse"},
+        coarse, skipped)
+
+    # ── 4) 로그. 요약은 늘 남긴다 — 침묵이 "변화 없음"으로 읽히면 안 된다.
+    blocked = sorted(pid for pid, r in probe.items() if not r["allowed"] and not r["error"])
+    failed = sorted(pid for pid, r in probe.items() if r["error"])
+    if probe:
+        prev_blocked = sorted(pid for pid, r in (prev_doc.get("probe") or {}).items()
+                              if not r.get("allowed") and not r.get("error"))
+        same = "어제와 같음" if prev_doc.get("probe") and prev_blocked == blocked else (
+            "첫 회차" if not prev_doc.get("probe") else "**어제와 다름**")
+        log(f"  · robots 조회 대상 {len(probe)}곳(앱 판정) — 차단 {len(blocked)}곳({same})"
+            + (f" · 관측 실패 {len(failed)}곳" if failed else ""))
+        if blocked:
+            log(f"    차단: {', '.join(blocked)}")
+        for pid in failed:
+            log(f"    관측 실패: {pid} — {probe[pid]['error']} (차단이 아니라 못 읽은 것)")
+    if probe_skip:
+        log(f"  · robots 조회 대상 확인 안 함({probe_skip})"
+            + (f" — 폴백으로 {len(fallback)}곳을 거칠게 본다(이용자 링크 호스트라 "
+               f"11번가·5일장·롯데ON 은 실제 조회 호스트와 다른 사이트를 본다)" if fallback else "")
+            + ". 변화 없음이 아니라 **확인하지 않았다**")
+    log(f"  · robots 거친 판정 {len(coarse)}곳(색인 {len(index_hosts) if index_on else 0}"
+        + (f" · 폴백 {len(fallback)}[{fallback_date} 회차 기준]" if fallback else "") + ")"
+        + (f" · 단계 F 스킵으로 {len(index_hosts)}곳 확인 안 함" if not index_on else ""))
+
+    for pid, what, before, after in p_ch:
+        log(f"  ! robots {pid}: {what} {before} → {after} — 조회 대상 재검토")
+    for pid in p_add:
+        log(f"  · robots {pid} 판정 시작 — 허용 {probe[pid]['allowed']}")
+    for pid in p_rm:
+        log(f"  · robots {pid} 판정에서 빠짐(조회 대상이 아니게 됐다)")
+    for host, before, after in c_ch:
+        log(f"  ! robots {host}: 전면 차단 {before} → {after} "
+            f"(사용 몰: {', '.join(coarse[host]['owners'])}) — 색인 대상 재검토")
+    for host in c_add:
+        log(f"  · robots {host} 감시 시작 — 전면 차단 {coarse[host].get('blocked_all')}")
+    for host in c_rm:
+        log(f"  · robots {host} 감시에서 빠짐(대상 몰이 없어졌다)")
+    for host, r in coarse.items():
+        if r.get("error"):
+            log(f"  · robots {host}: 조회 실패 {r['error']}")
+
+    # ── 5) 리포트. 등급을 함께 남긴다 — 다음 사람이 두 값을 같은 것으로 읽으면 안 된다.
+    if out_dir:
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": UA})
-            with urllib.request.urlopen(req, timeout=10) as r:
-                body = r.read(20000).decode("utf-8", "replace")
-            # `Disallow: /` 한 줄(뒤에 경로가 더 없는 것)이 전면 차단이다.
-            blocked = any(re.fullmatch(r"disallow:\s*/\s*", ln.strip(), re.I)
-                          for ln in body.splitlines())
-            out[pid] = {"status": r.status, "blocked_all": blocked, "bytes": len(body)}
-        except urllib.error.HTTPError as e:
-            # 404 는 금지 없음이다(온누리시장이 그렇다). 오류로 취급하지 않는다.
-            out[pid] = {"status": e.code, "blocked_all": False, "bytes": 0}
+            d = Path(out_dir)
+            d.mkdir(parents=True, exist_ok=True)
+            (d / today_name).write_text(json.dumps({
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "robotsUserAgent": (app_rep or {}).get("robotsUserAgent"),
+                "probe": probe, "probeSkipped": probe_skip,
+                "coarse": coarse, "coarseSkipped": skipped,
+                "fallbackFrom": fallback_date,
+                "grades": {"app": "경로·쿼리까지 본 앱 판정", "coarse": "전면 차단 여부만 본 배치 판정"},
+            }, ensure_ascii=False, indent=1), encoding="utf-8")
+            log(f"  · robots 리포트: {d / today_name}")
         except Exception as e:                     # noqa: BLE001
-            out[pid] = {"status": None, "error": str(e)[:120]}
-    return out
+            log(f"  · robots 리포트 저장 실패(무시): {e}")
+    return {"probe": probe, "coarse": coarse}
 
 
-def stage_e_canary(out_dir):
+# ------------------------------------------------------------- 단계 E: 카나리아
+def stage_e_canary(out_dir, index_on=True, app_rep=None, fetch_error=None):
     """실시간 조회(ADR-17)의 판정 규칙이 아직 맞는지 앱에 물어본다.
 
     **자동으로 아무것도 끄지 않는다.** 규칙이 깨졌다는 판단은 사람이 하고, 배치는
@@ -658,22 +1002,31 @@ def stage_e_canary(out_dir):
     배치는 파서를 갖지 않는다. 판정은 앱의 실제 조회 경로가 그대로 한다.
     """
     log("=== 단계 E: 실시간 조회 판정 카나리아 ===")
-    if not APP_ADMIN_KEY:
-        log("E 스킵: APP_ADMIN_KEY 없음(.env 에 설정하면 켜진다).")
-        return
     t0 = time.time()
-    url = APP_BASE_URL.rstrip("/") + "/api/online/search/selftest"
-    try:
-        req = urllib.request.Request(url, headers={"X-Admin-Key": APP_ADMIN_KEY, "User-Agent": UA})
-        with urllib.request.urlopen(req, timeout=CANARY_TIMEOUT) as r:
-            rep = json.loads(r.read().decode("utf-8"))
-    except Exception as e:                         # noqa: BLE001
-        log(f"E 실패(로그만): 셀프테스트 호출 실패 {e}. 배치 실패 아님.")
-        return
 
+    # 1) 셀프테스트 응답은 main 이 한 번만 받아 넘겨 준다(단계 F 와 공유 — 두 번 부르면
+    #    앱이 몰들에 보내는 조회가 두 배가 된다). 못 받았어도 여기서 끝내지 않는다 —
+    #    robots 감시는 그 사실을 사유로 남겨야 하기 때문이다.
+    rep = app_rep
+    if rep is None and fetch_error is None:
+        # 단독 호출(수동 점검·테스트)일 때만 여기서 받는다. main 은 이미 넘겨 준다.
+        rep, fetch_error = _fetch_selftest()
+    if rep is None:
+        log(f"  · 카나리아 스킵: {fetch_error or '앱 응답 없음'}. 배치 실패 아님.")
+
+    # 2) robots 감시. **켜져 있는 층만** 본다 — 꺼진 몰을 두드리지 않는 것이 킬 스위치의 정의다.
+    #    안 본 층은 리포트와 로그에 "확인하지 않았다"로 남는다(침묵이 정상으로 읽히면 안 된다).
+    probe_on = bool(rep and rep.get("probeEnabled"))
+    robots = _robots_watch(out_dir, rep, probe_on, index_on)
+    _n = len(robots["probe"]) + len(robots["coarse"])
+
+    # 3) 여기부터가 카나리아. 앱 응답이 없으면 할 수 있는 일이 없다.
+    if rep is None:
+        log(f"E 판정: 카나리아 확인 안 함(robots 판정 {_n}건) — 소요 {time.time()-t0:.1f}s")
+        return
     if not rep.get("probeEnabled"):
         # 꺼져 있으면 "이상 없음"이 아니라 "확인하지 않았다"다.
-        log("E 판정: 확인 안 함 — 실시간 조회 킬 스위치가 꺼져 있다.")
+        log(f"E 판정: 확인 안 함 — 실시간 조회 킬 스위치가 꺼져 있다(robots 판정 {_n}건).")
         return
 
     for c in rep.get("cases", []):
@@ -685,7 +1038,7 @@ def stage_e_canary(out_dir):
 
     # 응답 길이 급변은 몰 개편의 조기 신호다. 판정이 아직 맞더라도 알린다.
     today_name = f"probe-canary-{datetime.now().strftime('%Y-%m-%d')}.json"
-    prev = _prev_canary(out_dir, today_name)
+    prev = _prev_report(out_dir, "probe-canary", today_name)
     if prev:
         before = {(c["platformId"], c["kind"]): c.get("bodyLength", 0)
                   for c in prev.get("cases", [])}
@@ -696,18 +1049,9 @@ def stage_e_canary(out_dir):
                 log(f"  · {c['platformId']} [{c['kind']}] 응답 길이 {b}→{now_len} "
                     f"({(now_len-b)/b*100:+.0f}%) — 개편 여부 확인")
 
-    rep["robots"] = _robots_scan()
-    # 변화·오류만 찍으면 "침묵 = 정상"인지 "감시가 안 돈 것"인지 로그로 구분할 수 없다(2026-09-03 적발) —
-    # 요약 한 줄은 늘 남긴다.
-    _same = sum(1 for pid, r in rep["robots"].items()
-                if not r.get("error") and r.get("blocked_all") == (pid in ROBOTS_BLOCKED_AT_SURVEY))
-    log(f"  · robots 감시 {len(rep['robots'])}곳 조회 — 기준선과 동일 {_same}곳")
-    for pid, r in rep["robots"].items():
-        was_blocked = pid in ROBOTS_BLOCKED_AT_SURVEY
-        if r.get("error"):
-            log(f"  · robots {pid}: 조회 실패 {r['error']}")
-        elif r.get("blocked_all") != was_blocked:
-            log(f"  ! robots {pid}: 전면 차단 {was_blocked} → {r['blocked_all']} — 조회 대상 재검토")
+    # robots 결과를 카나리아 리포트에도 실어 둔다(한 파일로 읽을 수 있게).
+    # 비교의 기준이 되는 정본은 별도 파일 robots-YYYY-MM-DD.json 이다 — 조회가 꺼진 날에도 쌓인다.
+    rep["robots"] = robots
 
     if out_dir:
         d = Path(out_dir)
@@ -776,13 +1120,19 @@ def main():
             except Exception as e:                 # noqa: BLE001 — D 는 배치를 죽이지 않는다
                 log(f"D 실패(로그만): {e}. 배치 실패 아님.")
 
+        # 셀프테스트는 한 회차에 한 번만 — 단계 F(색인 대상 판단)와 단계 E(카나리아)가 나눠 쓴다.
+        # 두 번 부르면 앱이 몰들에 보내는 조회가 두 배가 된다.
+        selftest, selftest_err = (None, None)
+        if not (args.skip_index and args.skip_canary):
+            selftest, selftest_err = _fetch_selftest()
+
         if args.skip_index:
             log("단계 F 스킵(--skip-index)")
         elif conn is None:
             log("단계 F 스킵: DB 연결 없음.")
         else:
             try:
-                stage_f_index(conn, args.survey_out, today)
+                stage_f_index(conn, args.survey_out, today, selftest)
             except Exception as e:                 # noqa: BLE001 — F 도 배치를 죽이지 않는다
                 log(f"F 실패(로그만): {e}. 배치 실패 아님.")
 
@@ -790,7 +1140,8 @@ def main():
             log("단계 E 스킵(--skip-canary)")
         else:
             try:
-                stage_e_canary(args.survey_out)
+                stage_e_canary(args.survey_out, index_on=not args.skip_index,
+                               app_rep=selftest, fetch_error=selftest_err)
             except Exception as e:                 # noqa: BLE001 — E 도 배치를 죽이지 않는다
                 log(f"E 실패(로그만): {e}. 배치 실패 아님.")
     finally:

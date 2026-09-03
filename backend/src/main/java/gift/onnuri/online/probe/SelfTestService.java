@@ -4,7 +4,9 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +76,10 @@ public class SelfTestService {
         List<SelfTestCase> cases = new ArrayList<>();
         if (!enabled) {
             // 꺼져 있으면 "이상 없음"이 아니라 "확인하지 않았다"다. 통과로 눙치지 않는다.
-            return new SelfTestReport(now, false, 0, 0, 0, 0, List.of());
+            // 엔드포인트 목록은 그래도 채운다 — 상수에서 파생돼 네트워크가 필요 없고,
+            // 배치가 도메인을 손으로 적지 않게 하는 것이 그 목적이라 꺼졌다고 사라지면 뜻이 없다.
+            return new SelfTestReport(now, false, 0, 0, 0, 0, List.of(),
+                    endpoints(), ProbeFetcher.ROBOTS_TOKEN, List.of());
         }
         for (ProbeTarget t : ProbeTargets.ALL) {
             cases.add(one(t, ProbeQuery.of(absentQuery()), SelfTestCase.ABSENT));
@@ -89,7 +94,71 @@ public class SelfTestService {
         if (failed > 0) {
             log.warn("실시간 조회 카나리아 실패 {}건 — 판정 규칙 점검 필요", failed);
         }
-        return new SelfTestReport(now, true, cases.size(), passed, failed, skipped, cases);
+        return new SelfTestReport(now, true, cases.size(), passed, failed, skipped, cases,
+                endpoints(), ProbeFetcher.ROBOTS_TOKEN, robots());
+    }
+
+    /**
+     * 우리가 **실제로 두드리는** 호스트·경로. `ProbeTargets` 에서 파생한다 —
+     * 데이터의 이용자 링크가 아니다(11번가는 조회 apis.11st.co.kr / 링크 search.11st.co.kr).
+     * 질의어는 담지 않는다(리포트가 로그에 남는다) — 자리를 고정 토큰으로 바꾸고 쿼리는 버린다.
+     */
+    static List<ProbeEndpoint> endpoints() {
+        List<ProbeEndpoint> out = new ArrayList<>();
+        for (ProbeTarget t : ProbeTargets.ALL) {
+            java.net.URI u = java.net.URI.create(
+                    t.searchUrlTemplate().replace("{qq}", "Q").replace("{q}", "Q"));
+            String path = u.getPath() == null || u.getPath().isEmpty() ? "/" : u.getPath();
+            // **쿼리까지 붙인다.** robots 매칭은 경로+쿼리를 본다 —
+            // 굿데이·인더마켓은 조회 주소의 경로가 `/` 뿐이고 검색 조건이 전부 쿼리에 있다.
+            // 경로만 보면 그 몰들의 `Allow: /$`(루트만 연다)에 걸려 **허용으로 잘못 읽힌다**
+            // (2026-09-03 실측에서 실제로 그렇게 나왔다 — 붙이면 `Disallow: /` 로 뒤집힌다).
+            // 질의어 자리는 이미 고정 토큰 Q 로 바뀌어 있어 이용자 검색어가 실리지 않는다.
+            if (u.getRawQuery() != null && !u.getRawQuery().isBlank()) {
+                path = path + "?" + u.getRawQuery();
+            }
+            out.add(new ProbeEndpoint(t.platformId(), u.getHost(), path));
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * 몰별 robots 판정. **호스트 단위로 한 번만 읽는다** — 같은 호스트를 여러 몰이 쓸 수 있고,
+     * 하루 한 번 도는 배치가 같은 파일을 두 번 받을 이유가 없다.
+     *
+     * 판정 결과로 조회를 끄지 않는다(ADR-17 이 기각한 '조용한 축소'). 리포트와 로그까지다.
+     */
+    private List<RobotsCheck> robots() {
+        Map<String, RobotsRules> byHost = new HashMap<>();
+        Map<String, String> errByHost = new HashMap<>();
+        List<RobotsCheck> out = new ArrayList<>();
+        for (ProbeEndpoint e : endpoints()) {
+            if (!byHost.containsKey(e.host()) && !errByHost.containsKey(e.host())) {
+                try {
+                    byHost.put(e.host(),
+                            RobotsRules.parse(fetcher.fetchRobots(e.host()), ProbeFetcher.ROBOTS_TOKEN));
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    errByHost.put(e.host(), "interrupted");
+                } catch (Exception ex) {
+                    errByHost.put(e.host(), ex.getClass().getSimpleName());
+                }
+            }
+            String err = errByHost.get(e.host());
+            if (err != null) {
+                // 못 읽은 것을 "허용"으로 적지 않는다 — 모르면 모른다고 적는다.
+                out.add(new RobotsCheck(e.platformId(), false, null, null, err));
+                continue;
+            }
+            RobotsRules r = byHost.get(e.host());
+            RobotsRules.Decision d = r.decide(e.path());
+            out.add(new RobotsCheck(e.platformId(), d.allowed(), d.rule(), r.group(), null));
+        }
+        long blocked = out.stream().filter(c -> !c.allowed() && c.error() == null).count();
+        if (blocked > 0) {
+            log.warn("robots 가 막는 조회 경로 {}건 — 대상 목록 점검 필요", blocked);
+        }
+        return List.copyOf(out);
     }
 
     /**

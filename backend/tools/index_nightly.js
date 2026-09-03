@@ -17,6 +17,7 @@
  *   node backend/tools/index_nightly.js --ids tpirates      # 지정한 몰만
  *   node backend/tools/index_nightly.js --limit 10          # 몰당 페이지 상한을 낮춰 시험
  *   node backend/tools/index_nightly.js --channel chrome    # 번들 대신 설치된 Chrome
+ *   node backend/tools/index_nightly.js --print-hosts       # 접촉 호스트만 JSON 으로 출력(브라우저 안 띄움)
  *
  * 종료 코드: 0 = 정상(수집 성공 여부 무관) · 2 = playwright 없음 · 3 = 입력 문제
  *   몰 하나가 실패해도 나머지는 계속하고, 전 몰이 실패해도 0 으로 끝낸다 — 단계 F 는 fail-open 이다.
@@ -418,6 +419,15 @@ async function main() {
   const channel = valOf('--channel') || process.env.PLAYWRIGHT_CHANNEL || null;
 
   const log = (m) => console.log(`[${localStamp()}] ${m}`);
+
+  // 이 크롤러가 두드리는 호스트를 배치(단계 E robots 감시)가 스스로 뽑아 가게 한다.
+  // 배치가 도메인을 손으로 적으면 조용히 다른 사이트를 감시하게 된다(2026-08-31 굿데이 오기).
+  // 브라우저를 띄우기 전에 처리한다 — playwright 가 없어도 이 질문에는 답할 수 있어야 한다.
+  if (argv.includes('--print-hosts')) {
+    process.stdout.write(JSON.stringify(
+      RECIPES.map((r) => ({ id: r.id, hosts: r.hosts })), null, 1) + '\n');
+    process.exit(0);
+  }
 
   const targets = ONLY.length ? RECIPES.filter((r) => ONLY.includes(r.id)) : RECIPES;
   if (!targets.length) {
