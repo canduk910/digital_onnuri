@@ -71,19 +71,37 @@ public class NewsService {
         }
     }
 
+    /**
+     * RSS 를 항목으로 쪼개고 **최신순으로 정렬한 뒤** 상한만큼 자른다.
+     *
+     * 2026-09-04: 종전에는 받은 순서 그대로 앞에서 잘랐다. 구글 뉴스 RSS 는 기본이 관련도순이라
+     * 화면이 `최신순` 이라 적어 두고 실제로는 관련도순을 보여 주고 있었다(실측: 09-03 08:00 다음에
+     * 더 오래된 항목이 왔다). **자르기 전에** 정렬해야 한다 — 앞에서 자른 뒤 정렬하면
+     * 최신 기사가 상한 밖에 있을 때 영영 안 나온다.
+     *
+     * pubDate 는 `yyyy-MM-dd HH:mm`(KST) 문자열이라 사전순 = 시간순이다. 날짜를 못 읽은 항목은
+     * 뒤로 보낸다 — 날짜가 없다고 최신인 척하면 안 된다.
+     */
     static List<NewsItem> parse(String xml) {
-        List<NewsItem> out = new ArrayList<>();
+        List<NewsItem> all = new ArrayList<>();
         Matcher m = ITEM.matcher(xml == null ? "" : xml);
-        while (m.find() && out.size() < MAX_ITEMS) {
+        while (m.find()) {
             String block = m.group(1);
             String title = unescape(group(TITLE, block));
             String link = unescape(group(LINK, block));
             String source = unescape(group(SOURCE, block));
             String pub = toKst(group(PUB, block));
             if (title == null || link == null) continue;
-            out.add(new NewsItem(stripSourceSuffix(title, source), link, source, pub));
+            all.add(new NewsItem(stripSourceSuffix(title, source), link, source, pub));
         }
-        return out;
+        all.sort((a, b) -> {
+            String x = a.pubDate(), y = b.pubDate();
+            if (x == null && y == null) return 0;
+            if (x == null) return 1;      // 날짜 없는 항목은 뒤로
+            if (y == null) return -1;
+            return y.compareTo(x);        // 최신 먼저
+        });
+        return all.size() > MAX_ITEMS ? new ArrayList<>(all.subList(0, MAX_ITEMS)) : all;
     }
 
     /** 구글 RSS 제목의 " - 출처명" 접미 제거(출처는 별도 필드로 제공하므로 중복). */

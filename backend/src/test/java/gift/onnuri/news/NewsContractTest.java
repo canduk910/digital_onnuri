@@ -47,4 +47,36 @@ class NewsContractTest {
         assertEquals("온누리 - 안내", NewsService.stripSourceSuffix("온누리 - 안내", null));
         assertEquals("온누리상품권 사용처 대폭 확대", NewsService.stripSourceSuffix("온누리상품권 사용처 대폭 확대 - 어딘가일보", null));
     }
+
+    @Test
+    void 최신순으로_정렬하고_자른다() {
+        // 화면이 "최신순"이라 적으므로 실제로 그래야 한다. 구글 RSS 는 관련도순으로 오므로
+        // 받은 순서를 그대로 쓰면 화면 문구가 거짓이 된다(2026-09-04 적발).
+        String xml = """
+            <rss><channel>
+            <item><title>중간</title><link>https://e/2</link>
+              <pubDate>Wed, 02 Sep 2026 10:00:00 GMT</pubDate><source url="x">A</source></item>
+            <item><title>가장 최신</title><link>https://e/1</link>
+              <pubDate>Thu, 03 Sep 2026 10:00:00 GMT</pubDate><source url="x">A</source></item>
+            <item><title>가장 오래</title><link>https://e/3</link>
+              <pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate><source url="x">A</source></item>
+            </channel></rss>""";
+        var items = NewsService.parse(xml);
+        assertEquals(List.of("가장 최신", "중간", "가장 오래"),
+                items.stream().map(NewsItem::title).toList());
+    }
+
+    @Test
+    void 날짜를_못_읽은_항목은_뒤로_보낸다() {
+        // 날짜가 없다고 최신인 척하면 안 된다 — 맨 위는 이용자가 가장 신뢰하는 자리다.
+        String xml = """
+            <rss><channel>
+            <item><title>날짜없음</title><link>https://e/9</link><source url="x">A</source></item>
+            <item><title>날짜있음</title><link>https://e/8</link>
+              <pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate><source url="x">A</source></item>
+            </channel></rss>""";
+        var items = NewsService.parse(xml);
+        assertEquals(List.of("날짜있음", "날짜없음"),
+                items.stream().map(NewsItem::title).toList());
+    }
 }
