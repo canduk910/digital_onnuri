@@ -33,4 +33,10 @@ public record SelfTestCase(
 
     public static final String ABSENT  = "absent";
     public static final String PRESENT = "present";
+
+    /** 재시도 사실을 note 에 덧쓴다. 컴포넌트는 그대로라 직렬화 계약이 바뀌지 않는다. */
+    public SelfTestCase withNote(String newNote) {
+        return new SelfTestCase(platformId, query, kind, expected, actual, ok, reason,
+                matchCount, sampleCount, bodyLength, echoed, echoDeclared, newNote);
+    }
 }

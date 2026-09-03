@@ -40,18 +40,25 @@ public class SelfTestService {
      * 고정 문자열(`zzqqxyw12345`)을 매일 보냈더니 **상대 몰의 인기 검색어에 우리 질의가 올라갔다**
      * — 2026-09-03 실측: 온누리굿데이 인기 검색어 10개 중 2위, 자동완성 배열에도 포함.
      * 그 몰을 쓰는 사람들 화면에 우리가 만든 낱말이 보이는 것이라 그 자체로 폐를 끼치는 일이고,
-     * 부수적으로 판정도 흔든다 — 그 블록은 stripEcho 가 걷지 않는 본문이라 히트로 잡힌다
-     * (같은 회차 실측: 고정 질의 히트 2, **무작위 질의 히트 0**).
+     * 부수적으로 판정도 흔든다(그 블록은 stripEcho 가 걷지 않는 본문이라 히트로 잡힌다).
      *
-     * 매 회차 다른 말을 보내면 어느 몰의 인기·최근 검색어에도 쌓이지 않는다.
-     * 형태: `zq` + 소문자 8자. 숫자를 넣지 않아 상품 코드·수량과 우연히 겹칠 일이 없고,
-     * 10자라 ProbeQuery 의 길이 제한(2~40)을 넉넉히 지킨다.
+     * <p><b>고정 접두를 두지 않는다.</b> 처음에 `zq` + 소문자 8자로 만들었더니 라이브에서
+     * 온누리팔도시장이 매일 실패했다 — 그 몰에서 **`zq` 자체가 386건을 무는 접두어**이고
+     * (`zqh` 11건 · 그 회차 질의 `zqhaerxqaq` 7건), 검색이 정확 일치가 아니라 뒤에 무엇이
+     * 붙느냐로 0이 되기도 7이 되기도 한다. 접두가 고정이면 **한 몰에서 걸린 날 매일 걸린다.**
+     * 열 자를 전부 무작위로 뽑아 그 고리를 끊는다.
+     *
+     * <p>숫자는 넣지 않는다 — 상품 코드·수량(`1kg`)과 우연히 겹칠 수 있다.
+     * 길이 10은 ProbeQuery 의 제한(2~40)을 넉넉히 지킨다.
      * 리포트에는 그 회차에 실제로 쓴 말이 SelfTestCase.query 로 남는다.
+     *
+     * <p>그래도 **우연히 걸리는 회차를 없앨 수는 없다** — 위 실측이 그 증거다.
+     * 그것은 {@link #absentCase} 의 재시도가 맡는다.
      */
     static String absentQuery() {
-        StringBuilder sb = new StringBuilder("zq");
+        StringBuilder sb = new StringBuilder(10);
         java.util.concurrent.ThreadLocalRandom r = java.util.concurrent.ThreadLocalRandom.current();
-        for (int i = 0; i < 8; i++) sb.append((char) ('a' + r.nextInt(26)));
+        for (int i = 0; i < 10; i++) sb.append((char) ('a' + r.nextInt(26)));
         return sb.toString();
     }
 
@@ -82,7 +89,7 @@ public class SelfTestService {
                     endpoints(), ProbeFetcher.ROBOTS_TOKEN, List.of());
         }
         for (ProbeTarget t : ProbeTargets.ALL) {
-            cases.add(one(t, ProbeQuery.of(absentQuery()), SelfTestCase.ABSENT));
+            cases.add(absentCase(t));
             cases.add(one(t, ProbeQuery.of(t.canaryPresentQuery()), SelfTestCase.PRESENT));
         }
         int passed = 0, failed = 0, skipped = 0;
@@ -169,6 +176,32 @@ public class SelfTestService {
      */
     static boolean canDecideAbsent(ProbeTarget t) {
         return !t.noneMarkersBound().isEmpty() || !t.noneMarkersPlain().isEmpty() || !t.echoesQuery();
+    }
+
+    /**
+     * 없는 질의 한 건. **실패하면 새 무작위 말로 한 번 더 부른다.**
+     *
+     * 무작위 낱말이 어느 몰에 우연히 걸리는 일은 드물지 않다(2026-09-03 팔도시장 7건 실측).
+     * 그런데 **서로 다른 두 낱말이 같은 몰에서 연달아 걸릴 확률은 훨씬 낮다.**
+     * 그래서 두 번 다 실패할 때만 FAIL 로 올린다 — 이렇게 하면
+     * "우리 말이 우연히 걸렸다"와 "없음-문구가 깨졌다"가 갈린다.
+     *
+     * 요청량은 실패한 건에서만 +1이라 평시에는 늘지 않는다.
+     * 리포트에는 **두 질의를 모두** 남긴다 — 무엇을 보고 판단했는지가 남아야 한다.
+     */
+    SelfTestCase absentCase(ProbeTarget t) {
+        String q1 = absentQuery();
+        SelfTestCase first = one(t, ProbeQuery.of(q1), SelfTestCase.ABSENT);
+        // 기대치가 없는 몰(onnuri-chance·롯데ON)은 재시도해도 판단이 달라지지 않는다.
+        if (first.expected().isEmpty() || first.ok()) return first;
+
+        SelfTestCase second = one(t, ProbeQuery.of(absentQuery()), SelfTestCase.ABSENT);
+        String head = second.ok()
+                // 통과했다 = 첫 낱말이 우연히 걸린 것이다. 그 몰 검색이 느슨하다는 신호이고,
+                // 나중에 규칙을 볼 때 재료가 된다.
+                ? "첫 질의 '" + q1 + "' 가 걸려 새 말로 다시 물었다(그 몰 검색이 느슨하다)"
+                : "두 질의 모두 실패 — '" + q1 + "' 그리고 '" + second.query() + "'";
+        return second.withNote(second.note().isEmpty() ? head : head + " / " + second.note());
     }
 
     private SelfTestCase one(ProbeTarget t, ProbeQuery q, String kind) {

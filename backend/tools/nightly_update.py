@@ -751,6 +751,74 @@ def _robots_delta(prev, now, skipped=()):
     return changed, added, removed
 
 
+# 카나리아 재시도 추세(2026-09-03)
+# 무작위 질의가 우연히 상품을 물면 앱이 새 말로 한 번 다시 묻는다. 그 재시도는 우연을 걸러 주지만
+# **가리기도 한다** — 어느 몰의 검색이 점점 느슨해져 무작위 낱말을 자주 물기 시작하면 재시도가
+# 매번 통과시켜 주면서 FAIL 이 영영 안 뜬다. 그래서 통과한 재시도에도 note 가 붙고, 배치는
+# 그 note 가 **잦아지는 것**을 본다. 한 회차의 1건은 정상이고 문제는 추세다.
+RETRY_WINDOW = 7          # 최근 몇 회차를 보나(일주일)
+RETRY_ALERT_MIN = 3       # 그중 몇 회차에서 걸리면 알리나
+RETRY_MIN_ROUNDS = 3      # 회차가 이보다 적으면 판단하지 않는다(표본이 없으면 추세도 없다)
+# note 문구로 추론할 때 쓰는 표지. **구조화된 플래그(`retried`)가 있으면 그쪽이 우선**이다 —
+# 문구 매칭은 앱이 말을 바꾸면 조용히 0건이 된다. 그래서 리포트에 어느 방법으로 셌는지 남긴다.
+RETRY_NOTE_MARKS = ("재시도", "다시 물었", "다시 물음")
+
+
+def _retry_ids(rep):
+    """그 회차에 **재시도가 있었던** 몰 id 집합과, 무엇으로 셌는지.
+
+    반환: (id 집합, "flag" 또는 "note" 또는 None)
+    """
+    if not isinstance(rep, dict):
+        return set(), None
+    by, out = None, set()
+    for c in rep.get("cases") or []:
+        if not isinstance(c, dict) or not c.get("platformId"):
+            continue
+        if "retried" in c:
+            by = by or "flag"
+            if c["retried"]:
+                out.add(c["platformId"])
+            continue
+        note = c.get("note") or ""
+        if any(m in note for m in RETRY_NOTE_MARKS):
+            by = by or "note"
+            out.add(c["platformId"])
+    return out, by
+
+
+def _retry_trend(rounds):
+    """회차별 재시도 몰 목록을 받아 몰마다 (걸린 회차 수, 본 회차 수)를 센다.
+
+    `rounds` 는 최근 것부터든 오래된 것부터든 상관없다 — 세는 것은 횟수뿐이다.
+    회차가 RETRY_MIN_ROUNDS 보다 적으면 **빈 결과**를 돌려준다. 표본이 없는데 추세를 말하면
+    새 서버에서 첫 주 내내 거짓 경고가 난다.
+    """
+    rounds = [r for r in rounds if r is not None]
+    n = len(rounds)
+    if n < RETRY_MIN_ROUNDS:
+        return {}, n
+    hits = {}
+    for ids in rounds:
+        for pid in ids:
+            hits[pid] = hits.get(pid, 0) + 1
+    return hits, n
+
+
+def _recent_reports(out_dir, prefix, limit, today_name):
+    """오늘을 뺀 최근 리포트 몇 개(오래된 것 → 최신 순)."""
+    if not out_dir:
+        return []
+    files = sorted(f for f in Path(out_dir).glob(f"{prefix}-*.json") if f.name != today_name)
+    out = []
+    for f in files[-limit:]:
+        try:
+            out.append(json.loads(f.read_text(encoding="utf-8")))
+        except Exception:                          # noqa: BLE001
+            continue
+    return out
+
+
 def _prev_report(out_dir, prefix, today_name):
     """어제까지의 리포트 중 가장 최근 것."""
     if not out_dir:
@@ -1048,6 +1116,24 @@ def stage_e_canary(out_dir, index_on=True, app_rep=None, fetch_error=None):
             if b and now_len and abs(now_len - b) / b > BODY_DELTA_ALERT:
                 log(f"  · {c['platformId']} [{c['kind']}] 응답 길이 {b}→{now_len} "
                     f"({(now_len-b)/b*100:+.0f}%) — 개편 여부 확인")
+
+    # ── 재시도 추세. **자동으로 아무것도 끄지 않는다** — 리포트·로그까지다(ADR-17 의 조용한 축소 금지).
+    today_retry, retry_by = _retry_ids(rep)
+    prev_rounds = _recent_reports(out_dir, "probe-canary", RETRY_WINDOW - 1, today_name)
+    rounds = [_retry_ids(r)[0] for r in prev_rounds] + [today_retry]
+    hits, seen = _retry_trend(rounds)
+    frequent = sorted(pid for pid, n in hits.items() if n >= RETRY_ALERT_MIN)
+    for pid in frequent:
+        log(f"  ! 재시도 잦음: {pid} — 최근 {seen}회차 중 {hits[pid]}번 무작위 질의가 걸려 "
+            f"다시 물었다. 그 몰 검색이 느슨해지는 중일 수 있다(재시도가 FAIL 을 가린다) — "
+            f"absent 질의 규칙 재검토")
+    if today_retry and not frequent:
+        log(f"  · 재시도 {len(today_retry)}곳({', '.join(sorted(today_retry))}) — "
+            f"최근 {seen}회차 기준 아직 추세 아님(알림 기준 {RETRY_ALERT_MIN}회)")
+    # 판단 근거를 리포트에 남긴다 — 몇 회차 중 몇 번이었는지 봐야 사람이 규칙을 고칠지 정한다.
+    rep["retryTrend"] = {"window": RETRY_WINDOW, "roundsSeen": seen, "alertMin": RETRY_ALERT_MIN,
+                         "countedBy": retry_by, "today": sorted(today_retry),
+                         "hits": dict(sorted(hits.items())), "frequent": frequent}
 
     # robots 결과를 카나리아 리포트에도 실어 둔다(한 파일로 읽을 수 있게).
     # 비교의 기준이 되는 정본은 별도 파일 robots-YYYY-MM-DD.json 이다 — 조회가 꺼진 날에도 쌓인다.

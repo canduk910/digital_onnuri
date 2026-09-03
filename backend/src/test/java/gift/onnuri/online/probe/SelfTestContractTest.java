@@ -176,9 +176,25 @@ class SelfTestContractTest {
         for (int i = 0; i < 200; i++) seen.add(SelfTestService.absentQuery());
         assertTrue(seen.size() > 190, "질의가 충분히 흩어지지 않는다: " + seen.size() + "/200");
         for (String q : seen) {
-            assertTrue(q.matches("zq[a-z]{8}"), "형태가 다르다: " + q);
+            assertTrue(q.matches("[a-z]{10}"), "형태가 다르다: " + q);
             assertTrue(ProbeQuery.of(q).searchable(), "조회할 수 없는 질의다: " + q);
         }
+    }
+
+    @Test
+    void 없는말_질의에_고정_접두가_없다() {
+        // `zq` 접두를 두었다가 라이브에서 온누리팔도시장이 매일 실패했다 —
+        // 그 몰에서 **`zq` 자체가 386건을 무는 접두어**였다(`zqh` 11 · `zqhaerxqaq` 7).
+        // 접두가 고정이면 한 몰에서 걸린 날 **매일** 걸린다. 그 고리를 끊는 것이 이 테스트다.
+        java.util.Set<Character> firsts = new java.util.HashSet<>();
+        java.util.Set<String> heads = new java.util.HashSet<>();
+        for (int i = 0; i < 300; i++) {
+            String q = SelfTestService.absentQuery();
+            firsts.add(q.charAt(0));
+            heads.add(q.substring(0, 2));
+        }
+        assertTrue(firsts.size() > 15, "첫 글자가 쏠린다: " + firsts.size() + "종");
+        assertTrue(heads.size() > 100, "앞 두 글자가 쏠린다: " + heads.size() + "종");
     }
 
     @Test
@@ -255,5 +271,79 @@ class SelfTestContractTest {
         // 나중에 누가 봐도 "어떤 이름으로 판정했는지"를 알 수 있어야 한다.
         assertEquals("onnuri-guide", ProbeFetcher.ROBOTS_TOKEN);
         assertTrue(ProbeFetcher.ROBOTS_TOKEN.length() > 3, "토큰이 너무 짧으면 아무 그룹에나 걸린다");
+    }
+
+    // ── 없는 질의 재시도 ────────────────────────────────────────────────
+
+    /** 팔도시장을 쓴다 — 등급 B 문구가 질의와 무관해 본문을 지어낼 수 있고 echoesQuery=true 라 토큰 0 판정이 끼어들지 않는다. */
+    private static SelfTestService svcReturning(String... bodies) {
+        ProbeFetcher f = org.mockito.Mockito.mock(ProbeFetcher.class);
+        var stub = org.mockito.Mockito.when(f.fetch(org.mockito.Mockito.any(), org.mockito.Mockito.any()))
+                .thenReturn(ProbeOutcome.ok(bodies[0]));
+        for (int i = 1; i < bodies.length; i++) stub = stub.thenReturn(ProbeOutcome.ok(bodies[i]));
+        return new SelfTestService(f, true);
+    }
+
+    private static final String 걸림 = "<html><body><div>" + "다른 상품 이름 ".repeat(60) + "</div></body></html>";
+    private static final String 없음 = "<html><body><div>고객님이 검색하신 상품이 없어요. "
+            + "전문 MD가 열심히 상품을 찾고 있는 중이니 ".repeat(30) + "</div></body></html>";
+
+    @Test
+    void 없는말이_우연히_걸리면_새_말로_한_번_더_묻는다() {
+        // 2026-09-03 라이브: 무작위 질의가 팔도시장에서 7건을 물어 absent 가 실패했다.
+        // 한 낱말이 우연히 걸리는 일은 드물지 않지만 **두 낱말이 연달아 걸릴 확률은 훨씬 낮다.**
+        ProbeTarget paldo = ProbeTargets.byId("onnuri-paldo-sijang").orElseThrow();
+        var c = svcReturning(걸림, 없음).absentCase(paldo);
+        assertTrue(c.ok(), "재시도로 통과해야 한다: " + c.actual() + " / " + c.note());
+        assertEquals(Verdict.NONE, c.actual());
+        assertTrue(c.note().contains("다시 물었다"), "재시도 사실이 리포트에 없다: " + c.note());
+        assertTrue(c.note().contains("느슨하다"), "그 몰 검색이 느슨하다는 신호를 남겨야 한다");
+    }
+
+    @Test
+    void 두_번_다_걸리면_실패로_올린다() {
+        // 서로 다른 두 낱말이 연달아 걸렸다 = 우연이 아니라 없음-문구가 깨진 것이다.
+        ProbeTarget paldo = ProbeTargets.byId("onnuri-paldo-sijang").orElseThrow();
+        var c = svcReturning(걸림, 걸림).absentCase(paldo);
+        assertFalse(c.ok(), "두 번 다 실패했는데 통과로 셌다");
+        assertTrue(c.note().contains("두 질의 모두 실패"), "실제: " + c.note());
+    }
+
+    @Test
+    void 재시도_리포트에_두_질의가_모두_남는다() {
+        // 무엇을 보고 판단했는지가 남아야 사람이 따라갈 수 있다.
+        ProbeTarget paldo = ProbeTargets.byId("onnuri-paldo-sijang").orElseThrow();
+        var c = svcReturning(걸림, 걸림).absentCase(paldo);
+        var quoted = java.util.regex.Pattern.compile("'([a-z]{10})'").matcher(c.note());
+        java.util.Set<String> qs = new java.util.HashSet<>();
+        while (quoted.find()) qs.add(quoted.group(1));
+        assertEquals(2, qs.size(), "두 질의가 다 남지 않았다: " + c.note());
+        assertTrue(qs.contains(c.query()), "판단에 쓴 질의가 query 필드와 다르다");
+    }
+
+    @Test
+    void 처음에_통과하면_다시_묻지_않는다() {
+        // 평시 요청량이 늘면 안 된다 — 재시도는 실패한 건에서만이다.
+        ProbeFetcher f = org.mockito.Mockito.mock(ProbeFetcher.class);
+        org.mockito.Mockito.when(f.fetch(org.mockito.Mockito.any(), org.mockito.Mockito.any()))
+                .thenReturn(ProbeOutcome.ok(없음));
+        var c = new SelfTestService(f, true)
+                .absentCase(ProbeTargets.byId("onnuri-paldo-sijang").orElseThrow());
+        assertTrue(c.ok());
+        org.mockito.Mockito.verify(f, org.mockito.Mockito.times(1))
+                .fetch(org.mockito.Mockito.any(), org.mockito.Mockito.any());
+    }
+
+    @Test
+    void 기대치가_없는_몰은_재시도하지_않는다() {
+        // onnuri-chance·롯데ON 은 '없다'를 확정할 수단이 없어 다시 물어도 판단이 달라지지 않는다.
+        for (String id : java.util.List.of("onnuri-chance", "lotte-on-sangsaeng-store")) {
+            ProbeFetcher f = org.mockito.Mockito.mock(ProbeFetcher.class);
+            org.mockito.Mockito.when(f.fetch(org.mockito.Mockito.any(), org.mockito.Mockito.any()))
+                    .thenReturn(ProbeOutcome.ok(걸림));
+            new SelfTestService(f, true).absentCase(ProbeTargets.byId(id).orElseThrow());
+            org.mockito.Mockito.verify(f, org.mockito.Mockito.times(1))
+                    .fetch(org.mockito.Mockito.any(), org.mockito.Mockito.any());
+        }
     }
 }
