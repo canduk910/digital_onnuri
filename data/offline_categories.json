@@ -106,7 +106,7 @@
     {
       "id": "academy-sports",
       "type": "학원·체육시설",
-      "examples": "구역 내 보습학원·태권도장·피아노학원 등 (2024.9 제한업종 완화로 가맹 허용)",
+      "examples": "구역 내 보습학원·태권도장·피아노학원 등 (가맹 등록된 곳에 한함)",
       "verdict": "conditional",
       "verdict_label": "가맹 시 가능",
       "basis": [
