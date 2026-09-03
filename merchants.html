@@ -308,6 +308,8 @@
   .bm-empty{ padding:24px 16px; color:var(--text-faint); font-size:13px; text-align:center; }
   .map-note{ font-size:12.5px; color:var(--text-sub); padding:8px 2px 0; line-height:1.5; }
   .map-note b{ color:var(--text); font-weight:650; }
+  .loc-note{ font-size:12.5px; line-height:1.5; padding:4px 2px 0; color:var(--text-sub); }
+  .loc-note.err{ color:#B3540E; font-weight:650; }
   /* 네이버 인포윈도우 커스텀 */
   /* 단일 상세 팝업 — 이름+업종 한 줄, 주소, 결제 태그 순의 간격 리듬(그룹 팝업과 동일 규칙) */
   .iw{ font-family:inherit; padding:12px 14px; min-width:200px; max-width:260px; }
@@ -500,6 +502,11 @@
           </button>
         </div>
         <div class="map-note" id="mapNote"></div>
+        <!-- 2026-09-04: 위치 안내를 mapNote 에 쓰고 있었는데, 성공 경로가 곧바로 morph 를
+             일으키고 그 idle 이 viewportRender → renderMap 으로 이어져 **방금 쓴 문장을
+             덮어썼다**. 오차 반경은 "이 점을 얼마나 믿을 수 있나"를 말하는 유일한 단서라
+             (2km 면 사실상 쓸모없다) 사라지면 안 된다. 자기 자리를 준다. -->
+        <div class="loc-note" id="locNote" hidden></div>
       </div>
       <div class="split-handle" id="splitHandle" role="separator" aria-orientation="vertical"
            aria-label="리스트·지도 크기 조절 (드래그, 더블클릭 시 초기화)" tabindex="0" title="드래그로 크기 조절 · 더블클릭 초기화"><span></span></div>
@@ -2240,10 +2247,24 @@
 
 
   /* ── 현재 위치(GPS·Wi‑Fi·기지국 = 브라우저 Geolocation) ── */
+  /* 위치 안내 전용 줄. renderMap 이 mapNote 를 매 렌더 다시 쓰므로 여기 쓴 문장은
+     덮이지 않는다. 성공 안내는 잠시 뒤 스스로 사라지고, 실패 안내는 사람이 다시 누를
+     때까지 남는다 — 실패를 조용히 지우면 아무 일도 안 일어난 것처럼 보인다. */
+  var locNoteTimer = null;
+  function setLocNote(text, isErr, autoHideMs) {
+    var n = el("locNote"); if (!n) return;
+    if (locNoteTimer) { clearTimeout(locNoteTimer); locNoteTimer = null; }
+    if (!text) { n.hidden = true; n.textContent = ""; return; }
+    n.textContent = text;
+    n.className = "loc-note" + (isErr ? " err" : "");
+    n.hidden = false;
+    if (autoHideMs) locNoteTimer = setTimeout(function () { setLocNote(""); }, autoHideMs);
+  }
+
   function showMyLocation() {
-    var btn = el("locBtn"), note = el("mapNote");
-    if (!navigator.geolocation) { if (note) note.textContent = "이 브라우저는 위치 기능을 지원하지 않습니다."; return; }
-    if (!initMap()) { if (note) note.textContent = "지도를 사용할 수 없어 현재 위치를 표시할 수 없습니다."; return; }
+    var btn = el("locBtn");
+    if (!navigator.geolocation) { setLocNote("이 브라우저는 위치 기능을 지원하지 않습니다.", true); return; }
+    if (!initMap()) { setLocNote("지도를 사용할 수 없어 현재 위치를 표시할 수 없습니다.", true); return; }
     if (btn) { btn.disabled = true; btn.classList.add("loading"); }
     navigator.geolocation.getCurrentPosition(function (pos) {
       if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
@@ -2263,13 +2284,13 @@
         });
       }
       mapObj.morph(here, 16);
-      if (note) note.innerHTML = "현재 위치를 표시했습니다" + (acc ? " (오차 약 " + nf(Math.round(acc)) + "m)" : "") + ".";
+      setLocNote("현재 위치를 표시했습니다" + (acc ? " — 오차 약 " + nf(Math.round(acc)) + "m" : "") + ".", false, 12000);
     }, function (err) {
       if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
       var msg = "현재 위치를 가져오지 못했습니다.";
       if (err && err.code === 1) msg = "위치 권한이 거부되었습니다. 브라우저 주소창의 위치 권한을 허용해 주세요.";
       else if (err && err.code === 3) msg = "위치 확인 시간이 초과되었습니다. 다시 시도해 주세요.";
-      if (note) note.textContent = msg;
+      setLocNote(msg, true);
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
   }
 
