@@ -317,6 +317,7 @@
     padding:2px 8px; border-radius:4px; margin-right:0; line-height:1.5; }
   .iw .iw-pay .card{ background:var(--accent-soft); color:var(--accent-press); }
   .iw .iw-pay .qr{ background:#EEF6EF; color:#1F7A47; }
+  .iw .iw-pay .none{ background:var(--no-soft); color:var(--text-sub); }
   /* 상세 팝업 액션 — 네이버 지도 장소보기·길찾기 (터치 타깃 ≥38px, 라벨 줄바꿈 금지) */
   .iw-actions{ display:flex; gap:6px; margin-top:10px; }
   .iw-act{ flex:1; min-height:38px; display:flex; align-items:center; justify-content:center;
@@ -1789,7 +1790,11 @@
       var pay = "";
       if (r.card === "Y") pay += '<span class="pay card">카드</span>';
       if (r.qr === "Y") pay += '<span class="pay qr">QR</span>';
-      if (!pay) pay = '<span class="pay none">앱 결제 미확인</span>';
+      // 2026-09-03: "앱 결제 미확인" 이었다 — **사실과 다르다.** card·qr 은 공식 API 가 늘 Y/N 으로
+      // 주는 값이라 빈 값이 없고(전국 79,800건 실측), 둘 다 N 은 "확인하지 못했다"가 아니라
+      // **"디지털로는 결제할 수 없다"**는 뜻이다(그 1,689곳은 전부 paper=Y — 지류 전용 가맹점).
+      // "미확인"은 이용자에게 "될 수도 있다"로 읽혀 계산대에서 실패하게 만든다.
+      if (!pay) pay = '<span class="pay none" title="공식 목록 기준 카드형·모바일형(QR) 결제가 되지 않는 곳입니다 — 지류(종이) 상품권만 받습니다">디지털 불가 · 지류만</span>';
       h += '<tr class="row-link" data-lat="' + (r.lat || "") + '" data-lng="' + (r.lng || "")
         + '" data-name="' + esc(r.name || "") + '" tabindex="0">'
         + '<td class="name"><button type="button" class="fav-btn' + (isFav(r) ? " on" : "") + '" data-ri="' + i
@@ -2041,15 +2046,27 @@
     return html + '</div>';
   }
 
+  /**
+   * 결제 수단 태그. **창구를 하나로 둔다** — 표·개별 팝업·그룹 팝업이 각각 조건을 쓰다가
+   * 팝업 두 곳만 "둘 다 N 이면 결제 줄을 통째로 생략"하고 있었다(2026-09-03 적발).
+   * 결제가 안 되는 곳에서 결제에 관해 **아무 말도 안 하는 것**이 가장 나쁜 침묵이다.
+   * card·qr 은 공식 API 가 늘 Y/N 을 주므로 "모름" 상태는 존재하지 않는다.
+   */
+  function payTags(r) {
+    var t = "";
+    if (r.card === "Y") t += '<span class="card">카드</span>';
+    if (r.qr === "Y") t += '<span class="qr">QR</span>';
+    if (!t) t = '<span class="none" title="공식 목록 기준 카드형·모바일형(QR) 결제가 되지 않는 곳입니다 — 지류(종이) 상품권만 받습니다">디지털 불가 · 지류만</span>';
+    return t;
+  }
+
   function openInfo(anchor, r) {
     recordRecent(r);   // 최근 본 기록(이 브라우저에만, 최대 10)
-    var pay = "";
-    if (r.card === "Y") pay += '<span class="card">카드</span>';
-    if (r.qr === "Y") pay += '<span class="qr">QR</span>';
+    var pay = payTags(r);
     var html = '<div class="iw"><div class="iw-name">' + esc(r.name) + '</div>'
       + '<div class="iw-cat">' + esc(catLabel(r.cat)) + (r.brand === SSM_BRAND ? " · SSM" : "") + '</div>'
       + '<div class="iw-addr">' + esc(r.addr || "") + (r.market ? " · " + esc(r.market) : "") + '</div>'
-      + (pay ? '<div class="iw-pay">' + pay + '</div>' : "")
+      + '<div class="iw-pay">' + pay + '</div>'
       + mapActions(r) + '</div>';
     openInfoWindow(html, (anchor instanceof naver.maps.Marker) ? anchor : new naver.maps.LatLng(r.lat, r.lng));
   }
@@ -2057,12 +2074,10 @@
   // 동일좌표(같은 건물) 여러 가맹점 — 그 위치의 전체 목록 팝업(온누리 '선택 위치 가맹점'과 동일 UX).
   function openGroupInfo(anchor, group) {
     var items = group.map(function (r) {
-      var pay = "";
-      if (r.card === "Y") pay += '<span class="card">카드</span>';
-      if (r.qr === "Y") pay += '<span class="qr">QR</span>';
+      var pay = payTags(r);
       return '<div class="iwg-item"><div class="iwg-l"><div class="iwg-name">' + esc(r.name) + '</div>'
         + '<div class="iwg-cat">' + esc(catLabel(r.cat)) + (r.brand === SSM_BRAND ? " · SSM" : "") + '</div></div>'
-        + (pay ? '<div class="iw-pay">' + pay + '</div>' : "") + '</div>';
+        + '<div class="iw-pay">' + pay + '</div>' + '</div>';
     }).join("");
     // 그룹은 좌표·주소가 동일하므로 지도/길찾기 링크는 상단에 한 세트만(개별 항목엔 중복 안 함).
     var html = '<div class="iw iwg"><div class="iwg-head">이 위치 가맹점 <b>' + group.length + '곳</b></div>'
