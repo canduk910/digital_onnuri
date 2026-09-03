@@ -167,11 +167,14 @@ class IndexJudgeTest {
     // ── 안내 문구 4분기 ──────────────────────────────────────────────────
 
     @Test
-    void 찾았으면_어제_기준임을_밝힌다() {
+    void 찾았으면_수집_시점_기준임을_밝힌다() {
         var layer = IndexJudge.build(ProbeQuery.of("김치"),
                 byId(p("tpirates", "인어교주해적단")),
                 List.of(s("tpirates", 1, "2026-09-01")), List.of(r("tpirates", "총각김치")));
-        assertTrue(layer.notice().contains("전일 색인"), layer.notice());
+        // 상대 표현("어제")을 쓰지 않는다 — 배치는 당일 00:30 에 돌고, 실패한 날에는
+        // 사흘 전 것이 남는다. 이름은 성격으로, 시점은 실제 날짜로만 말한다.
+        assertTrue(layer.notice().contains("상품명 색인"), layer.notice());
+        assertFalse(layer.notice().contains("어제"), layer.notice());
         assertTrue(layer.notice().contains("1곳"), layer.notice());
         assertTrue(layer.notice().contains("2026-09-01"), "수집일을 밝히지 않았다: " + layer.notice());
         assertTrue(layer.notice().contains("확인"), "지금 재고를 확정하지 않는다는 단서가 없다");

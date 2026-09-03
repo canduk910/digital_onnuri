@@ -128,16 +128,20 @@ public final class IndexJudge {
     static String notice(int platformCount, int foundCount, int partialMalls, String asOf) {
         if (platformCount == 0) return null;
         String stamp = (asOf == null ? "" : asOf) + " 수집 기준";
+        // 2026-09-04: 이 층을 화면에서 "전일 색인"이라 부르고 "어제 올라와 있던 이름"이라
+        // 말하고 있었다. **배치는 당일 00:30 에 돈다** — 오늘 수집분을 어제 것이라 부르는
+        // 셈이고, 수집이 실패한 날에는 사흘 전 것을 어제라 부르게 된다. 상대 표현을 버리고
+        // 이름은 성격("상품명 색인")으로, 시점은 stamp 의 **실제 날짜**로만 말한다.
         if (foundCount > 0) {
-            return "전일 색인: " + foundCount + "곳에서 검색어 전체를 담은 상품명을 찾았습니다("
-                    + stamp + "). 어제 올라와 있던 이름이라, 지금 재고와 온누리 결제 가능 여부는"
+            return "상품명 색인: " + foundCount + "곳에서 검색어 전체를 담은 상품명을 찾았습니다("
+                    + stamp + "). 그때 올라와 있던 이름이라, 지금 재고와 온누리 결제 가능 여부는"
                     + " 몰에서 확인하세요.";
         }
         if (partialMalls > 0) {
-            return "전일 색인: 검색어 전체를 담은 상품명은 없고, 일부 낱말만 맞는 상품명이 "
+            return "상품명 색인: 검색어 전체를 담은 상품명은 없고, 일부 낱말만 맞는 상품명이 "
                     + partialMalls + "곳에 있습니다(" + stamp + "). 찾는 상품이 아닐 수 있습니다.";
         }
-        return "전일 색인 " + platformCount + "곳(" + stamp + ")에는 이 검색어를 담은 상품명이"
+        return "상품명 색인 " + platformCount + "곳(" + stamp + ")에는 이 검색어를 담은 상품명이"
                 + " 없습니다 — 색인에 없다는 뜻이지, 그 몰에 없다는 확정은 아닙니다.";
     }
 
