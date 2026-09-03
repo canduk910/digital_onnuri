@@ -456,3 +456,25 @@ console.log('(m) CAT_RULES 사본 — 화면 검색이 같은 규칙을 쓴다')
 }
 
 console.log(`전체 통과 (${pass}건)`);
+// ── 브랜드 별칭 사본 일치 (2026-09-03 신설) ───────────────────────────────
+// 화면(online.html)이 data/brand_aliases.json 을 읽어 `brand=삼성` 같은 착지 값을
+// `삼성전자` 로 맞춘다. 코드만 고치고 사본을 안 내보내면 "채록은 삼성을 삼성전자로 보는데
+// 화면은 못 찾는" 상태가 조용히 생긴다 — cat_rules.json 과 같은 이유로 일치를 고정한다.
+{
+  const aliasPath = path.join(__dirname, '..', '..', 'data', 'brand_aliases.json');
+  const exists = fs.existsSync(aliasPath);
+  check(exists, 'data/brand_aliases.json 존재', '없으면 node _workspace/dev_scripts/dump_brand_aliases.js');
+  if (exists) {
+    const dumped = JSON.parse(fs.readFileSync(aliasPath, 'utf8'));
+    const a = dumped.aliases || {};
+    const codeKeys = Object.keys(BRAND_ALIASES).sort();
+    const fileKeys = Object.keys(a).sort();
+    check(JSON.stringify(codeKeys) === JSON.stringify(fileKeys),
+      '별칭 키 집합 일치', `코드 ${codeKeys.length} vs 사본 ${fileKeys.length}`);
+    check(codeKeys.every((k) => a[k] === BRAND_ALIASES[k]),
+      '별칭 값 일치', '값이 다른 키가 있다');
+    check(a['삼성'] === '삼성전자' && a['LG'] === 'LG전자',
+      '대표 별칭이 사본에 있다(삼성→삼성전자·LG→LG전자)', JSON.stringify({s: a['삼성'], l: a['LG']}));
+  }
+}
+

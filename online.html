@@ -435,6 +435,9 @@
   // pq = 탭 1 상품 검색어(실시간 조회 + 다리 버튼에만 쓴다)
   // 둘을 한 값으로 두면 탭이 갈렸는데도 한쪽 입력이 다른 쪽 결과를 바꾼다 — 분리가 이번 변경의 핵심이다.
   var state = { tab: "live", kind: "전체", cat: "전체", sub: "전체", brand: "전체", nationwideOnly: false, q: "", pq: "" };
+  // 브랜드 표기 표준화 사전(채록의 BRAND_ALIASES 사본 — data/brand_aliases.json).
+  // 파일이 없으면 이 경로만 조용히 꺼지고 정확 일치 필터는 그대로 동작한다.
+  var BRAND_ALIASES = {};
   // 다중 필터(2026-08-12): cat·brand는 콤마 구분 다중 값("agri,fashion"). sub는 대분류 1개일 때만 활성.
   function multiHas(v, key) { return v !== "전체" && v.split(",").indexOf(key) !== -1; }
   function multiToggle(v, key) {
@@ -502,6 +505,35 @@
    * 2026-08-27 normKind 와 같은 유형이라 같은 방식으로 창구를 둔다 —
    * 입력 지점이 늘어도 여기만 지나면 된다.
    */
+  /**
+   * 브랜드 착지 값을 화면 필터가 쓰는 표준 표기로 맞춘다(2026-09-03 신설).
+   *
+   * 왜 필요한가: 챗봇·URL 이 `brand=삼성` 으로 보내면 화면이 **0곳**을 보여 줬다.
+   * 카탈로그 표준 표기는 `삼성전자` 이고 필터는 정확 일치로만 비교하기 때문이다
+   * (실측: brand=삼성전자 → 9곳 / brand=삼성 → 0곳). 2026-08-27 `normKind`,
+   * 2026-09-02 `applyCat` 과 같은 유형 — **입력 지점이 여러 개인 값은 창구를 하나 둔다.**
+   *
+   * 받아들이는 형태: 표준 표기 그대로 · 별칭(삼성→삼성전자) · 대소문자·공백 차이.
+   * 어느 것과도 맞지 않으면 **필터를 걸지 않는다**(전체 유지) — 없는 브랜드로 0곳을
+   * 보여 주면서 칩만 활성인 상태가 "조회했는데 없다"로 읽히는 것을 막는다.
+   */
+  function applyBrand(raw) {
+    if (!raw) return;
+    var want = String(raw).split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+    if (!want.length) return;
+    var known = {};
+    PLATFORMS.forEach(function (p) {
+      itemBrands(p).forEach(function (b) { known[String(b).replace(/\s+/g, "").toLowerCase()] = b; });
+    });
+    var hit = [];
+    want.forEach(function (w) {
+      var std = BRAND_ALIASES[w] || w;
+      var k = std.replace(/\s+/g, "").toLowerCase();
+      if (known[k] && hit.indexOf(known[k]) === -1) hit.push(known[k]);
+    });
+    if (hit.length) state.brand = hit.join(",");
+  }
+
   function applyCat(raw) {
     if (!raw) return;
     var wants = [String(raw)];
@@ -1062,7 +1094,7 @@
     var tab = resolveTab(o);
     var nk = normKind(o.kind); if (nk) state.kind = nk;
     applyCat(o.cat);
-    if (o.brand) state.brand = o.brand;
+    applyBrand(o.brand);   // 창구 — 별칭·표기 차이를 흡수하고, 모르는 값이면 필터를 걸지 않는다
     // 검색어는 착지한 탭의 입력창으로 간다 — 두 입력이 다른 일을 하므로 아무 데나 넣을 수 없다.
     if (o.q) {
       if (tab === "live") { state.pq = o.q; if (pi) { pi.value = o.q; el("pqClear").style.display = ""; } }
@@ -1089,6 +1121,9 @@
     setTab(state.tab, false);   // 마크업 기본값과 tabIndex·hidden 을 맞춘다(주소는 건드리지 않는다)
     var bust = CFG.dataVersion ? "?v=" + encodeURIComponent(CFG.dataVersion) : "";
     // 품목 검색 규칙(채록 규칙의 사본). 실패해도 직접 일치 검색은 그대로 돈다.
+    fetch("data/brand_aliases.json" + bust).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { if (j && j.aliases) BRAND_ALIASES = j.aliases; })
+      .catch(function () {});
     fetch("data/cat_rules.json" + bust).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (!d || !d.rules) return;
