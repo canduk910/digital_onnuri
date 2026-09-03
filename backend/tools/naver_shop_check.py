@@ -8,10 +8,10 @@ data/online_platforms.json 의 쇼핑몰 이름과 대조한다. 입점해 있�
 왜 키가 필요한가: 네이버쇼핑 웹 검색은 봇을 차단(418)한다. 공식 API 는 developers.naver.com 에서
 애플리케이션을 만들고 '검색' API 를 켜면 Client ID·Secret 이 나온다(일 25,000건 무료).
 
-키는 서버 backend/deploy/.env 에 NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 로 둔다 — 저장소·채팅에 적지 않는다.
+키는 서버 backend/deploy/.env 에 NAVER_API_KEY / NAVER_API_SECRET 로 둔다(NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 도 인식) — 저장소·채팅에 적지 않는다.
 
 사용:
-  export NAVER_CLIENT_ID=... NAVER_CLIENT_SECRET=...   # 또는 --env backend/deploy/.env
+  export NAVER_API_KEY=... NAVER_API_SECRET=...   # 또는 --env backend/deploy/.env
   python3 backend/tools/naver_shop_check.py [--env PATH] [--words 김치,사과,쌀] [--pages 3]
 """
 import argparse, json, os, re, sys, time, urllib.parse, urllib.request
@@ -23,7 +23,7 @@ DEFAULT_WORDS = ["김치", "사과", "쌀", "선물세트", "고등어", "청소
 
 def load_env(path):
     for ln in Path(path).read_text(encoding="utf-8").splitlines():
-        m = re.match(r"^\s*(NAVER_CLIENT_ID|NAVER_CLIENT_SECRET)\s*=\s*(.+?)\s*$", ln)
+        m = re.match(r"^\s*(NAVER_API_KEY|NAVER_API_SECRET|NAVER_CLIENT_ID|NAVER_CLIENT_SECRET)\s*=\s*(.+?)\s*$", ln)
         if m: os.environ.setdefault(m.group(1), m.group(2).strip('"\''))
 
 def norm(s):
@@ -35,9 +35,10 @@ def main():
     ap.add_argument("--pages", type=int, default=3, help="낱말당 100건 페이지 수(최대 10)")
     a = ap.parse_args()
     if a.env: load_env(a.env)
-    cid, sec = os.environ.get("NAVER_CLIENT_ID"), os.environ.get("NAVER_CLIENT_SECRET")
+    cid = os.environ.get("NAVER_API_KEY") or os.environ.get("NAVER_CLIENT_ID")
+    sec = os.environ.get("NAVER_API_SECRET") or os.environ.get("NAVER_CLIENT_SECRET")
     if not cid or not sec:
-        sys.exit("NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 이 없다 — backend/deploy/.env 에 넣고 --env 로 지정")
+        sys.exit("NAVER_API_KEY / NAVER_API_SECRET 이 없다 — backend/deploy/.env 에 넣고 --env 로 지정")
     items = json.loads((ROOT / "data" / "online_platforms.json").read_text(encoding="utf-8"))["items"]
     malls = {p["id"]: p["name"] for p in items if p.get("kind") == "shopping"}
     # 몰 이름의 흔한 변형(네이버쇼핑 mallName 은 운영사 등록명이라 우리 표기와 다를 수 있다)
