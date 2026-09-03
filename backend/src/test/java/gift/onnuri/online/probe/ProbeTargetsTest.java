@@ -15,7 +15,7 @@ class ProbeTargetsTest {
 
     @Test
     void 조회대상이_모두_실측일과_robots_검토일을_가진다() {
-        assertEquals(17, ProbeTargets.ALL.size());  // 2026-09-03 굿데이·인더마켓·팔도·현대홈쇼핑·11번가·공영쇼핑
+        assertEquals(18, ProbeTargets.ALL.size());  // 2026-09-03 ADR-19 로 7곳 편입(롯데ON 까지)
         for (ProbeTarget t : ProbeTargets.ALL) {
             assertNotNull(t.measuredOn(), t.platformId() + " measuredOn 없음");
             assertNotNull(t.robotsCheckedOn(), t.platformId() + " robotsCheckedOn 없음 — "
@@ -110,7 +110,10 @@ class ProbeTargetsTest {
         assertTrue(src.contains("원산지 데이터 없음"), "온누리찬스를 비운 이유가 없다");
         List<ProbeTarget> empty = ProbeTargets.ALL.stream()
                 .filter(t -> t.noneMarkersBound().isEmpty() && t.noneMarkersPlain().isEmpty()).toList();
-        assertEquals(2, empty.size(), "등급 C 는 실측 기준 2곳이다");   // 2026-09-02 추가분은 둘 다 등급 B
+        // 롯데ON 은 등급 C 를 **정책으로** 택한 곳이다 — 130바이트 '없음' 응답이
+        // 필터가 깨진 응답과 바이트까지 같아 '없다'의 근거가 될 수 없다.
+        assertTrue(src.contains("onnuriZZ"), "롯데ON 을 비운 이유(필터 깨짐과 구분 불가)가 없다");
+        assertEquals(3, empty.size(), "등급 C 는 실측 기준 3곳이다");
     }
 
     /**
@@ -135,8 +138,7 @@ class ProbeTargetsTest {
         // 붙는 몰이 없는 사유는 상수로도 두지 않는다 — 2026-09-01 rules-unverified 를
         // 제거한 것과 같은 이유다. 화면에 설명만 있고 해당하는 곳이 없는 사유는 소음이다.
         List<String> allowed = List.of(ProbeTargets.EX_BOT_BLOCKED,
-                ProbeTargets.EX_SCOPE_FIRST, ProbeTargets.EX_SCOPE_MIXED,
-                ProbeTargets.EX_NO_FETCH);
+                ProbeTargets.EX_SCOPE_FIRST, ProbeTargets.EX_NO_FETCH);
         for (String id : ProbeTargets.exclusionIds()) {
             assertTrue(allowed.contains(ProbeTargets.exclusionReason(id)),
                     id + " 의 사유가 조사표에 없는 값이다: " + ProbeTargets.exclusionReason(id));
@@ -149,11 +151,9 @@ class ProbeTargetsTest {
         // 숫자가 어긋나면 사전이 조사와 갈라진 것이다.
         assertEquals(1, countReason(ProbeTargets.EX_BOT_BLOCKED), "능동 차단 1곳(사이소)");
         assertEquals(2, countReason(ProbeTargets.EX_SCOPE_FIRST), "범위 선행 2곳(놀장·시장을 방으로)");
-        assertEquals(1, countReason(ProbeTargets.EX_SCOPE_MIXED),
-                "범위 혼재 1곳(롯데ON) — 조회는 좁혀지나 링크가 못 싣고 없음도 확정 못 한다");
         assertEquals(1, countReason(ProbeTargets.EX_NO_FETCH), "정적 조회 불가 1곳(인어교주해적단)");
-        // 22곳 − 조회 대상 17곳 = 5곳. 곳 수 합이 어긋나면 사전이 조사와 갈라진 것이다.
-        assertEquals(5, ProbeTargets.exclusionIds().size());
+        // 22곳 − 조회 대상 18곳 = 4곳. 곳 수 합이 어긋나면 사전이 조사와 갈라진 것이다.
+        assertEquals(4, ProbeTargets.exclusionIds().size());
     }
 
     @Test

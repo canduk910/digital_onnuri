@@ -82,6 +82,11 @@ public final class ProbeTargets {
             P("\"soldOut\":(?:true|false),\"title\":\"([^\"]+)\"");
     private static final java.util.regex.Pattern T_GONGYOUNG = // <prdNm>상품명</prdNm> (XML)
             P("<prdNm>([^<]+)</prdNm>");
+    // 롯데ON — `"pdName"` 은 상품 객체에만 있다. 앵커 없이 써도 안전한 것을 실측으로 확인했다:
+    // 매치 수가 itemList 와 **정확히 같다**(로봇청소기 31 = total 31 · 김치 60 = 한 페이지).
+    // 연관검색어·배너 문구가 새는 자리가 없다(11번가는 `"title"` 이 SEO 제목까지 물어 앵커가 필요했다).
+    private static final java.util.regex.Pattern T_LOTTE =
+            P("\"pdName\"\\s*:\\s*\"([^\"]+)\"");
 
     public static final List<ProbeTarget> ALL = List.of(
 
@@ -398,7 +403,47 @@ public final class ProbeTargets {
                     true, 5, T_GONGYOUNG, 4, "김치", 0,
                     LocalDate.of(2026, 9, 3), LocalDate.of(2026, 9, 3),
                     "kwd={q}&reSrchFlag=false&pageNum=1&pageSize=40&sort=r&kwdType=0"
-                            + "&benefit=trdit_mrkt_goods_yn&brandSort=cou&logFlag=true")
+                            + "&benefit=trdit_mrkt_goods_yn&brandSort=cou&logFlag=true"),
+
+            // 롯데ON 온누리상생스토어 — 프로모션 필터 `u31=onnuri` (2026-09-03 편입)
+            //
+            // **범위는 정확하다.** 반환 상품 전부가 `"type":"onnuri"` 와 `emblemName:"온누리"` 를
+            // 갖는다(로봇청소기 31/31 실측). 무필터로 부르면 60건 중 15건만 온누리다.
+            //
+            // ⚠ **이 몰은 '없다'고 말하지 않는다 — 등급 C 로 넣은 이유가 여기 있다.**
+            //   ① 온누리 결과가 0이면 `{"itemList":[],"total":0}` 130바이트가 온다. 그런데
+            //      **존재하지 않는 필터값(`u31=onnuriZZ`)을 보내도 바이트·md5 가 완전히 같다.**
+            //      즉 130바이트는 "온누리에 없다"와 "필터가 깨졌다"를 구분하지 못한다.
+            //      롯데ON 이 파라미터 이름을 바꾸는 날 **모든 질의가 조용히 '없음'** 이 된다 —
+            //      ADR-17 이 가장 경계한 방향이라 이 근거로 '없음'을 만들지 않는다.
+            //   ② 무의미어·`q` 누락·`q` 빈 값은 200 · text/html · **본문 0바이트**로 전부 같다.
+            //      현실 다어절 질의 8건 중 2건(`다이슨 김치냉장고`·`샤넬 클래식백`)이 실제로 0바이트였다.
+            //   따라서 없음-문구 사전을 비우고(등급 C) `echoesQuery=true` 를 **정책으로 선언**한다
+            //   (온누리찬스 선례 — 토큰 0 판정을 쓰지 않겠다는 뜻이지 에코 실측값이 아니다).
+            //   결과적으로 이 몰은 **likely / unclear 만 낸다.**
+            //   `canDecideAbsent` 가 false 가 되어 카나리아 absent 대조에서도 자동으로 빠지므로,
+            //   **필터가 깨졌을 때 그것을 알아채는 유일한 수단이 present 기대치**다(김치 → likely + 샘플).
+            //
+            // ⚠ 이용자 링크에 필터를 실을 수 없다 — `promo=onnuri` 는 모바일 UA 첫 화면에서만 먹고
+            //   PC UA 는 302 로 필터가 증발하며, 모바일도 첫 스크롤부터 풀린다(온누리 100%→29%).
+            //   세 실패가 전부 **조용해서** 이용자는 온누리 링크인 줄 알고 결제 안 되는 상품을 본다.
+            //   그래서 데이터의 search_url_template 을 비워 둔다 — 링크는 상생스토어 홈으로 나간다.
+            //
+            // robots: ADR-19 로 대상 선정 기준에서 빠졌으나 기록은 남긴다 —
+            //   **조회 호스트가 몰 본체(www.lotteon.com)이고 `Disallow: /` 다.**
+            //   11번가는 조회가 apis.11st.co.kr 로 갈라지는 것과 다르다.
+            //
+            // 실측(2026-09-03, 헤더 없이 UA 만): 로봇청소기 200·114,923B·31건·0.60초 /
+            //   김치 220,870B·60건(total 1,166) / 골프채 88,419B / 샤넬 200·130B·0건 /
+            //   zzqqxyw12345 200·**0B**(text/html).
+            new ProbeTarget("lotte-on-sangsaeng-store",
+                    "https://www.lotteon.com/csearch/search/search"
+                            + "?u2=0&u3=60&u16=ranking.desc&u31=onnuri&u37=true&u39=0"
+                            + "&render=qapi&platform=pc&collection_id=9&mallId=1&q={q}",
+                    StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
+                    List.of(), List.of(),
+                    true, 5, T_LOTTE, 0, "김치", 0,
+                    LocalDate.of(2026, 9, 3), LocalDate.of(2026, 9, 3), null, true)
     );
 
     /**
@@ -410,53 +455,33 @@ public final class ProbeTargets {
      */
     public static final String EX_BOT_BLOCKED = "bot-blocked";      // 몰이 자동 조회를 능동 차단한다
     public static final String EX_SCOPE_FIRST = "scope-first";      // 시장·주소를 먼저 골라야 검색된다
-    public static final String EX_SCOPE_MIXED = "scope-mixed";      // 검색은 되나 결과가 몰 전체라 좁힐 수 없다
     public static final String EX_NO_FETCH    = "no-static-search"; // 정적 응답에 결과가 실리지 않는다
-    // 붙는 몰이 없어진 사유는 상수째 없앤다 — 화면에 설명만 있고 실체가 없는 항목이 생긴다
-    // (2026-09-01 rules-unverified 제거와 같은 원칙). 그렇게 사라진 것이 둘이다:
-    //   no-search-feature — 유일한 후보 지니어스몰이 조회 대상이 됐다(2026-09-02).
-    //   robots-blocked    — 굿데이·인더마켓·팔도가 조회 대상이 됐다(2026-09-03, ADR-19).
-    //
-    // `scope-mixed` 는 2026-09-03 재조사가 만든 사유다. 그전에는 11번가·롯데ON·공영쇼핑이
-    // `no-static-search` 로 묶여 있었는데 **셋 다 검색이 정적으로 재현된다** —
-    // 라벨이 사실과 달랐고, 화면은 그 라벨을 근거로 이용자에게 틀린 설명을 하고 있었다.
-    // 이 셋의 진짜 문제는 읽지 못하는 것이 아니라 **읽어도 대부분 온누리 밖 상품**이라는 것이다.
-    // 그건 우리 사정이 아니라 이용자를 위한 선택이므로 화면이 그렇게 말할 수 있어야 한다.
+    // 붙는 몰이 없어진 사유는 상수째 없앤다 — 화면에 설명만 있고 실체가 없는 항목이 생긴다.
+    // 그렇게 사라진 것이 넷이다:
+    //   rules-unverified   (2026-09-01) · no-search-feature (2026-09-02, 지니어스몰 편입)
+    //   robots-blocked     (2026-09-03, 굿데이·인더마켓·팔도 편입)
+    //   scope-mixed        (2026-09-03, 11번가·공영쇼핑 편입 뒤 롯데ON 마저 편입)
 
     /**
-     * 5곳 **전수 명시**. 기본값으로 흘려보내지 않는다 —
+     * 4곳 **전수 명시**. 기본값으로 흘려보내지 않는다 —
      * 2026-09-02 이전에는 2곳만 적고 나머지를 `no-static-search` 로 흘려, 화면이
      * "화면에서만 만들어져 읽을 수 없음 10곳"이라는 **사실과 다른 사유**를 말하고 있었다.
      * 전수화하지 않으면 같은 일이 조용히 반복되므로 ProbeTargetsTest 가 완전성을 고정한다.
      */
-    private static final java.util.Map<String, String> EXCLUSION = java.util.Map.ofEntries(
+    private static final java.util.Map<String, String> EXCLUSION = java.util.Map.of(
             // ── 자동 조회를 능동 차단한다 ────────────────────────────────────────────
             // robots 가 /api/ 를 금지하고, 화면 검색은 WAF 가 1.7KB 응답으로 막는다.
             // 막는 쪽을 뚫는 일은 하지 않는다(ADR-18 이 기각한 A6 — 탐지 회피).
-            java.util.Map.entry("cyso", EX_BOT_BLOCKED),
+            "cyso", EX_BOT_BLOCKED,
 
             // ── 범위(시장·주소)를 먼저 골라야 검색된다 — 전역 검색이 없다 ────────────
-            java.util.Map.entry("onnuri-noljang", EX_SCOPE_FIRST),   // 시장 선택 → /market/{id} 안에서 검색
-            java.util.Map.entry("oligopalgo", EX_SCOPE_FIRST),       // 배달 주소 선택 → /shop/address.php
-
-            // ── 검색은 정적으로 되지만 결과를 온누리 범위로 좁힐 수 없다 ─────────────
-            // 롯데ON: 프로모션 필터 `u31=onnuri` 로 **조회는** 범위가 잡힌다(김치 1,149건,
-            // 반환 상품 전부가 온누리 표식을 갖는다). 그럼에도 편입하지 않는 이유가 둘이다.
-            //   ① **이용자 링크가 필터를 못 싣는다.** 롯데ON 은 필터를 주소에 넣지 않아,
-            //      `&u31=onnuri` 를 붙여 새로 열어도 칩이 꺼지고 조회에도 실리지 않는다(실측).
-            //      조회는 온누리 범위인데 링크는 몰 전체가 되면 이용자는
-            //      "여기 있다더니 다른 게 나온다"를 겪는다.
-            //   ② **'없다'를 확정할 수단이 없다.** 결과가 없으면 본문이 **0바이트**로 온다.
-            //      지금 판정은 API 몰 하한 60자 아래를 unknown 으로 접는다 — 빈 응답과 장애
-            //      응답을 구분할 수 없어서다. 그대로 넣으면 없는 상품에 늘 unknown 이 나간다.
-            //      쓰려면 "빈 본문 = 없음"을 타깃 단위로 선언하는 장치가 필요하고,
-            //      그건 일부러 세운 가드를 무르는 일이라 별도 판단이 있어야 한다.
-            java.util.Map.entry("lotte-on-sangsaeng-store", EX_SCOPE_MIXED),
+            "onnuri-noljang", EX_SCOPE_FIRST,   // 시장 선택 → /market/{id} 안에서 검색
+            "oligopalgo", EX_SCOPE_FIRST,       // 배달 주소 선택 → /shop/address.php
 
             // ── 정적 응답에 결과가 실리지 않는다 ─────────────────────────────────────
             // api.tpirates.com/v3/www/product/search 실존(onnuri 필터 키까지 있다) — 직접 호출 401.
             // SPA 라 화면 HTML 에도 결과가 없다. 색인 층(ADR-18)이 대신 답한다.
-            java.util.Map.entry("tpirates", EX_NO_FETCH));
+            "tpirates", EX_NO_FETCH);
 
     /**
      * 조회 대상이 아닌 이유. 사전에 없으면 정적 조회 불가로 본다 —

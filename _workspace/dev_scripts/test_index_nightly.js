@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 const mod = require(path.join(__dirname, '..', '..', 'backend', 'tools', 'index_nightly.js'));
-const { cleanName, normalizeUrl, fragmentUrl, isOnnuriStore, dedupeItems, harvestGuard, isNoiseUrl, decodeXmlText, registrableDomain, RECIPES, URL_MAX } = mod;
+const { cleanName, normalizeUrl, fragmentUrl, isOnnuriStore, dedupeItems, harvestGuard, isNoiseUrl, registrableDomain, RECIPES, URL_MAX } = mod;
 
 let pass = 0, fail = 0;
 function check(cond, label, detail) {
@@ -79,27 +79,11 @@ console.log('(b2) 조각 주소 — 놀장은 상품마다 주소가 없다');
   check(fragmentUrl('', '김치') === null, '주소가 비면 null');
 }
 
-console.log('(b3) 엔티티 해제 — 정적 레시피는 브라우저를 거치지 않는다');
+console.log('(b3) 등록 도메인 — 몰 화면과 API 가 다른 하위 도메인일 때가 있다');
 {
-  // 정적 레시피는 브라우저를 거치지 않아 & 가 &amp; 로 남는다. 그대로 저장하면
-  // 이용자가 친 '&' 와 색인의 '&amp;' 가 서로 닿지 않는다.
-  check(decodeXmlText('[산지직송] 무안 양파 &amp; 대파 5kg') === '[산지직송] 무안 양파 & 대파 5kg',
-        '&amp; → &', decodeXmlText('[산지직송] 무안 양파 &amp; 대파 5kg'));
-  check(decodeXmlText('&lt;특가&gt; 한우 1++') === '<특가> 한우 1++', '&lt;·&gt; 해제');
-  check(decodeXmlText('&#39;명절&#39; 선물세트') === "'명절' 선물세트", '숫자 참조 해제');
-  check(decodeXmlText('&#x1F600; 세트') === '😀 세트', '16진 참조 해제');
-  check(decodeXmlText('A&nbsp;B') === 'A B', '&nbsp; 는 공백으로');
-  // & 를 먼저 풀면 `&amp;lt;` 가 `<` 가 되어 원문을 잃는다. 마지막에 풀어야 한다.
-  check(decodeXmlText('&amp;lt;') === '&lt;', '이중 인코딩을 한 번만 푼다', decodeXmlText('&amp;lt;'));
-  check(decodeXmlText(null) === '' && decodeXmlText(7) === '', '문자열이 아니면 빈 문자열');
-}
-
-console.log('(b4) 등록 도메인 — 몰 화면과 API 가 다른 하위 도메인일 때가 있다');
-{
-  // 롯데ON 실측: 화면은 s.lotteon.com, 상품 응답은 pbf.lotteon.com.
-  check(registrableDomain('s.lotteon.com') === 'lotteon.com', 's.lotteon.com → lotteon.com');
-  check(registrableDomain('pbf.lotteon.com') === 'lotteon.com', 'pbf.lotteon.com → lotteon.com');
-  check(registrableDomain('pub-api.tpirates.com') === 'tpirates.com', '인어교주 API 도 같은 도메인');
+  // 인어교주 실측: 화면은 tpirates.com, 상품 목록 응답은 pub-api.tpirates.com.
+  check(registrableDomain('tpirates.com') === 'tpirates.com', 'tpirates.com → tpirates.com');
+  check(registrableDomain('pub-api.tpirates.com') === 'tpirates.com', 'pub-api 도 같은 도메인');
   // co.kr 은 라벨을 셋 잡는다 — 둘만 잡으면 noljang 과 naver 가 같은 co.kr 로 뭉개진다.
   check(registrableDomain('mall.noljang.co.kr') === 'noljang.co.kr', 'mall.noljang.co.kr → noljang.co.kr');
   check(registrableDomain('www.example.kr') === 'example.kr',
@@ -179,20 +163,14 @@ console.log('(e2) 분석·광고 차단 — 몰 자신의 스크립트를 막으
 console.log('(f) 레시피 표 — 대상은 코드가 아니라 데이터와 맞아야 한다');
 {
   const ids = RECIPES.map((r) => r.id);
-  check(ids.length === 3, '레시피 3개 — 놀장·인어교주·롯데ON', ids.join(', '));
+  check(ids.length === 2, '레시피 2개 — 놀장·인어교주', ids.join(', '));
   check(new Set(ids).size === ids.length, 'id 중복 없음');
   check(RECIPES.every((r) => typeof r.run === 'function'), '레시피마다 실행 함수가 있다');
   check(RECIPES.every((r) => r.host && typeof r.pageLimit === 'number' && r.pageLimit > 0),
         '레시피마다 호스트와 요청 상한이 있다');
-  check(RECIPES.every((r) => typeof r.browser === 'boolean' && Array.isArray(r.hosts) && r.hosts.length
+  check(RECIPES.every((r) => Array.isArray(r.hosts) && r.hosts.length
                              && typeof r.intervalMs === 'number' && r.intervalMs >= 1000),
-        '레시피마다 browser·hosts·intervalMs 가 있고 간격은 1초 이상');
-  check(RECIPES.filter((r) => !r.browser).length === 1,
-        '정적 레시피 1개(롯데ON) — 브라우저 없이 돈다',
-        RECIPES.filter((r) => !r.browser).map((r) => r.id).join(', '));
-  // 롯데ON 은 응답 하나가 3MB 라 간격을 넉넉히 둔다(robots 규칙이 아니라 우리가 고른 값).
-  const lotte = RECIPES.find((r) => r.id === 'lotte-on-sangsaeng-store');
-  check(lotte.intervalMs >= 3000, '롯데ON 은 3초 이상 간격', String(lotte.intervalMs));
+        '레시피마다 hosts·intervalMs 가 있고 간격은 1초 이상');
 
   // 여기 적힌 id 가 data/online_platforms.json 에 없으면 단계 F 가 존재하지 않는 몰을
   // 적재하게 된다(2026-08-31 robots 감시가 엉뚱한 도메인을 보던 것과 같은 유형).
@@ -207,10 +185,12 @@ console.log('(f) 레시피 표 — 대상은 코드가 아니라 데이터와 �
   check(tooLong.length === 0, 'id 가 60자를 넘지 않는다(VARCHAR(60))', tooLong.join(', '));
   // 실시간 조회 대상은 색인 층에서 앱이 걸러 내므로 여기 있으면 안 된다(ADR-18).
   // 실시간 조회 대상은 색인 층에서 앱이 걸러 내므로 여기 있으면 걷어도 화면에 닿지 않는다(ADR-18).
-  const realtime = ['genius-mall', '11st-onnuri-market', 'gongyoung-shopping'];
+  const realtime = ['genius-mall', '11st-onnuri-market', 'gongyoung-shopping',
+                    'lotte-on-sangsaeng-store'];
   const overlap = ids.filter((id) => realtime.includes(id));
   check(overlap.length === 0,
-        '실시간 조회 대상(지니어스몰·11번가·공영쇼핑)은 색인 레시피에 없다', overlap.join(', '));
+        '실시간 조회 대상 4곳(지니어스몰·11번가·공영쇼핑·롯데ON)은 색인 레시피에 없다',
+        overlap.join(', '));
 
   // 레시피가 접촉하는 호스트는 그 몰의 사이트여야 한다. 하위 도메인은 허용하되
   // (롯데ON 화면 s.lotteon.com ↔ 상품 pbf.lotteon.com) 등록 도메인이 다르면 실패다.

@@ -2,9 +2,8 @@
 /**
  * index_nightly.js — 온라인 상품명 **전일 색인** 수집(단계 F, 2026-09-02, ADR-18)
  *
- * 하는 일: 실시간 조회가 닿지 않는 몰 3곳을 야간에 한 번 열어 **상품명과 주소만** 걷는다.
- *   레시피는 두 종류다 — 화면이 그려져야 상품이 보이는 곳은 **브라우저**로(놀장·인어교주),
- *   스토어가 자기 상품을 정적 요청으로 주는 곳은 **fetch 만으로**(롯데ON).
+ * 하는 일: 실시간 조회가 닿지 않는 몰 2곳(놀장·인어교주해적단)을 야간에 한 번 열어
+ *   **상품명과 주소만** 걷는다. 둘 다 화면이 그려져야 상품이 보여 브라우저가 필요하다.
  * 하지 않는 일: 가격·재고·리뷰를 담지 않고, 상품 상세 페이지를 열지 않으며, 데이터를 고치지 않는다.
  *   적재는 nightly_update.py 단계 F 가 한다(이 스크립트는 JSON 파일만 남긴다).
  *
@@ -13,25 +12,22 @@
  *   "지금 검색된다"가 아니다. 그래서 실시간 조회의 상태 목록(none/likely/…)에 섞지 않는다(ADR-18).
  *
  * 사용:
- *   node backend/tools/index_nightly.js                     # 3곳 전부, 요약만 출력
+ *   node backend/tools/index_nightly.js                     # 2곳 전부, 요약만 출력
  *   node backend/tools/index_nightly.js --out DIR           # DIR/product-index-YYYY-MM-DD.json 저장
  *   node backend/tools/index_nightly.js --ids tpirates      # 지정한 몰만
  *   node backend/tools/index_nightly.js --limit 10          # 몰당 페이지 상한을 낮춰 시험
  *   node backend/tools/index_nightly.js --channel chrome    # 번들 대신 설치된 Chrome
  *
- * 종료 코드: 0 = 정상(수집 성공 여부 무관) · 2 = playwright 없음(브라우저 레시피가 대상일 때만) · 3 = 입력 문제
+ * 종료 코드: 0 = 정상(수집 성공 여부 무관) · 2 = playwright 없음 · 3 = 입력 문제
  *   몰 하나가 실패해도 나머지는 계속하고, 전 몰이 실패해도 0 으로 끝낸다 — 단계 F 는 fail-open 이다.
  *
  * 예의(상대 사이트 부담):
- *   · 호스트당 요청 간격 — 기본 1초, 롯데ON 은 3초(레시피 주석의 robots 실측 기록 참고)
+ *   · 호스트당 요청 간격 — 레시피가 선언한 값(둘 다 1초)
  *   · 몰당 페이지 상한(레시피별 선언)
  *   · 이미지·폰트·미디어·분석 스크립트는 차단해 바이트를 줄인다
  *   · robots.txt 를 지킨다 — 지니어스몰의 /ko_mall/ 은 열지 않는다(2026-09-02 실측)
  *   · 검색 API 를 직접 부르거나 번들의 토큰을 재사용하지 않는다(ADR-18 기각 대안).
  *     인어교주해적단의 상품 목록은 **화면을 열면 브라우저가 스스로 보내는 요청**의 응답을 읽는다.
- *     정적 레시피도 마찬가지로 **화면이 보내는 것과 같은 요청**만 보낸다(19절 6-10 실측).
- *   · 정적 레시피의 UA 는 `Mozilla/5.0 (onnuri-guide-check)` — 실현성 조사에서 쓴 것과 같고,
- *     브라우저인 척하지 않는다. 브라우저 레시피는 실제 브라우저라 크롬 UA 를 그대로 쓴다.
  */
 'use strict';
 const fs = require('fs');
@@ -39,9 +35,6 @@ const path = require('path');
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
          + '(KHTML, like Gecko) Chrome/125.0 Safari/537.36';
-
-// 정적 레시피용 UA. 우리가 누구인지 밝힌다 — 브라우저 위장은 하지 않는다(19절 6-10 과 동일).
-const STATIC_UA = 'Mozilla/5.0 (onnuri-guide-check)';
 
 const NAME_MAX = 200;           // DB 는 VARCHAR(300) 이지만 상품명이 그보다 길 이유가 없다
 const URL_MAX = 700;            // online_product_index.url 의 컬럼 폭. 넘으면 적재가 죽는다
@@ -106,27 +99,10 @@ function isOnnuriStore(store) {
 }
 
 /**
- * XML·HTML 에서 걷은 텍스트의 엔티티를 되돌린다.
- *
- * 정적 레시피는 브라우저를 거치지 않으므로 응답의 `&amp;`·`&#39;` 가 그대로 남는다.
- * 그대로 저장하면 이용자가 검색창에 친 `&` 와 색인의 `&amp;` 가 서로 닿지 않는다.
- * (브라우저 레시피는 textContent 라 이미 풀려 오지만, 같은 창구를 쓰면 경로가 갈리지 않는다.)
- */
-function decodeXmlText(s) {
-  if (typeof s !== 'string') return '';
-  return s
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&');            // & 는 마지막 — 먼저 풀면 `&amp;lt;` 가 `<` 가 된다
-}
-
-/**
  * 호스트의 등록 가능 도메인 — 레시피가 그 몰의 사이트를 긁고 있는지 대조할 때 쓴다.
  *
- * 정적 레시피는 몰의 화면 주소와 **다른 하위 도메인**의 API 를 부른다
- * (롯데ON: 화면 `s.lotteon.com` ↔ 상품 `pbf.lotteon.com`). 호스트 완전 일치로 막으면
+ * 레시피는 몰의 화면 주소와 **다른 하위 도메인**을 부를 때가 있다
+ * (인어교주: 화면 `tpirates.com` ↔ 상품 목록 `pub-api.tpirates.com`). 호스트 완전 일치로 막으면
  * 정당한 요청까지 걸리고, 반대로 검사를 없애면 엉뚱한 사이트를 긁어도 아무도 모른다.
  *
  * `co.kr`·`or.kr` 같은 2단계 국가 도메인은 라벨을 셋 잡는다 — 둘만 잡으면
@@ -213,23 +189,8 @@ async function pace(host, minMs = HOST_INTERVAL_MS) {
   lastHit.set(host, Date.now());
 }
 
-/**
- * 정적 요청 하나. 브라우저를 띄우지 않는다 — 화면이 보내는 것과 같은 요청을 그대로 보낸다.
- * 간격은 레시피가 정한다(롯데ON 3초, 나머지 1초).
- */
-async function get(url, recipe, { method = 'GET', body = null, contentType = null, referer = null } = {}) {
-  await pace(new URL(url).hostname, recipe.intervalMs);
-  const headers = { 'User-Agent': STATIC_UA, Accept: '*/*' };
-  if (contentType) headers['Content-Type'] = contentType;
-  if (referer) headers.Referer = referer;
-  const res = await fetch(url, { method, headers, body, signal: AbortSignal.timeout(NAV_TIMEOUT) });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`${method} ${url.slice(0, 90)} → HTTP ${res.status}`);
-  return text;
-}
-
-async function open(ctx, url, host, waitMs = 2500) {
-  await pace(host);
+async function open(ctx, url, recipe, waitMs = 2500) {
+  await pace(recipe.host, recipe.intervalMs);
   const page = await ctx.newPage();
   await blockNoise(page);
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
@@ -256,7 +217,7 @@ async function crawlNoljang(ctx, recipe, limit, log) {
   const origin = 'https://mall.noljang.co.kr';
   let marketUrls = [];
   try {
-    await pace(recipe.host);
+    await pace(recipe.host, recipe.intervalMs);
     const res = await fetch(`${origin}/sitemap.xml`, { headers: { 'User-Agent': UA } });
     const xml = await res.text();
     marketUrls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
@@ -270,7 +231,7 @@ async function crawlNoljang(ctx, recipe, limit, log) {
   const items = [];
   let pages = 0;
   for (const url of marketUrls.slice(0, limit)) {
-    const page = await open(ctx, url, recipe.host, 4000);
+    const page = await open(ctx, url, recipe, 4000);
     pages++;
     try {
       // 가로 캐러셀이 여러 단이라 아래로 훑어 지연 렌더를 끌어낸다.
@@ -347,7 +308,7 @@ async function crawlTpirates(ctx, recipe, limit, log) {
     } catch (e) { /* 응답이 JSON 이 아니면 무시 */ }
   });
   try {
-    await pace(recipe.host);
+    await pace(recipe.host, recipe.intervalMs);
     await listPage.goto(`${origin}/store/onnuri`, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
     for (let i = 0; i < 12 && !stores; i++) await listPage.waitForTimeout(1000);
   } finally {
@@ -370,7 +331,7 @@ async function crawlTpirates(ctx, recipe, limit, log) {
     const permalink = String(s.uri || '').replace(/^\//, '');
     if (!s.id || !permalink) continue;
     let payload = null;
-    await pace(recipe.host);
+    await pace(recipe.host, recipe.intervalMs);
     const page = await ctx.newPage();
     await blockNoise(page);
     page.on('response', async (r) => {
@@ -403,88 +364,34 @@ async function crawlTpirates(ctx, recipe, limit, log) {
   return { items: dedupeItems(items), pages, warn };
 }
 
-// ─────────────────────────────────────────────────── 레시피 3: 롯데ON 상생스토어
-
-/**
- * 롯데ON 상생스토어 — 스토어(dshopNo=57821)가 자기 화면을 그리는 응답 하나를 받는다.
- *
- * **스토어 안에 검색이 없다**(19절 6-10 — 링크 135개를 전수 열거해도 스토어 내 검색이 없고,
- * 화면의 입력창은 롯데ON 전체 검색이라 범위가 오염된다). 그래서 색인 재료다.
- *
- * 응답 하나에 스토어 전체가 들어 있다 — `rowsPerPage=100` 으로 671종(3.1MB), `pageNo=2` 는 비어 있다.
- * 화면이 보내는 값은 `rowsPerPage=5`(12종)지만 그건 첫 화면 몫이고, 같은 요청의 크기만 키운 것이다.
- * **요청을 아홉 번 나눠 보내는 것보다 한 번에 받는 편이 상대 서버에 덜 미안하다.**
- *
- * robots(2026-09-03 실측): 우리가 부르는 **`pbf.lotteon.com` 은 robots.txt 가 404** 라 규칙이 없다.
- * `www.lotteon.com` 은 부르지 않는다 — Referer 에 이름이 들어가고 상품 링크가 그쪽을 가리킬 뿐이다
- * (링크는 사람이 누르는 것이라 robots 대상이 아니다 — 2026-08-31 에 세운 구분).
- * 참고로 그 파일의 `User-agent: *` 는 `Disallow: /` 이고 **Crawl-delay 는 없다**
- * (Crawl-delay 5·30 은 검색봇·SEO봇 그룹의 값이다). 3초 간격은 규칙이 아니라 우리가 고른 보수적인 값이다.
- */
-async function crawlLotteOn(ctx, recipe, limit, log) {
-  const shop = 'https://www.lotteon.com/p/display/shop/seltDpShop/57821';
-  const raw = await get(
-    'https://pbf.lotteon.com/display/v2/dpShop/seltMainShop'
-    + '?dshopNo=57821&mdiaCd=PC&pageNo=1&rowsPerPage=100', recipe, { referer: shop });
-  const json = JSON.parse(raw);
-
-  // 상품은 응답 깊숙한 곳(모듈 → 진열세트 → pdList.dataList)에 흩어져 있다.
-  // 경로를 박아 두면 진열 구조가 바뀔 때 조용히 0건이 되므로, spdNo·spdNm 을 함께 가진
-  // 객체를 통째로 훑어 모은다.
-  const items = [];
-  (function walk(o) {
-    if (Array.isArray(o)) { o.forEach(walk); return; }
-    if (!o || typeof o !== 'object') return;
-    if (o.spdNo && o.spdNm) {
-      items.push({ name: decodeXmlText(String(o.spdNm)),
-                   url: `https://www.lotteon.com/p/product/${encodeURIComponent(String(o.spdNo))}` });
-    }
-    Object.values(o).forEach(walk);
-  })(json);
-
-  const scope = json && json.data && json.data.dshopNm;
-  log(`    스토어 '${scope || '?'}' · 상품 ${items.length}건 (요청 1건)`);
-  // 범위 확인 — 응답이 스스로 어느 스토어인지 말한다. 다른 스토어면 넣지 않는다.
-  const warn = scope && !String(scope).includes('온누리')
-    ? `응답의 스토어명이 '${scope}' — 온누리 범위가 아니다` : null;
-  return { items: dedupeItems(items), pages: 1, warn };
-}
-
 // ────────────────────────────────────────────────────────────── 레시피 표
 
 /**
  * 대상 몰과 그 레시피. id 는 data/online_platforms.json 의 id 와 같아야 한다
  * (테스트가 대조한다 — 어긋나면 존재하지 않는 몰을 적재하게 된다).
  *
- * `browser` 가 참이면 Playwright 로 화면을 열고, 거짓이면 fetch 만 쓴다 — 정적 레시피만
- * 대상일 때는 브라우저를 아예 띄우지 않는다(playwright 가 없어도 돈다).
- *
- * `hosts` 는 그 레시피가 접촉하는 호스트 전부다. 몰의 화면과 다른 하위 도메인의 API 를 부르는
- * 경우가 있어(롯데ON 화면 s.lotteon.com ↔ 상품 pbf.lotteon.com) 테스트는 완전 일치가 아니라
+ * `hosts` 는 그 레시피가 접촉하는 호스트 전부다. 몰의 화면과 다른 하위 도메인을 부르는 경우가
+ * 있어(인어교주 화면 tpirates.com ↔ 상품 목록 pub-api.tpirates.com) 테스트는 완전 일치가 아니라
  * **같은 등록 도메인**인지를 본다. 검사를 없애면 엉뚱한 사이트를 긁어도 아무도 모른다.
  *
- * `intervalMs` 는 그 호스트에 보내는 요청 사이의 최소 간격이다. 롯데ON 3초, 나머지 1초 —
- * 어느 쪽도 robots 의 Crawl-delay 에서 온 값이 아니다(우리가 부르는 호스트들의 robots 에는
- * Crawl-delay 가 없다). 각 레시피 주석에 그 몰의 robots 실측을 적어 두었다.
+ * `intervalMs` 는 그 호스트에 보내는 요청 사이의 최소 간격이다(둘 다 1초).
  *
- * pageLimit 는 요청 수 상한이다: 놀장은 sitemap 의 시장 수, 인어교주는 매장 수 + 목록 1건,
- * 롯데ON 은 1. `--limit` 를 주면 전부 그 값으로 낮춘다(시험용).
+ * pageLimit 는 요청 수 상한이다: 놀장은 sitemap 의 시장 수, 인어교주는 매장 수 + 목록 1건.
+ * `--limit` 를 주면 전부 그 값으로 낮춘다(시험용).
  *
- * **11번가 온누리마켓·공영쇼핑은 여기 없다.** 2026-09-03 에 전체 검색의 온누리 필터로
- * 실시간 조회 대상이 됐고(19절 6-10-1), 앱은 색인 층에서 실시간 대상을 걸러 낸다
- * (ADR-18 — 한 몰이 두 층에서 다른 말을 하지 않게). 걷어 봐야 화면에 닿지 않으므로 레시피를 두지 않는다.
+ * **지니어스몰·11번가 온누리마켓·공영쇼핑·롯데ON 상생스토어는 여기 없다.** 2026-09-02~03 에
+ * 넷 다 실시간 조회 대상이 됐고(ADR-19·19절 6-10-1·6-10-2), 앱은 색인 층에서 실시간 대상을
+ * 걸러 낸다(ADR-18 — 한 몰이 두 층에서 다른 말을 하지 않게). 걷어 봐야 화면에 닿지 않는다.
  *
- * **지니어스몰은 여기 없다.** 2026-09-02 에 `?search={q}` 정적 검색이 확인되어 실시간 조회
- * 대상이 됐고, 앱은 색인 층에서 실시간 대상을 걸러 낸다(ADR-18 — 한 몰이 두 층에서 다른 말을
- * 하지 않게). 색인으로 걷어 봐야 화면에 닿지 않으므로 레시피를 두지 않는다.
+ * 그 넷을 걷던 **정적 fetch 레시피 경로도 함께 지웠다** — 남은 두 몰은 브라우저가 필요하고,
+ * 쓰는 데가 없는 경로를 두면 다음 사람이 "왜 안 도나"를 묻는다. 다시 필요해지면
+ * 2026-09-03 커밋 이전 이력에 `get()`·`STATIC_UA`·`decodeXmlText` 가 그대로 있다.
  */
 const RECIPES = [
   { id: 'onnuri-noljang', host: 'mall.noljang.co.kr', hosts: ['mall.noljang.co.kr'],
-    pageLimit: 40,  intervalMs: 1000, browser: true,  run: crawlNoljang },
+    pageLimit: 40,  intervalMs: 1000, run: crawlNoljang },
   { id: 'tpirates', host: 'tpirates.com', hosts: ['tpirates.com', 'pub-api.tpirates.com'],
-    pageLimit: 200, intervalMs: 1000, browser: true,  run: crawlTpirates },
-  { id: 'lotte-on-sangsaeng-store', host: 'pbf.lotteon.com', hosts: ['pbf.lotteon.com'],
-    pageLimit: 5,   intervalMs: 3000, browser: false, run: crawlLotteOn },
+    pageLimit: 200, intervalMs: 1000, run: crawlTpirates },
 ];
 
 // ────────────────────────────────────────────────────────────── 시각 표기
@@ -523,42 +430,27 @@ async function main() {
     process.exit(3);
   }
 
-  // 브라우저는 필요한 레시피가 있을 때만 띄운다 — 정적 레시피만 돌릴 때는
-  // playwright 가 없어도 정상 동작해야 한다.
-  //
-  // playwright 가 없어도 **정적 레시피는 돌린다.** 예전처럼 여기서 바로 exit 2 를 하면
-  // 브라우저와 무관한 3곳까지 함께 죽고, 배치는 그 회차의 색인을 통째로 건너뛴다.
-  // 대상이 전부 브라우저 레시피일 때만 2 로 끝낸다(그때는 할 일이 하나도 없다).
-  const needsBrowser = targets.some((r) => r.browser);
-  let browser = null, ctx = null, browserError = null;
-  if (needsBrowser) {
-    let chromium = null;
-    try {
-      ({ chromium } = require('playwright'));
-    } catch (e) {
-      browserError = 'playwright 가 설치되어 있지 않습니다';
-    }
-    if (chromium) {
-      const launchOpts = { args: ['--no-sandbox'] };
-      if (channel) launchOpts.channel = channel;
-      try {
-        browser = await chromium.launch(launchOpts);
-        ctx = await browser.newContext({ userAgent: UA, viewport: { width: 1400, height: 1000 } });
-      } catch (e) {
-        browserError = `브라우저를 띄우지 못했습니다: ${String(e.message || e).slice(0, 120)}`;
-      }
-    }
-    if (browserError) {
-      const statics = targets.filter((r) => !r.browser);
-      console.error(`[index] ${browserError}`);
-      console.error('        설치: npm i playwright && npx playwright install --with-deps chromium');
-      if (!statics.length) {
-        console.error('        대상이 전부 브라우저 레시피라 할 일이 없습니다.');
-        process.exit(2);
-      }
-      console.error(`        브라우저가 필요한 ${targets.length - statics.length}곳은 건너뛰고 `
-                    + `정적 ${statics.length}곳만 수집합니다.`);
-    }
+  // 남은 두 몰은 모두 화면이 그려져야 상품이 보인다 — 브라우저가 없으면 할 일이 없다.
+  // (정적 fetch 로 걷던 몰들은 전부 실시간 조회 대상이 되어 색인에서 빠졌다.)
+  // 배치는 종료코드 2 를 "F 스킵: playwright 미설치"로 읽고 어제 색인을 그대로 둔다.
+  let chromium;
+  try {
+    ({ chromium } = require('playwright'));
+  } catch (e) {
+    console.error('[index] playwright 가 없습니다 — 단계 F 를 건너뜁니다.');
+    console.error('        설치: npm i playwright && npx playwright install --with-deps chromium');
+    process.exit(2);
+  }
+  const launchOpts = { args: ['--no-sandbox'] };
+  if (channel) launchOpts.channel = channel;
+  let browser, ctx;
+  try {
+    browser = await chromium.launch(launchOpts);
+    ctx = await browser.newContext({ userAgent: UA, viewport: { width: 1400, height: 1000 } });
+  } catch (e) {
+    console.error(`[index] 브라우저를 띄우지 못했습니다: ${String(e.message || e).slice(0, 140)}`);
+    console.error('        설치 확인: npx playwright install --with-deps chromium');
+    process.exit(2);
   }
 
   log(`대상 ${targets.length}곳 — ${targets.map((r) => r.id).join(', ')}`);
@@ -566,15 +458,7 @@ async function main() {
   for (const recipe of targets) {
     const t0 = Date.now();
     const limit = LIMIT !== null ? LIMIT : recipe.pageLimit;
-    if (recipe.browser && !ctx) {
-      // 브라우저가 없다 — 이 몰만 실패로 표시하고 넘어간다. 단계 F 는 실패한 몰의
-      // 어제 색인을 그대로 두므로, 여기서 0건을 올리는 것보다 실패라고 말하는 편이 맞다.
-      platforms.push({ id: recipe.id, ok: false, count: 0, pages: 0, seconds: 0, items: [],
-                       error: browserError || '브라우저를 쓸 수 없습니다' });
-      log(`  ${recipe.id} — 건너뜀: ${browserError || '브라우저 없음'}`);
-      continue;
-    }
-    log(`  ${recipe.id} 시작 (${recipe.browser ? '브라우저' : '정적'} · 요청 상한 ${limit})`);
+    log(`  ${recipe.id} 시작 (요청 상한 ${limit})`);
     try {
       const { items, pages, warn } = await recipe.run(ctx, recipe, limit, log);
       const guard = harvestGuard(items.length, warn || null);
@@ -594,7 +478,7 @@ async function main() {
       log(`  ${recipe.id} — 수집 실패: ${String(e.message || e).slice(0, 140)}`);
     }
   }
-  if (browser) await browser.close().catch(() => {});
+  await browser.close().catch(() => {});
 
   const date = localDate();
   const report = { date, platforms };
@@ -625,7 +509,7 @@ async function main() {
 
 module.exports = {
   cleanName, normalizeUrl, fragmentUrl, isOnnuriStore, dedupeItems, harvestGuard, isNoiseUrl,
-  decodeXmlText, registrableDomain,
+  registrableDomain,
   localDate, localStamp, RECIPES, NAME_MAX, URL_MAX,
 };
 

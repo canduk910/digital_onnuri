@@ -98,6 +98,7 @@ class OnlineSearchServiceTest {
         assertFalse(ProbeTargets.exclusionIds().contains("hyundai-home-shopping"));
         assertFalse(ProbeTargets.exclusionIds().contains("11st-onnuri-market"));
         assertFalse(ProbeTargets.exclusionIds().contains("gongyoung-shopping"));
+        assertFalse(ProbeTargets.exclusionIds().contains("lotte-on-sangsaeng-store"));
         // 조회 대상에는 제외 사유가 붙을 일이 없다 — 붙으면 목록이 어긋난 것이다.
         for (ProbeTarget t : ProbeTargets.ALL) {
             assertFalse(ProbeTargets.exclusionIds().contains(t.platformId()),
@@ -106,14 +107,12 @@ class OnlineSearchServiceTest {
     }
 
     @Test
-    void 사유가_네_갈래로_구분돼_화면에_나간다() {
-        // 7곳을 한 사유로 뭉뚱그리면 화면이 사실과 다른 말을 한다(ADR-18·19).
-        // 특히 scope-mixed 3곳은 "읽지 못한다"가 아니라 "읽어도 대부분 온누리 밖"이다.
+    void 사유가_세_갈래로_구분돼_화면에_나간다() {
+        // 남은 4곳을 한 사유로 뭉뚱그리면 화면이 사실과 다른 말을 한다(ADR-18·19).
         var r = svc(List.of(
                 p("onnuri-noljang", "온누리 놀장", "shopping", "https://noljang.co.kr"),
                 p("oligopalgo", "시장을 방으로", "shopping", "https://oligopalgo.kr"),
                 p("tpirates", "인어교주해적단", "shopping", "https://www.tpirates.com"),
-                p("lotte-on-sangsaeng-store", "롯데ON 온누리상생스토어", "shopping", "https://s.lotteon.com/x"),
                 p("cyso", "사이소", "shopping", "https://www.cyso.co.kr")), true)
                 .search(ProbeQuery.of("로봇청소기"));
         java.util.Map<String, String> byId = new java.util.HashMap<>();
@@ -121,7 +120,6 @@ class OnlineSearchServiceTest {
         assertEquals(ProbeTargets.EX_SCOPE_FIRST, byId.get("onnuri-noljang"));
         assertEquals(ProbeTargets.EX_SCOPE_FIRST, byId.get("oligopalgo"));
         assertEquals(ProbeTargets.EX_NO_FETCH, byId.get("tpirates"));
-        assertEquals(ProbeTargets.EX_SCOPE_MIXED, byId.get("lotte-on-sangsaeng-store"));
         assertEquals(ProbeTargets.EX_BOT_BLOCKED, byId.get("cyso"));
     }
 

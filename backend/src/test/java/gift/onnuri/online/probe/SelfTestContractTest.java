@@ -53,9 +53,19 @@ class SelfTestContractTest {
     }
 
     @Test
-    void 나머지_다섯곳은_없는_질의를_확정할_수_있다() {
+    void 확정_수단이_없는_몰은_정책으로_정한_두_곳뿐이다() {
+        // 나머지는 전부 없음-문구나 토큰 0 판정으로 '없다'를 확정할 수 있어야 한다 —
+        // 확정 수단이 없으면 그 몰의 absent 카나리아는 기대치를 세울 수 없고, 그만큼 눈이 먼다.
+        //   onnuri-chance          등급 C + 에코형이라 확정 수단이 원래 없다(ADR-17 1단계)
+        //   lotte-on-sangsaeng-store 130바이트 '없음'이 필터 깨진 응답과 바이트까지 같다(ADR-19)
+        java.util.List<String> policy =
+                java.util.List.of("onnuri-chance", "lotte-on-sangsaeng-store");
         for (ProbeTarget t : ProbeTargets.ALL) {
-            if ("onnuri-chance".equals(t.platformId())) continue;
+            if (policy.contains(t.platformId())) {
+                assertFalse(SelfTestService.canDecideAbsent(t),
+                        t.platformId() + " — 정책 선언이 풀렸다");
+                continue;
+            }
             assertTrue(SelfTestService.canDecideAbsent(t),
                     t.platformId() + " 가 '없다'를 확정할 수단을 잃었다 — 카나리아가 의미를 잃는다");
         }

@@ -6,7 +6,7 @@
   B 온라인  — 공식 e-commerce API 순회 → upsert(post_no/이름 매칭, 큐레이션 필드 보존)
   C RAG     — OPENAI_API_KEY 있을 때만 코퍼스 재빌드
   D 채록    — 온라인 취급품목·브랜드 변화 **탐지만**(하루 3~4곳 순환, 자동 반영 없음)
-  F 색인    — 실시간 조회가 닿지 않는 3곳의 **상품명·주소만** 수집해 몰 단위로 교체 적재
+  F 색인    — 실시간 조회가 닿지 않는 2곳의 **상품명·주소만** 수집해 몰 단위로 교체 적재
   E 카나리아 — 실시간 조회 판정 규칙이 아직 맞는지 앱에 물어보고 리포트만(자동 비활성화 없음)
 
 배치 전체 실패(exit≠0)로 치는 것은 **A 단계 실패뿐**이다. B·C 실패는 로그만 남기고 기존 데이터를 유지한다.
@@ -72,11 +72,17 @@ BODY_DELTA_ALERT = 0.5          # 응답 길이가 ±50% 넘게 변하면 개편
 # (스캐너와 같은 판정 — `Disallow: /` 한 줄이 있으면 blocked, UA 그룹은 구분하지 않는다):
 #   전면 차단 표시: 굿데이·인더마켓(2026-08-31)·공영쇼핑·현대홈쇼핑·꾹AI(GPTBot 등 AI 봇 그룹의 `Disallow: /`)
 #   아님: 11번가(search 호스트)·현대이지웰·5일장·온누리쇼핑·팔도(`/Goods/` 만)
-# 단계 F 색인 3곳 중 놀장·인어교주는 감시하고 롯데ON 은 **의도적으로 뺀다** — 우리가 부르는
-# pbf.lotteon.com 에는 robots.txt 가 없고 데이터 주소는 s.lotteon.com 이라 스캐너가 엉뚱한 호스트를 본다
-# (DEPLOY.md 단계 F 절). 스캐너 개선(UA 그룹·경로별 Allow 해석)은 별건.
+# 단계 F 색인은 놀장·인어교주 2곳이고 둘 다 감시한다.
+# **롯데ON 은 색인에서 빠지고 실시간 조회 대상이 되어(19절 6-10-2) 감시에 넣었다** — 색인 대상이던
+# 동안에는 "우리가 부르는 pbf.lotteon.com 에 robots.txt 가 없다"는 이유로 뺐지만, 실시간 대상은
+# 전부 덮는다는 위 원칙이 우선한다. 기준선은 blocked=True — www.lotteon.com 은 `Disallow: /` 가
+# 여러 그룹에 있어 스캐너 판정(UA 그룹 미구분)으로 전면 차단이다(2026-09-03 실측 200·4,082B).
+# 주의: 데이터의 search_url_template 이 비어 있는 동안에는 url 이 단축주소(s.lotteon.com)라
+# 스캐너가 301 루프로 **조회 실패**를 찍는다. 잘못된 판정이 아니라 "관측 못 함"이고,
+# backend 가 www 검색 URL 을 넣으면 자동으로 정상 관측으로 돌아온다.
 ROBOTS_BLOCKED_AT_SURVEY = ("onnuri-goodday", "inthemarket-onnuri",              # 2026-08-31
-                            "gongyoung-shopping", "hyundai-home-shopping", "kkuk-ai-onnuri-mall")  # 2026-09-03
+                            "gongyoung-shopping", "hyundai-home-shopping", "kkuk-ai-onnuri-mall",
+                            "lotte-on-sangsaeng-store")                          # 2026-09-03
 ROBOTS_WATCH_IDS = ("onnuri-hotdeal", "onnuri-chance", "onnuri-sijang", "onnuri-market",
                     "onnuri-gonggong-mall", "epost-mall", "genius-mall",
                     "onnuri-paldo-sijang", "hyundai-ezwel-onnuri", "onnuri-5iljang",
@@ -485,11 +491,10 @@ def _index_table_exists(conn):
 
 
 def stage_f_index(conn, out_dir, today):
-    """실시간 조회가 닿지 않는 3곳의 상품명 색인을 몰 단위로 교체 적재한다(ADR-18).
+    """실시간 조회가 닿지 않는 2곳(놀장·인어교주해적단)의 상품명 색인을 몰 단위로 교체 적재한다(ADR-18).
 
-    대상: 놀장·인어교주해적단(브라우저) · 롯데ON 상생스토어(정적 fetch).
-    롯데ON 은 스토어가 자기 상품을 정적 요청으로 주므로 브라우저가 필요 없다 —
-    playwright 가 없어도 그 한 곳은 걷힌다(index_nightly.js 가 브라우저를 필요할 때만 띄운다).
+    둘 다 화면이 그려져야 상품이 보여 브라우저가 필요하다. playwright 가 없으면
+    크롤러가 종료코드 2 로 끝나고 이 단계는 스킵된다(어제 색인은 그대로 남는다).
 
     단계 D 와 달리 **이 단계는 DB 를 고친다.** 그래도 성격은 같다 — 수집은 크롤이고,
     크롤은 조용히 절반만 성공한다. 그래서 몰마다 건수 가드를 걸고(_index_guard),
@@ -506,8 +511,6 @@ def stage_f_index(conn, out_dir, today):
     if not node:
         log("F 스킵: node 없음(설치: nodejs).")
         return
-    # playwright 는 여기서 확인하지 않는다 — 없으면 브라우저 레시피만 실패하고
-    # 정적 레시피는 그대로 걷힌다(크롤러가 몰별로 fail-open 한다).
     if not _index_table_exists(conn):
         log("F 스킵: online_product_index 테이블 없음 — 마이그레이션(V8) 적용 후 동작한다.")
         return

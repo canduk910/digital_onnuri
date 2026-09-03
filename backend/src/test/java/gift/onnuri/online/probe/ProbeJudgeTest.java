@@ -43,6 +43,14 @@ class ProbeJudgeTest {
         };
     }
 
+    /** 응답이 개행 섞인 JSON 이라 공백을 허용해 센다. */
+    private static int count(String body, String regex) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile(regex).matcher(body);
+        int n = 0;
+        while (m.find()) n++;
+        return n;
+    }
+
     private static Verdict judgeFixture(String platformId, String kind, String query) {
         ProbeTarget t = ProbeTargets.byId(platformId).orElseThrow();
         return ProbeJudge.judge(t, fixture(platformId + "-" + kind + ".html"), ProbeQuery.of(query));
@@ -130,6 +138,38 @@ class ProbeJudgeTest {
             Verdict v = judgeFixture(t.platformId(), "none", "zzqqxyw12345");
             assertEquals(Verdict.NONE, v.status(), t.platformId() + " — 없는 질의인데 없음이 아니다");
         }
+    }
+
+    @Test
+    void 롯데ON은_없다고_말하지_않는다() {
+        // 온누리 0건 응답(130바이트)이 **필터가 깨진 응답과 바이트·md5 까지 같다.**
+        // 그 응답으로 '없음'을 만들면, 롯데ON 이 파라미터 이름을 바꾸는 날
+        // 모든 질의가 조용히 '없음'이 된다 — ADR-17 이 가장 경계한 방향이다.
+        // 픽스처는 `샤넬`(온누리 0건) 응답이다. 무의미어는 본문이 0바이트로 와서 쓸 수 없다.
+        Verdict v = judgeFixture("lotte-on-sangsaeng-store", "none", "zzqqxyw12345");
+        assertNotEquals(Verdict.NONE, v.status(), "근거 없이 없음으로 단정했다");
+        assertNull(v.confidence());
+        ProbeTarget t = ProbeTargets.byId("lotte-on-sangsaeng-store").orElseThrow();
+        assertTrue(t.noneMarkersBound().isEmpty() && t.noneMarkersPlain().isEmpty(),
+                "없음-문구를 두면 그 응답으로 '없다'를 말하게 된다");
+        assertTrue(t.echoesQuery(), "토큰 0 판정을 쓰지 않겠다는 정책 선언이 풀렸다");
+        assertFalse(SelfTestService.canDecideAbsent(t),
+                "카나리아 absent 대조에서 빠져야 한다 — 세울 수 있는 기대치가 없다");
+    }
+
+    @Test
+    void 롯데ON_상품명은_앵커_없이도_상품만_뽑는다() {
+        // 매치 수가 itemList 와 정확히 같다(로봇청소기 31 = total 31).
+        // 11번가처럼 SEO 제목이 섞이는 자리가 없어 앵커가 필요 없다.
+        String hit = fixture("lotte-on-sangsaeng-store-hit.html");
+        assertEquals(31, count(hit, "\"pdName\"\\s*:"), "상품 수가 실측과 다르다");
+        assertEquals(31, count(hit, "\"emblemName\"\\s*:\\s*\"온누리\""),
+                "반환 상품 전부가 온누리 표식을 가져야 한다 — 범위가 바뀌었을 수 있다");
+        List<String> names = ProbeJudge.extractTitles(
+                ProbeTargets.byId("lotte-on-sangsaeng-store").orElseThrow(), hit,
+                ProbeQuery.of("로봇청소기"), 3);
+        assertEquals(3, names.size());
+        for (String n : names) assertTrue(n.contains("로봇청소기"), "질의와 무관한 이름: " + n);
     }
 
     @Test
