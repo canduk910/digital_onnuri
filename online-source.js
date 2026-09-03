@@ -56,17 +56,21 @@
 
   function bust() { return CFG.dataVersion ? "?v=" + encodeURIComponent(CFG.dataVersion) : ""; }
 
+  // 2026-09-04: 폴백이 **조용했다**. 서버가 죽으면 저장소 사본을 그리는데 화면은 계속
+  // "매일 00:30 자동 갱신"이라 말했다 — 그 순간 갱신되지 않는 목록을 갱신된다고 말하는 것이고,
+  // 2026-09-01 가맹점 수집 중단이 나흘간 안 알려졌던 것과 같은 침묵이다. 어느 소스를
+  // 그렸는지 결과에 실어 보내 화면이 사실대로 말하게 한다.
   function fetchJson() {
     return fetch("data/online_platforms.json" + bust()).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
-    }).then(normPayload);
+    }).then(normPayload).then(function (n) { n.source = "json"; return n; });
   }
   function fetchApi() {
     return fetch(API_BASE + "/online/platforms").then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
-    }).then(normPayload);
+    }).then(normPayload).then(function (n) { n.source = "api"; return n; });
   }
 
   // dataMode(auto/api/json)에 따라 소스 결정 후, 정규화된 {meta, items}를 resolve.

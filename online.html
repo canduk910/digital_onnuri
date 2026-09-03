@@ -123,6 +123,9 @@
   .pb-why-list{ padding:2px 14px 10px; background:var(--surface); border-bottom:1px solid var(--border); }
   .pb-why-list p{ margin:6px 0; font-size:12.5px; line-height:1.6; color:var(--text-sub); }
   .pb-why-list b{ color:var(--text); font-weight:700; }
+  /* 저장소 사본을 그리는 중이라는 표시. 오렌지는 포인트만이라 여기선 경고 색만 쓴다. */
+  .meta-warn { color:#B3540E; font-weight:700; }
+
   /* 전일 색인 층(ADR-18) — 실시간 결과보다 한 단계 약하게. 오렌지는 링크에만 남긴다.
      색인 항목이 "지금 검색됨"으로 읽히면 안 되므로 eyebrow 로 층 이름을 먼저 박고,
      위 목록과 이어져 보이지 않게 층 경계선을 굵게 준다. */
@@ -419,7 +422,7 @@
 <script src="shell.js?v=6"></script>
 <script src="chat-widget.js?v=14" defer></script>
 <script src="config.js"></script>
-<script src="online-source.js?v=2"></script>
+<script src="online-source.js?v=3"></script>
 <script src="online-probe.js?v=15"></script>
 <script>
 (function () {
@@ -1155,6 +1158,7 @@
         if (!PLATFORMS.some(function (p) { return p.id === it.id; })) console.warn("카탈로그 고아 id:", it.id);
       });
       META.platforms = (plat.meta || {}).collected_on || "";
+      META.source = plat.source || "api";   // 어느 소스를 그렸는지(폴백이면 "json")
       // 실측 스탬프(2026-08-21 개정): 예전에는 min(surveyed_on) 하나만 썼다. 그러면 22곳 중
       // 21곳을 새로 확인해도 못 본 1곳 때문에 화면이 옛 날짜를 말한다 — 최신 확인을 통째로
       // 가리는 셈이다. 반대로 확인 안 한 항목의 날짜를 올리는 것도 금지다(검증되지 않은
@@ -1190,7 +1194,11 @@
         : META.survey;
       var s = PLATFORMS.filter(function (p) { return p.kind === "shopping"; }).length;
       var d = PLATFORMS.length - s;
-      el("metaLine").innerHTML = "공식 목록 <span class='num'>" + esc(META.platforms) + "</span> 수집(매일 00:30 자동 갱신) · 취급품목 실측 <span class='num'>"
+      // 저장소 사본을 그리는 중이면 "자동 갱신"이라 말하지 않는다 — 그 순간 갱신은 멈춰 있다.
+      var live = (META.source !== "json");
+      el("metaLine").innerHTML = "공식 목록 <span class='num'>" + esc(META.platforms) + "</span> 수집"
+        + (live ? "(매일 00:30 자동 갱신)" : "<span class='meta-warn' title='서버에 닿지 못해 저장소에 있는 사본을 보여 주고 있습니다. 새로고침하면 다시 시도합니다.'>(서버 연결 실패 — 저장된 사본)</span>")
+        + " · 취급품목 실측 <span class='num'>"
         + esc(META.survey) + "</span> 기준" + esc(META.surveyNote) + " · <span class='num'>" + nf(PLATFORMS.length) + "곳</span> — 쇼핑 <span class='num'>" + s + "</span> · 배달 <span class='num'>" + d + "</span>";
       el("noticeMain").innerHTML = "<strong>각 쇼핑몰이 취급하는 물품종류와 대표 브랜드를 " + esc(META.surveyRange)
         + "에 몰별로 확인해 태그한 목록입니다.</strong> 상품 재고·전체 브랜드 목록이 아니며, 온누리 결제 가능 범위는 각 몰의 전용관·기획전 기준입니다 — 결제 전 해당 몰에서 확인하세요.";
