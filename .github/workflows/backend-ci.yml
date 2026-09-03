@@ -16,6 +16,11 @@ on:
     paths:
       - "backend/**"
       - ".github/workflows/backend-ci.yml"
+      # 2026-09-04: data/** 를 더한다. 백엔드 계약 테스트가 이 파일들을 **직접 읽어**
+      # 코드와 데이터의 일치를 지키는데(조회 대상 URL ↔ search_url_template, 제외 사유 사전이
+      # 쇼핑몰 전수를 덮는지 등), 데이터만 바꾼 커밋은 CI 를 발동시키지 않아 그 계약이
+      # 검사되지 않은 채 배포되고 있었다.
+      - "data/**"
   workflow_dispatch: {}   # 수동 재배포용
 
 concurrency:
