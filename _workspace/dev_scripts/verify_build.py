@@ -61,11 +61,18 @@ if tpl:
         on_json = [x for x in json.load(f)["items"] if x.get("status") == "active"]
     with open(OFFLINE_JSON, encoding="utf-8") as f:
         off_json = json.load(f)["items"]
-    check(len(on_items) == 30, f"ONLINE 30개 (실제 {len(on_items)}, JSON {len(on_json)})")
+    # 2026-09-04: 기대치를 30 으로 **손으로 적어 두어** 공식 목록에 몰이 하나 늘자(권율로) 실패했다.
+    # 이 검사가 지켜야 하는 것은 "몇 곳인가"가 아니라 **"템플릿과 데이터가 같은가"** 다.
+    # 숫자를 적으면 데이터가 바뀔 때마다 검증기가 거짓 경보를 낸다(페이지에 숫자를 손으로
+    # 쓰지 않는다는 이 저장소의 원칙이 검증기에도 그대로 적용된다).
+    check(len(on_items) == len(on_json), f"ONLINE 템플릿 {len(on_items)} = JSON {len(on_json)}")
     check(len(off_items) == 12, f"OFFLINE 12개 (실제 {len(off_items)}, JSON {len(off_json)})")
     ship = len(re.findall(r"\{c:\"쇼핑\",", tpl))
     deli = len(re.findall(r"\{c:\"배달\",", tpl))
-    check(ship == 22 and deli == 8, f"쇼핑 {ship} · 배달 {deli}")
+    j_ship = sum(1 for x in on_json if x.get("kind") == "shopping")
+    j_deli = sum(1 for x in on_json if x.get("kind") == "delivery")
+    check(ship == j_ship and deli == j_deli,
+          f"쇼핑 {ship}=JSON {j_ship} · 배달 {deli}=JSON {j_deli}")
 
     # (d) 하드코딩 잔재 없음
     print("(d) 하드코딩 제거 확인")
