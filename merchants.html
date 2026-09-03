@@ -535,7 +535,7 @@
           <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2"></line></svg>
           <input id="bmQ" type="text" autocomplete="off" placeholder="브랜드 이름 입력 (부분 검색: 파리, gs, 커피)">
         </div>
-        <p class="bm-scope-hint">전 지역(서울·인천·경기·부산) 기준 매장 수 — 현재 선택한 지역·지도 범위에 없는 브랜드는 결과가 0곳으로 표시됩니다.</p>
+        <p class="bm-scope-hint" id="bmScopeHint">숫자는 서울·인천·경기·부산 전체 매장 수입니다. 브랜드를 고르면 지금 선택한 지역의 목록으로 좁혀지고, 그 지역에 없는 브랜드는 0곳이 됩니다.</p>
       </div>
       <div class="modal-body">
         <ul id="bmIndex" class="bm-index" aria-label="초성·알파벳 색인"></ul>
@@ -1677,6 +1677,16 @@
     sel.innerHTML = oh;
     sel.value = state.cat;
     sel.disabled = (state.cat !== "전체");
+    // 안내 문구에 **지금 좁혀질 범위**를 그대로 적는다(2026-09-03 사용자 지적). 종전 문구는
+    // "현재 선택한 지역·지도 범위"를 언급해 팝업 숫자에 그 범위가 반영되는 것처럼 읽혔다 —
+    // 숫자는 전 지역 합산이고 범위는 고른 뒤 목록에만 걸린다. 둘의 관계를 문장이 말해야 한다.
+    var hint = el("bmScopeHint");
+    if (hint) {
+      var scope = LIST_BY_MAP ? "지금 보고 있는 지도 범위"
+        : (state.sido || "선택한 지역") + (state.gu !== "전체" ? " " + state.gu : "") + (state.dong !== "전체" ? " " + state.dong : "");
+      hint.textContent = "숫자는 서울·인천·경기·부산 전체 매장 수입니다. 브랜드를 고르면 " + scope
+        + "의 목록으로 좁혀지고, 그 범위에 없는 브랜드는 0곳이 됩니다.";
+    }
     el("brandModal").hidden = false;
     document.body.style.overflow = "hidden";
     loadBrandModalList();
