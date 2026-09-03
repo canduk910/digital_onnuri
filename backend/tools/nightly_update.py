@@ -367,6 +367,21 @@ def _clear_stale(conn):
         log(f"A 중단 기록 해제 실패(무시): {e}")
 
 
+def _repo_db_drift(db_active, repo_active):
+    """저장소 JSON 과 DB 의 **활성 온라인몰 목록**이 갈라졌는지 본다(2026-09-03 신설).
+
+    왜 필요한가: 단계 B 는 공식 목록에서 새 몰을 받아 **DB 에만** 넣는다. 저장소 JSON 은
+    사람이 손으로 따라와야 하는데, 그걸 잊으면 **백엔드가 멈춰 폴백으로 도는 날 이용자가
+    그 몰을 못 본다.** 2026-09-03 에 실제로 그랬다 — 라이브 31곳 / 저장소 30곳,
+    빠진 곳은 배달앱 `ec-35 온누리 권율로` 였다. 그날 로그에는 `신규 1` 이라는 숫자만
+    남아 있었고 **어느 몰인지도, 저장소에 반영하라는 말도 없었다.**
+
+    건수가 아니라 **id 집합**을 비교한다 — 같은 날 하나가 들어오고 하나가 빠지면
+    건수는 그대로다. 반환은 (저장소에 없는 것, DB 에 없는 것) 두 집합이다.
+    """
+    return sorted(set(db_active) - set(repo_active)), sorted(set(repo_active) - set(db_active))
+
+
 def _sync_curation(conn):
     """저장소 data/online_platforms.json 의 **큐레이션 필드**를 DB 에 맞춘다.
 
@@ -401,6 +416,26 @@ def _sync_curation(conn):
             n += cur.rowcount
     conn.commit()
     log(f"B 큐레이션 동기화: {n}건 갱신(note·region_limited·search_url_template)")
+
+    # 저장소↔DB 드리프트 — 위 UPDATE 는 **저장소에 있는 id 만** 훑으므로 DB 에만 있는 몰은
+    # 이 동기화로 영영 드러나지 않는다. 그래서 여기서 따로 본다.
+    repo_active = [it["id"] for it in items if (it.get("status") or "active") == "active"]
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, name, kind FROM online_platform WHERE status='active'")
+        rows = cur.fetchall()
+    db_meta = {r[0]: (r[1], r[2]) for r in rows}
+    only_db, only_repo = _repo_db_drift(db_meta.keys(), repo_active)
+    if only_db:
+        log(f"  ! 저장소에 없는 몰 {len(only_db)}곳 — 백엔드가 멈춘 날 이용자가 이 곳들을 못 본다."
+            f" data/online_platforms.json 에 반영할 것")
+        for pid in only_db:
+            nm, kd = db_meta.get(pid, ("?", "?"))
+            log(f"      {pid} · {nm}({kd})")
+    if only_repo:
+        log(f"  ! DB 에 없는 몰 {len(only_repo)}곳 — 공식 목록에서 빠졌거나 id 가 어긋났다:"
+            f" {', '.join(only_repo)}")
+    if not only_db and not only_repo:
+        log(f"  · 저장소↔DB 목록 일치({len(repo_active)}곳)")
 
 
 # ------------------------------------------------------------------ 단계 C: RAG

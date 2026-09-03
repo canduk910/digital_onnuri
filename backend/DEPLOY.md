@@ -392,6 +392,29 @@ docker compose exec -T db psql -U <DB_USER> -d <DB_NAME> \
   -c "DELETE FROM online_product_index WHERE platform_id IN ('11st-onnuri-market','gongyoung-shopping','lotte-on-sangsaeng-store');"
 ```
 
+### 저장소↔DB 온라인몰 목록 드리프트 경고 (2026-09-03)
+
+단계 B 는 공식 목록에서 **새 몰을 받아 DB 에만** 넣는다(`ec-{post_no}` 로 id 를 만든다). 저장소
+`data/online_platforms.json` 은 사람이 따라와야 하는데, 잊으면 **백엔드가 멈춰 폴백으로 도는 날
+이용자가 그 몰을 못 본다.** 온누리로 결제할 수 있는 곳을 안 보여 주는 쪽이라 이 프로젝트가 가장
+피하려는 방향이다.
+
+2026-09-03 에 실제로 그랬다 — 라이브 31곳 / 저장소 30곳, 빠진 곳은 배달앱 `ec-35 온누리 권율로`.
+그날 로그에는 `신규 1` 이라는 **숫자만** 남아 있었고 어느 몰인지도, 저장소에 반영하라는 말도 없었다.
+
+그래서 매 회차 두 목록의 **id 집합**을 비교해 로그에 남긴다(건수만 보면 하나 들어오고 하나 빠진
+날을 놓친다).
+
+```
+! 저장소에 없는 몰 1곳 — 백엔드가 멈춘 날 이용자가 이 곳들을 못 본다. data/online_platforms.json 에 반영할 것
+      ec-35 · 온누리 권율로(delivery)
+```
+
+이 줄이 보이면 그 몰을 저장소에 넣고 커밋한다(배치가 `git pull` 하므로 다음 날 반영된다). 배달앱은
+음식 주문이라 물품종류 태깅 대상이 아니므로 `data/online_catalog.json` 은 건드리지 않는다.
+반대 방향(`DB 에 없는 몰`)은 공식 목록에서 빠졌거나 id 가 어긋난 것이다. 목록이 같으면
+`· 저장소↔DB 목록 일치(N곳)` 한 줄만 남는다 — **침묵이 아니라 확인했다는 기록이다.**
+
 ### 온라인 큐레이션 필드는 배치가 매일 저장소와 맞춘다 (2026-09-02)
 
 `note`·`region_limited`·`search_url_template` 은 공식 API 가 주지 않는, 우리가 손으로 정한 값이다.
