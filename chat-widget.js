@@ -124,7 +124,7 @@
       '<button class="cw-close" type="button" aria-label="닫기">×</button></div>' +
       '<div class="cw-body"></div>' +
       '<div class="cw-opts"><label class="cw-switch"><input type="checkbox" id="cwAutoMap"><span></span>자동모드</label>' +
-      '<span class="cw-opts-hint">문의 시 추가 확인 없이 답변에 해당하는 페이지로 이동해 조회를 실행합니다</span></div>' +
+      '<span class="cw-opts-hint">문의 시 추가 확인 없이 답변에 해당하는 화면으로 이동합니다(상품 실시간 조회는 그 화면에서 직접 눌러 실행합니다)</span></div>' +
       '<div class="cw-input"><textarea rows="1" placeholder="예: 환불 어떻게 하나요?" aria-label="질문 입력"></textarea>' +
       '<button class="cw-send" type="button" aria-label="보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>' +
       '<div class="cw-disclaim">AI가 생성한 답변으로 오류가 있을 수 있습니다 · 개인정보를 입력하지 마세요</div>';
@@ -300,6 +300,17 @@
   // 2026-08-26: 종전에는 merchants·online 2종만 자동 이동해 payment·terms·guide 는 토글과
   // 무관하게 카드만 떴다. 라벨이 "지도 바로 이동"일 때는 맞았지만 "자동모드"로 넓힌 문구와
   // 어긋나 결함이 됐다(사용자 제보 — 카드 실적 질문이 결제 페이지로 안 감).
+  /** 제자리 적용 시 화면에 맞는 알림 문구. 화면마다 움직이는 것이 다르다. */
+  function placedNote(a) {
+    if (a.page === "merchants") return "지도와 목록을 이 조건으로 맞췄습니다";
+    if (a.page === "online") {
+      var tab = (a.params || {}).tab;
+      if (tab === "live") return "「상품 실시간 검색」에 검색어를 넣었습니다 — 조회 버튼을 누르면 여러 몰을 조회합니다";
+      return "「몰 둘러보기」 목록을 이 조건으로 좁혔습니다";
+    }
+    return "이 화면을 조건에 맞게 바꿨습니다";
+  }
+
   function handleAction(a) {
     if (!autoMapOn()) { appendAction(a); return; }
     var info = PAGE_INFO[a.page];
@@ -307,7 +318,10 @@
     var isSearch = a.page === "merchants" || a.page === "online";
     if (isSearch && onPage(info.file) && typeof window.onnuriApplyChatFilter === "function") {
       window.onnuriApplyChatFilter(a.params || {});
-      appendNote("지도·목록을 이동했습니다 — " + (a.label || ""));
+      // 2026-09-04: 종전에는 어느 화면이든 "지도·목록을 이동했습니다" 였다 — **온라인에는 지도가 없고**,
+      // 실시간 검색 탭 착지에서는 목록도 움직이지 않는다(검색어만 채우고 조회는 이용자가 누른다).
+      // 화면과 착지 탭에 맞는 말을 한다.
+      appendNote(placedNote(a) + " — " + (a.label || ""));
       return;
     }
     if (!isSearch && onPage(info.file)) {
