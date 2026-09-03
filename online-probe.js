@@ -141,7 +141,7 @@
     var rows = platforms.map(function (p) {
       return '<li class="pb-row"><span class="pb-name">' + esc(p.name) + '</span>'
         + '<span class="pb-status pb-wait">확인 중…</span>'
-        + '<a class="pb-link" href="' + esc(linkFor(p, q)) + '" target="_blank" rel="noopener">몰에서 보기 ↗</a></li>';
+        + linkTag(linkFor(p, q), q) + '</li>';
     }).join("");
     mount.innerHTML = '<div class="probe-result"><div class="pb-head">\'' + esc(q) + '\' 확인 중…</div>'
       + '<ul class="pb-list">' + rows + '</ul></div>';
@@ -151,6 +151,30 @@
     var tpl = p.search_url_template || "";
     if (tpl && tpl.indexOf("{q}") !== -1) return tpl.replace("{q}", encodeURIComponent(q));
     return p.url || "";
+  }
+
+  /**
+   * 링크가 **검색 결과로 가는지**, **몰 첫 화면으로 가는지** 구분해 라벨을 고른다.
+   *
+   * 2026-09-04: 라벨이 '몰에서 보기' 하나뿐이라 두 성격이 섞여 있었다. 전용관 주소가
+   * 고정인 몰(현대홈쇼핑·공영쇼핑·롯데ON)과 검색 URL 이 없는 몰은 검색어를 담을 자리가
+   * 없어, 검색 결과를 읽고 누르면 "왜 내 검색어가 사라졌지"가 된다. 판단은 선언 필드가
+   * 아니라 **실제 URL** 로 한다 — 필드를 새로 두면 데이터와 조용히 어긋난다.
+   */
+  function carriesQuery(u, q) {
+    if (!u || !q) return false;
+    var once = encodeURIComponent(q);
+    return u.indexOf(once) >= 0
+        || u.indexOf(encodeURIComponent(once)) >= 0   // {qq} 이중 인코딩 몰(이지웰)
+        || u.indexOf(q) >= 0;
+  }
+  function linkTag(u, q) {
+    if (!u) return "";
+    return carriesQuery(u, q)
+      ? '<a class="pb-link" href="' + esc(u) + '" target="_blank" rel="noopener"'
+        + ' title="이 검색어로 몰의 검색 결과가 열립니다">검색 결과 보기 ↗</a>'
+      : '<a class="pb-link" href="' + esc(u) + '" target="_blank" rel="noopener"'
+        + ' title="이 몰은 링크에 검색어를 담을 수 없습니다 — 온누리 화면 첫 페이지가 열립니다">몰 화면 열기 ↗</a>';
   }
 
   /**
@@ -185,7 +209,7 @@
    * 조용히 어긋난다(2026-08-27 normKind 유형).
    * 그릴 것이 없으면(platformCount 0 · notice 없음) 블록 자체를 만들지 않는다.
    */
-  function indexBlock(idx) {
+  function indexBlock(idx, q) {
     if (!idx || !idx.notice || !(idx.platformCount > 0)) return "";
     var items = idx.items || [];
     var rows = items.map(function (h) {
@@ -219,9 +243,7 @@
         : "";
       return '<li class="pb-row"><span class="pb-name">' + esc(h.name) + when + '</span>'
         + status
-        + (h.searchUrl
-            ? '<a class="pb-link" href="' + esc(h.searchUrl) + '" target="_blank" rel="noopener">몰에서 보기 ↗</a>'
-            : "")
+        + linkTag(h.searchUrl, q)
         + samples + '</li>';
     }).join("");
     // 블록을 그릴지는 platformCount·notice 로만 판단한다(위 가드) — items 로 판단하지 않는다.
@@ -242,6 +264,8 @@
     var probed = data.items.filter(function (h) { return h.status !== "not-probed"; });
     var skipped = data.items.filter(function (h) { return h.status === "not-probed"; });
 
+    var qRaw = data.query || "";
+
     function row(h) {
       var L = LABEL[h.status] || LABEL.unknown;
       var badge = h.reason ? reasonBadge(h.reason) : null;
@@ -260,11 +284,11 @@
         : "";
       return '<li class="pb-row"><span class="pb-name">' + esc(h.name) + wide + '</span>'
         + '<span class="pb-status ' + L.cls + '">' + esc(L.text) + why + '</span>'
-        + '<a class="pb-link" href="' + esc(h.searchUrl) + '" target="_blank" rel="noopener">몰에서 보기 ↗</a>'
+        + linkTag(h.searchUrl, qRaw)
         + samples + '</li>';
     }
 
-    var idxHtml = indexBlock(data.index);
+    var idxHtml = indexBlock(data.index, qRaw);
 
     mount.innerHTML =
       '<div class="probe-result">'
@@ -280,7 +304,7 @@
           // 어긋난다(2026-08-27 normKind 와 같은 유형).
           ? '<details class="pb-more"><summary>확인하지 않은 나머지 '
             + (data.notProbedCount != null ? data.notProbedCount : skipped.length)
-            + '곳 — 이유와 검색 링크</summary>'
+            + '곳 — 이유와 몰 바로가기</summary>'
             + whyBlock(skipped)
             + '<ul class="pb-list">' + skipped.map(row).join("") + '</ul></details>'
           : "")
@@ -331,7 +355,7 @@
   function renderFailure(mount, q, platforms) {
     var rows = platforms.filter(function (p) { return p.kind !== "delivery"; }).map(function (p) {
       return '<li class="pb-row"><span class="pb-name">' + esc(p.name) + '</span>'
-        + '<a class="pb-link" href="' + esc(linkFor(p, q)) + '" target="_blank" rel="noopener">몰에서 보기 ↗</a></li>';
+        + linkTag(linkFor(p, q), q) + '</li>';
     }).join("");
     mount.innerHTML = '<div class="probe-result">'
       + '<div class="pb-head">실시간 확인에 실패했습니다 — 아래에서 직접 검색해 보세요.</div>'
