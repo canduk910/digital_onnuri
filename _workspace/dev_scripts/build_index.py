@@ -141,8 +141,20 @@ COMPUTE = (
     "    const baseStamp = stampDates.slice().sort()[0] || \"\";\n"
     "    const baseMonth = baseStamp.slice(0, 7);\n"
     "    const regionApps = this.ONLINE.filter(r => r.rl === true).map(r => r.n).join(\", \");\n"
-    "    const onIntroMid = \"전용관·제휴 플랫폼은 계속 추가되는 단계라, 아래 목록(\" + collectedOn + \" 수집)에 없는 곳이 새로 생겼을 수 있습니다.\";\n"
-    "    const onIntroTail = \"아래 \" + onTotal + \"곳은 온누리 공식 홈페이지 '온라인 전통시장관'(\" + pagesChecked + \"페이지)에 안내된 가맹 플랫폼 전체입니다.\";\n\n"
+    # 2026-09-04: 인트로가 목록 전체를 meta.collected_on(2026-08-06) 하나로 말하고 있었다.
+    # 이후 확인분이 섞이면(권율로 2026-09-03) "그날 수집한 31곳 전체"라는 두 겹의 거짓이 된다.
+    # 날짜는 항목의 실제 수집일에서 뽑고, 추가분이 있으면 "전체"라 말하지 않는다.
+    "    const onDates = [];\n"
+    "    onActive.forEach(r => { if (r.co) onDates.push(r.co); });\n"
+    "    const onSorted = onDates.slice().sort();\n"
+    "    const onOldest = onSorted[0] || collectedOn;\n"
+    "    const onNewest = onSorted[onSorted.length - 1] || collectedOn;\n"
+    "    const onLater = onActive.filter(r => r.co && r.co !== onOldest).length;\n"
+    "    const onIntroMid = \"전용관·제휴 플랫폼은 계속 추가되는 단계라, 아래 목록(\" + onOldest + \" 수집\"\n"
+    "      + (onLater ? \", \" + onLater + \"곳은 \" + onNewest + \"까지 추가 확인\" : \"\")\n"
+    "      + \")에 없는 곳이 새로 생겼을 수 있습니다.\";\n"
+    "    const onIntroTail = \"아래 \" + onTotal + \"곳은 온누리 공식 홈페이지 '온라인 전통시장관'(\" + pagesChecked\n"
+    "      + \"페이지)에 안내된 가맹 플랫폼\" + (onLater ? \"과 이후 확인된 추가분입니다.\" : \" 전체입니다.\");\n\n"
 )
 tpl = replace_once(
     tpl,

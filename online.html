@@ -369,7 +369,11 @@
       </div>
 
       <div class="controls">
-        <label class="nationwide-toggle"><input type="checkbox" id="nationwideOnly">전국 이용 가능만</label>
+        <!-- 2026-09-04: 라벨이 '전국 이용 가능만' 이었는데, 이 필터가 실제로 하는 일은
+             **'지역 한정' 표시가 붙은 곳을 빼는 것**뿐이다. 표시가 없다는 것은 그 몰의 전국
+             이용을 확인했다는 뜻이 아니라 한정 사실이 확인되지 않았다는 뜻이다. 하는 일을
+             그대로 부르게 바꾼다 — 없는 확인을 있다고 말하지 않는다. -->
+        <label class="nationwide-toggle" title="'지역 한정' 표시가 붙은 곳을 목록에서 뺍니다. 나머지가 전국에서 된다는 확인은 아닙니다."><input type="checkbox" id="nationwideOnly">지역 한정 제외</label>
         <span class="count-text" id="countText"></span>
       </div>
 
