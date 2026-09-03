@@ -237,7 +237,7 @@ class OnlineSearchServiceTest {
                 List.of(new OnlineProductIndexRepository.Summary(platformId, names.length, "2026-09-01")));
         Mockito.when(idx.findMatching(Mockito.any(), Mockito.any())).thenReturn(
                 java.util.Arrays.stream(names)
-                        .map(n -> new OnlineProductIndexRepository.Row(platformId, n)).toList());
+                        .map(n -> new OnlineProductIndexRepository.Row(platformId, n, "https://x.example/p")).toList());
         return idx;
     }
 

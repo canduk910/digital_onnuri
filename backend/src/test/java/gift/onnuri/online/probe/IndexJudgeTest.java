@@ -31,7 +31,8 @@ class IndexJudgeTest {
     }
 
     private static Summary s(String id, int n, String date) { return new Summary(id, n, date); }
-    private static Row r(String id, String name) { return new Row(id, name); }
+    private static Row r(String id, String name) { return new Row(id, name, "https://x.example/" + name); }
+    private static Row r(String id, String name, String url) { return new Row(id, name, url); }
 
     // ── 매치 규칙 ────────────────────────────────────────────────────────
 
@@ -209,5 +210,36 @@ class IndexJudgeTest {
                         "문장이 끊겼다: [" + x + "] 전체: " + layer.notice());
             }
         }
+    }
+
+    @Test
+    void 샘플에는_그_상품에_닿는_주소가_같은_순서로_실린다() {
+        // 색인 대상은 정의상 '검색이 안 되는 몰'이라 몰 홈으로 보내면 이용자가 그 상품을
+        // 찾을 수 없다. 배치가 넣어 둔 상품 주소를 샘플과 **같은 순서**로 싣는다.
+        var layer = IndexJudge.build(ProbeQuery.of("김치"),
+                byId(p("onnuri-noljang", "온누리 놀장")),
+                List.of(s("onnuri-noljang", 2, "2026-09-03")),
+                List.of(r("onnuri-noljang", "총각김치 3kg", "https://mall.example/market/36#총각김치"),
+                        r("onnuri-noljang", "배추김치 5kg", "https://mall.example/market/12#배추김치")));
+        var hit = layer.items().get(0);
+        assertEquals(hit.sampleTitles().size(), hit.sampleUrls().size(),
+                "샘플 수와 주소 수가 같아야 자리가 어긋나지 않는다");
+        for (int i = 0; i < hit.sampleTitles().size(); i++) {
+            String name = hit.sampleTitles().get(i);
+            assertTrue(hit.sampleUrls().get(i).contains(name.split(" ")[0]),
+                    "i=" + i + " 샘플 '" + name + "' 의 주소가 다른 상품을 가리킨다: " + hit.sampleUrls().get(i));
+        }
+    }
+
+    @Test
+    void 주소가_없는_행은_빈_문자열로_자리를_지킨다() {
+        // 주소를 못 걷은 행이 섞여도 자리가 밀리면 안 된다 — 밀리면 화면이 엉뚱한 상품에 링크를 건다.
+        var layer = IndexJudge.build(ProbeQuery.of("김치"),
+                byId(p("onnuri-noljang", "온누리 놀장")),
+                List.of(s("onnuri-noljang", 1, "2026-09-03")),
+                List.of(new Row("onnuri-noljang", "총각김치 3kg", null)));
+        var hit = layer.items().get(0);
+        assertEquals(hit.sampleTitles().size(), hit.sampleUrls().size());
+        assertEquals("", hit.sampleUrls().get(0));
     }
 }

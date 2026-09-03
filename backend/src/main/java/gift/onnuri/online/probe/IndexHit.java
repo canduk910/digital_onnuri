@@ -18,5 +18,13 @@ public record IndexHit(
         List<String> sampleTitles,
         boolean samplePartial,    // true = 전부 담은 이름이 없어 일부 낱말만 맞는 이름을 보여준다
         String searchUrl,
-        String collectedOn        // 이 몰 색인의 수집일
+        String collectedOn,       // 이 몰 색인의 수집일
+        /**
+         * sampleTitles 와 **같은 순서**의 상품 주소(2026-09-04 신설). 비어 있을 수 있다.
+         *
+         * 왜 필요한가: 색인 대상은 정의상 '검색이 안 되는 몰'이라 searchUrl 은 몰 홈이고,
+         * 이용자가 그 화면에서 우리가 보여 준 상품을 찾을 방법이 없었다. 배치가 이미
+         * 상품에 닿는 주소를 색인에 넣어 두므로 그것을 그대로 실어 보낸다.
+         */
+        List<String> sampleUrls
 ) {}

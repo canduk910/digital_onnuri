@@ -56,10 +56,16 @@ public final class IndexJudge {
 
         List<String> tokens = q.countTokens();
         Map<String, List<String>> namesByMall = new LinkedHashMap<>();
+        // 이름 → 상품 주소. 같은 이름이 여러 행이면 먼저 본 것을 쓴다(어느 쪽이든 그 상품에 닿는다).
+        Map<String, Map<String, String>> urlByName = new LinkedHashMap<>();
         for (var r : rows) {
             if (!eligible.containsKey(r.platformId())) continue;
             if (r.name() == null || r.name().isBlank()) continue;
-            namesByMall.computeIfAbsent(r.platformId(), k -> new ArrayList<>()).add(r.name().trim());
+            String nm = r.name().trim();
+            namesByMall.computeIfAbsent(r.platformId(), k -> new ArrayList<>()).add(nm);
+            if (r.url() != null && !r.url().isBlank()) {
+                urlByName.computeIfAbsent(r.platformId(), k -> new LinkedHashMap<>()).putIfAbsent(nm, r.url());
+            }
         }
 
         List<IndexHit> items = new ArrayList<>();
@@ -78,13 +84,17 @@ public final class IndexJudge {
             boolean hasFull = !full.isEmpty();
             List<String> pool = hasFull ? full : partial;
             if (pool.isEmpty()) continue;   // 아무 낱말도 안 걸린 몰은 그릴 게 없다
+            List<String> shown = samples(pool, tokens);
+            Map<String, String> urls = urlByName.getOrDefault(e.getKey(), Map.of());
+            List<String> shownUrls = shown.stream().map(n -> urls.getOrDefault(n, "")).toList();
             items.add(new IndexHit(
                     e.getKey(), p.name(),
                     hasFull ? full.size() : 0,
-                    samples(pool, tokens),
+                    shown,
                     !hasFull,
                     OnlineSearchService.searchUrlFor(null, p, q),
-                    eligible.get(e.getKey()).collectedOn()));
+                    eligible.get(e.getKey()).collectedOn(),
+                    shownUrls));
         }
         items.sort(Comparator.comparingInt(IndexHit::matchCount).reversed()
                 .thenComparing(IndexHit::platformId));

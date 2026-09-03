@@ -41,7 +41,7 @@ class OnlineSearchContractTest {
         assertEquals(List.of("asOf", "platformCount", "foundCount", "notice", "items"),
                 components(IndexLayer.class));
         assertEquals(List.of("platformId", "name", "matchCount", "sampleTitles",
-                        "samplePartial", "searchUrl", "collectedOn"),
+                        "samplePartial", "searchUrl", "collectedOn", "sampleUrls"),
                 components(IndexHit.class));
     }
 
@@ -50,10 +50,18 @@ class OnlineSearchContractTest {
         ObjectMapper om = new ObjectMapper();
         IndexLayer layer = new IndexLayer("2026-09-01", 3, 1, "전일 색인: …",
                 List.of(new IndexHit("genius-mall", "지니어스몰", 2,
-                        List.of("총각김치 3kg"), false, "https://x", "2026-09-01")));
+                        List.of("총각김치 3kg"), false, "https://x", "2026-09-01",
+                        List.of("https://x/p/1"))));
         Map<?, ?> back = om.readValue(om.writeValueAsString(layer), Map.class);
         assertEquals(List.of("asOf", "platformCount", "foundCount", "notice", "items"),
                 back.keySet().stream().map(Object::toString).toList());
+        // 항목 필드 순서도 고정한다 — sampleUrls 는 sampleTitles 와 같은 순서라는 계약이라
+        // 자리가 바뀌면 화면이 엉뚱한 상품에 링크를 건다.
+        @SuppressWarnings("unchecked")
+        Map<?, ?> hit = (Map<?, ?>) ((List<Object>) back.get("items")).get(0);
+        assertEquals(List.of("platformId", "name", "matchCount", "sampleTitles",
+                        "samplePartial", "searchUrl", "collectedOn", "sampleUrls"),
+                hit.keySet().stream().map(Object::toString).toList());
     }
 
     @Test

@@ -18,8 +18,16 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class OnlineProductIndexRepository {
 
-    /** 색인 행 하나. URL 은 배치의 중복 제거 키(PK)일 뿐 화면에 나가지 않아 읽지 않는다. */
-    public record Row(String platformId, String name) {}
+    /**
+     * 색인 행 하나.
+     *
+     * 2026-09-04: url 을 함께 읽는다. 종전에는 "배치의 중복 제거 키(PK)일 뿐 화면에 나가지 않는다"고
+     * 보고 읽지 않았는데, 그 결과 화면이 **상품명을 근거로 내밀면서 몰 홈으로만 보내고** 있었다.
+     * 색인 대상은 정의상 '검색이 안 되는 몰'이라 홈에서는 그 상품을 찾을 수 없다 —
+     * 놀장은 시장을 먼저 골라야 하고 인어교주해적단은 검색 UI 자체가 없다.
+     * 배치는 이미 상품에 닿는 주소를 넣어 두고 있다(예: /market/36#상품명).
+     */
+    public record Row(String platformId, String name, String url) {}
 
     /** 몰별 요약. collectedOn 은 그 몰 행들의 **가장 오래된** 수집일(신선도를 부풀리지 않는다). */
     public record Summary(String platformId, int rows, String collectedOn) {}
@@ -67,11 +75,11 @@ public class OnlineProductIndexRepository {
             like.append("name ILIKE ? ESCAPE '\\'");
             args.add("%" + escapeLike(t) + "%");
         }
-        String sql = "SELECT platform_id, name FROM online_product_index "
+        String sql = "SELECT platform_id, name, url FROM online_product_index "
                 + "WHERE platform_id IN (" + marks(platformIds.size()) + ") "
                 + "AND (" + like + ") LIMIT " + MAX_ROWS;
         return jdbc.query(sql,
-                (rs, i) -> new Row(rs.getString("platform_id"), rs.getString("name")),
+                (rs, i) -> new Row(rs.getString("platform_id"), rs.getString("name"), rs.getString("url")),
                 args.toArray());
     }
 

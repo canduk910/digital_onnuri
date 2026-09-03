@@ -202,9 +202,17 @@
       // 2026-09-01 가맹점 수집 중단이 나흘간 안 알려졌던 것과 같은 침묵이 된다.
       var when = (h.collectedOn && idx.asOf && h.collectedOn !== idx.asOf)
         ? ' <span class="pb-idx-when">' + esc(h.collectedOn) + ' 수집분</span>' : "";
+      // 2026-09-04: 상품명을 근거로 보여 주면서 링크는 **몰 홈**으로만 보내고 있었다.
+      // 색인 대상은 정의상 '검색이 안 되는 몰'이라(놀장은 시장 선택 선행·인어교주는 검색 UI 0개)
+      // 홈에서는 그 상품을 찾을 수 없다. 배치가 이미 상품 주소를 색인에 넣어 두므로
+      // 계약(sampleUrls, sampleTitles 와 같은 순서)으로 받아 **이름 자체를 링크**로 만든다.
+      var sUrls = h.sampleUrls || [];
       var samples = (h.sampleTitles || []).length
-        ? '<div class="pb-samples">' + h.sampleTitles.slice(0, 3).map(function (t) {
-            return '<span>' + esc(t) + '</span>'; }).join("")
+        ? '<div class="pb-samples">' + h.sampleTitles.slice(0, 3).map(function (t, i) {
+            var u = sUrls[i];
+            return u
+              ? '<a class="pb-sample-link" href="' + esc(u) + '" target="_blank" rel="noopener" title="이 상품이 있는 화면으로 이동합니다">' + esc(t) + ' ↗</a>'
+              : '<span>' + esc(t) + '</span>'; }).join("")
           + '<em>' + (h.samplePartial
               ? '검색어의 일부 낱말만 맞는 결과입니다 — 찾는 상품이 아닐 수 있습니다.'
               : '이름이 비슷한 다른 상품일 수 있습니다 — 몰에서 확인하세요.') + '</em></div>'
