@@ -50,6 +50,8 @@
   .chip-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
   .chip-label { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); margin-right:2px; }
   .chip-hint { font-size:11.5px; color:var(--text-faint); margin-right:4px; }
+  .chip-scope-note { flex-basis:100%; margin:2px 0 0; font-size:11.5px; color:var(--text-faint); line-height:1.5; }
+  .chip-scope-note b { font-weight:700; color:var(--text-sub); }
   .chip-hint b { font-weight:700; color:var(--text-sub); }
   .chip { font-family:inherit; cursor:pointer; font-size:13px; font-weight:600; border-radius:var(--r-sm); padding:6px 12px; color:var(--text-sub); background:var(--bg); border:1px solid var(--border); transition:.15s ease; }
   .chip:hover { border-color:var(--border-2); background:var(--surface); }
@@ -462,6 +464,7 @@
     <!-- 보조 필터: 브랜드 + 시장 유형 -->
     <div class="aux-row">
       <div class="aux-group" id="brandChips" aria-label="브랜드 선택"></div>
+      <p class="chip-scope-note">칩의 숫자는 <b>지역 기준</b> 매장 수입니다 — 업종·검색어를 함께 걸면 결과는 그보다 적을 수 있습니다.</p>
       <div class="aux-group">
         <span class="chip-label">시장 유형</span>
         <select class="sel" id="selMtype" aria-label="시장 유형 선택"></select>
@@ -1614,7 +1617,10 @@
       '<circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle>' +
       '<line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2"></line></svg>' +
       '<span id="brandOpenLabel">브랜드 검색</span>' +
-      (hiddenBrands ? '<span class="bf-more">+' + nf(hiddenBrands) + '종</span>' : '');
+      // 2026-09-04: 배지는 **이 지역** 브랜드 중 칩에 안 보이는 수인데, 이 버튼이 여는 팝업은
+      // 서울·인천·경기·부산 **전체**를 보여 준다. 숫자만 보면 "팝업에 N종이 더 있다"로 읽혀
+      // 범위가 어긋난다 — 무엇을 센 수인지 배지 자신이 말하게 한다.
+      (hiddenBrands ? '<span class="bf-more" title="' + esc(state.sido) + ' 브랜드 중 칩에 보이지 않는 수입니다. 검색 팝업은 서울·인천·경기·부산 전체 브랜드를 보여 줍니다.">+' + nf(hiddenBrands) + '종</span>' : '');
     bf.onclick = openBrandModal;   // 버튼은 렌더마다 재생성 — 초기 1회 바인딩은 유실되므로 여기서 붙인다
     bc.appendChild(bf);
     function addBrandChip(key, label, cnt) {
