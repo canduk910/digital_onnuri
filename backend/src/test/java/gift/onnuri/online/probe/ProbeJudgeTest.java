@@ -221,6 +221,54 @@ class ProbeJudgeTest {
         assertEquals(Verdict.NONE, judgeFixture("epost-mall", "none", "zzqqxyw12345").status());
     }
 
+    /**
+     * **없음-문구 사전이 있는 몰은 토큰 0 만으로 '없음'을 만들지 않는다.**
+     *
+     * 2026-09-05 현대이지웰이 서비스 점검에 들어가며 다른 도메인의 안내 페이지를 내줬고,
+     * 그 페이지에는 상품도 없음-문구도 질의어도 없어 토큰 0 경로에 정확히 걸려
+     * **있는 질의가 '없음'** 이 됐다. 출처 가드(ProbeFetcher.sameHost)가 그 경로를
+     * 막았지만 **같은 호스트 안의 점검 페이지**는 여전히 이 경로로 들어온다.
+     *
+     * 그래서 판정 쪽에서도 조인다 — 몰이 '없음'을 말하는 문구를 갖고 있는데 그 문구가
+     * 응답에 없다면, 그것은 '없다'의 근거가 아니라 **뭔가 이상하다**는 신호다.
+     *
+     * 대가를 분명히 적어 둔다: 그 몰들의 문구가 바뀌면(2026-09-05 하룻밤에 두 번 겪었다)
+     * 종전에는 토큰 0 이 조용히 받아 줬을 것이 이제 `unclear` 가 된다. 답이 나빠지는
+     * 대신 **카나리아가 알려 준다.** 잘못 '없다'고 말하면 이용자는 그 몰을 아예 안 보지만,
+     * '모르겠다'고 말하면 우리가 늘 함께 주는 링크를 한 번 눌러 보면 된다.
+     *
+     * 토큰 0 이 **유일한** 확정 수단인 몰(온누리마켓 — 등급 C + 에코 안 함)은 그대로다.
+     */
+    @Test
+    void 없음문구가_있는_몰은_토큰0만으로_없음이_되지_않는다() {
+        ProbeTarget ez = ProbeTargets.byId("hyundai-ezwel-onnuri").orElseThrow();
+        assertFalse(ez.noneMarkersBound().isEmpty() && ez.noneMarkersPlain().isEmpty(),
+                "전제 — 이 몰은 없음-문구 사전을 갖고 있다");
+        assertFalse(ez.echoesQuery(), "전제 — 이 몰은 질의를 되뿌리지 않는다");
+
+        // 점검 안내 페이지를 흉내 낸다: 충분히 길고, 상품도 없음-문구도 질의어도 없다.
+        String maintenance = "<html><body><h1>서비스 일시중단 안내</h1><p>"
+                + "보다 나은 서비스 제공을 위해 시스템 점검을 진행하고 있습니다. ".repeat(20)
+                + "</p></body></html>";
+        Verdict v = ProbeJudge.judge(ez, maintenance, ProbeQuery.of("김치"));
+        assertNotEquals(Verdict.NONE, v.status(),
+                "점검 페이지를 '없음'으로 읽었다 — 있는 것을 없다고 말하는 가장 위험한 방향");
+
+        // 반대편: 진짜 없음 응답은 문구가 있으므로 그대로 '없음'이다.
+        assertEquals(Verdict.NONE,
+                judgeFixture("hyundai-ezwel-onnuri", "none", "zzqqxyw12345").status(),
+                "실측 없음 응답까지 못 읽게 되면 조인 것이 아니라 부순 것이다");
+    }
+
+    @Test
+    void 토큰0이_유일한_확정수단인_몰은_그대로_없음을_말한다() {
+        // 온누리마켓은 등급 C(문구 사전 없음) + 에코 안 함 — 토큰 0 이 유일한 근거다.
+        ProbeTarget mk = ProbeTargets.byId("onnuri-market").orElseThrow();
+        assertTrue(mk.noneMarkersBound().isEmpty() && mk.noneMarkersPlain().isEmpty(),
+                "전제 — 이 몰은 없음-문구 사전이 없다");
+        assertEquals(Verdict.NONE, judgeFixture("onnuri-market", "none", "zzqqxyw12345").status());
+    }
+
     // ── 회귀 고정: 2026-08-31 실측에서 실제로 걸린 오탐 ──────────────────
 
     @Test

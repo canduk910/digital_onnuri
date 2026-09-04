@@ -175,8 +175,23 @@ public final class ProbeJudge {
             }
         }
 
-        // 질의를 되뿌리지 않는 몰에서 토큰이 0이면 없는 것이다(온누리마켓·우체국).
-        if (hits == 0 && !t.echoesQuery()) return Verdict.none(Verdict.MEDIUM, null, 0);
+        /* 질의를 되뿌리지 않는 몰에서 토큰이 0이면 없는 것이다(온누리마켓).
+         *
+         * **단, 그 몰이 없음-문구 사전을 갖고 있지 않을 때만.** 문구를 갖고 있는데 그
+         * 문구가 응답에 없다면 그것은 '없다'의 근거가 아니라 **뭔가 이상하다**는 신호다 —
+         * 2026-09-05 이지웰이 점검에 들어가며 내준 안내 페이지가 이 경로에 정확히 걸려
+         * **있는 질의를 '없음'** 으로 만들었다(ADR-17 이 가장 위험하다고 적은 방향).
+         * 출처 가드(ProbeFetcher.sameHost)가 다른 호스트로 넘어가는 경우를 막지만
+         * **같은 호스트 안의 점검 페이지**는 여전히 여기로 들어온다.
+         *
+         * 대가: 그 몰들의 문구가 바뀌면(2026-09-05 하룻밤에 두 번 겪었다) 종전에는 이
+         * 경로가 조용히 받아 줬을 것이 `unclear` 가 된다. 답이 나빠지는 대신 카나리아가
+         * 알려 준다 — 잘못 '없다'고 하면 이용자는 그 몰을 아예 안 보지만, '모르겠다'면
+         * 우리가 늘 함께 주는 링크를 한 번 눌러 보면 된다. */
+        boolean hasNoneMarkers = !t.noneMarkersBound().isEmpty() || !t.noneMarkersPlain().isEmpty();
+        if (hits == 0 && !t.echoesQuery() && !hasNoneMarkers) {
+            return Verdict.none(Verdict.MEDIUM, null, 0);
+        }
 
         // 상품명이 뽑혔으면 그게 카운트보다 강한 근거다.
         if (!samples.isEmpty()) return Verdict.likely(Verdict.MEDIUM, hits, samples, samplesPartial(samples, q));
