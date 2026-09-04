@@ -17,6 +17,42 @@ description: "개발팀 TDD 워크플로와 검증 절차 — 백엔드 JUnit �
 
 테스트 없는 기능 변경은 dev-qa가 되돌려보낸다. 이유: 이중 소스(API/JSON) 구조에서 테스트 없는 변경은 폴백 순간의 불일치를 잠복시킨다.
 
+## 자동 테스트 — 무엇이 어디서 도는가
+
+`./gradlew test` 만으로는 절반이다. 이 저장소에는 자바 밖에 **380건**이 더 있고, 그중 프론트를
+지키는 것이 66건이다. 전부 외부 의존 0(네트워크·DB·브라우저 없음)이라 언제든 부를 수 있다.
+
+```bash
+# 배치·채록 (314건) — 야간 배치와 채록 규칙을 지킨다
+node   _workspace/dev_scripts/test_survey_probe.js     # 158건 · 채록 판정 + 코드↔데이터 사본 일치
+node   _workspace/dev_scripts/test_index_nightly.js    #  58건 · 색인 크롤러
+python3 _workspace/dev_scripts/test_robots_watch.py    #  71건 · robots 감시(urlopen 을 가로챈다)
+python3 _workspace/dev_scripts/test_canary_trend.py    #  27건 · 카나리아 재시도 추세
+
+# 프론트 (66건) — 브라우저 없이 계약만 본다
+node   _workspace/dev_scripts/test_frontend_static.js  # 캐시버스트·dataVersion·창구·죽은 링크
+
+# 프론트 렌더 (60건) — 브라우저 필요. **커밋 전에 부른다**
+NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chrome \
+  node _workspace/dev_scripts/test_frontend_render.js
+#   --only=smoke|online|merchants 로 부분 실행
+#   서버는 스크립트가 띄우고 스스로 죽인다. playwright 가 없으면 종료 코드 2로 건너뛴다.
+
+# index 빌드 산출물 (D-F1) — index.html 을 재생성했으면
+python3 _workspace/dev_scripts/verify_build.py
+```
+
+앞의 다섯은 `tools-ci` 워크플로가 자동으로 돌린다. **렌더 층과 `verify_build.py` 는 CI 밖이다** —
+렌더는 playwright 설치가 필요하고, `verify_build.py` 는 gitignore 된 원본 번들을 읽어 신선한
+체크아웃에서 즉사한다. 둘은 사람이 커밋 전에 불러야 한다.
+
+**CI 는 게이트가 아니다.** `pages.yml` 이 경로 조건 없이 배포하므로 tools-ci 가 빨개져도 그
+커밋은 이미 라이브다. 사후 알림으로 쓰되, 배포를 막아 주리라 기대하지 마라.
+
+**새 검사를 더할 때**: 각 파일의 종료 가드(`if (fail) … exit(1)`)는 파일 **맨 끝**에 있다.
+그 아래에 블록을 넣으면 실패해도 종료 코드가 0 이 된다 — `test_survey_probe.js` 가 실제로
+그 상태로 며칠 있었고(2026-09-04 발견) 하필 코드↔데이터 사본 일치 검사 12건이 게이트 밖이었다.
+
 ## 백엔드 테스트 실행
 
 ```bash

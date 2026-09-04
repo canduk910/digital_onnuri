@@ -1,0 +1,271 @@
+#!/usr/bin/env node
+/**
+ * 프론트엔드 정적 계약 테스트 (2026-09-04 신설)
+ *
+ * **브라우저를 띄우지 않는다.** HTML·JSON·JS 를 문자열/JSON 으로 읽어 검사한다.
+ * 그래서 준비물이 없고 CI 에서 그대로 돈다 — 이것이 이 층의 존재 이유다.
+ *
+ * 케이스는 **지어낸 것이 아니다.** 전부 CLAUDE.md 변경 이력에 실제로 적힌 결함에서 나왔고,
+ * 각 섹션 머리말에 어느 날 무슨 일이 있었는지 적어 두었다. 공통점은 하나다 —
+ * **전부 조용했다.** 에러를 내지 않았고, 화면은 멀쩡해 보였고, 며칠 뒤 사람이 우연히 찾았다.
+ *
+ * 실행: node _workspace/dev_scripts/test_frontend_static.js
+ *
+ * 브라우저가 필요한 검사(곳 수·착지·렌더)는 test_frontend_render.js 가 맡는다.
+ */
+'use strict';
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.resolve(__dirname, '..', '..');
+const rd = (p) => fs.readFileSync(path.join(ROOT, p), 'utf-8');
+const rj = (p) => JSON.parse(rd(p));
+
+let pass = 0, fail = 0;
+function check(cond, label, detail) {
+  if (cond) { pass++; console.log(`  [PASS] ${label}`); }
+  else { fail++; console.log(`  [FAIL] ${label}${detail !== undefined ? ' — ' + detail : ''}`); }
+}
+
+// 저장소의 모든 페이지. **여덟 개다** — admin-report.html 을 빼고 세다가 그 페이지의
+// 캐시버스트 드리프트가 감시 밖에 남는 일을 막는다(사이드바가 없다고 페이지가 아닌 것은 아니다).
+const PAGES = fs.readdirSync(ROOT).filter((f) => f.endsWith('.html')).sort();
+const HTML = {};
+PAGES.forEach((p) => { HTML[p] = rd(p); });
+
+console.log(`프론트엔드 정적 계약 — 페이지 ${PAGES.length}개\n`);
+
+// ─────────────────────────────────────────────────────────────────────────────
+console.log('(a) 캐시버스트 — 한 자산은 모든 페이지에서 같은 버전이어야 한다');
+// 2026-08-25 'payment.html 만 chat-widget.js?v=9 로 뒤처져 있던 것'
+// 2026-08-26 'payment.html 만 chat-widget.css?v=9 로 뒤처져 있던 것'
+// 2026-08-31 'online-source.js 가 4단계에서 바뀌었는데 캐시버스트가 v=1 로 남아 있던 것'
+// 세 번 같은 방식으로 났다. 한 페이지만 옛 버전을 물면 그 페이지 방문자는 옛 코드를 받는데
+// **화면은 멀쩡하다** — 새 기능이 조용히 없을 뿐이다.
+{
+  const ASSETS = ['shell.css', 'shell.js', 'chat-widget.css', 'chat-widget.js',
+                  'config.js', 'online-source.js', 'online-probe.js', 'favicon.svg'];
+  ASSETS.forEach((a) => {
+    const seen = {};   // 버전 → 그 버전을 쓰는 페이지들
+    PAGES.forEach((p) => {
+      // **실제 참조만 본다.** 주석 안의 파일명 언급("공통 셸은 shell.css — ADR-9")까지 세면
+      // 없는 드리프트를 만들어 낸다. 그리고 index.html 은 4MB 번들이라 속성이 이스케이프된
+      // 형태(href=\\"shell.css?v=8\\")로 들어 있다 — 뒤따르는 문자에 역슬래시를 허용한다.
+      const re = new RegExp('(?:href|src)=\\\\?["\']' + a.replace('.', '\\.') + '(\\?v=([0-9.]+))?\\\\?["\']');
+      const m = HTML[p].match(re);
+      if (!m) return;
+      const v = m[2] || '(버전 없음)';
+      (seen[v] = seen[v] || []).push(p);
+    });
+    const versions = Object.keys(seen);
+    if (versions.length === 0) return;   // 아무 페이지도 안 쓰는 자산
+    check(versions.length === 1, `${a} 버전이 갈리지 않는다`,
+      versions.map((v) => `${v}: ${seen[v].join(',')}`).join(' | '));
+  });
+}
+
+console.log();
+console.log('(b) dataVersion — 데이터가 바뀌면 함께 올라가야 한다');
+// 2026-08-21 '데이터만 고치고 dataVersion 을 빼먹어 기존 방문자가 ?v= 로 캐시된 옛
+// 카탈로그를 계속 받는 상태였다'(수습에 별도 커밋 64261b8 이 필요했다).
+// 파일명이 그대로라 쿼리만이 유일한 무력화 수단이다.
+{
+  const cfg = rd('config.js');
+  const m = cfg.match(/dataVersion:\s*"([0-9.\-]+)"/);
+  check(!!m, 'config.js 에 dataVersion 이 있다');
+  if (m) {
+    const dv = m[1].slice(0, 10);   // "2026-09-04.2" 같은 접미를 잘라 날짜만 본다
+    const stamps = [];
+    fs.readdirSync(path.join(ROOT, 'data')).filter((f) => f.endsWith('.json')).forEach((f) => {
+      const d = rj(path.join('data', f));
+      const meta = (d && d.meta) || {};
+      const s = meta.collected_on || meta.surveyed_on;
+      if (s) stamps.push({ f, s });
+      // 항목별 수집일도 본다 — 목록에 뒤늦게 붙은 항목이 meta 보다 새로울 수 있다
+      // (2026-09-03 온누리 권율로가 정확히 그랬다).
+      (d && d.items || []).forEach((it) => {
+        const t = it.collected_on || it.surveyed_on;
+        if (t) stamps.push({ f: f + '(항목)', s: t });
+      });
+    });
+    const newest = stamps.reduce((a, b) => (a && a.s >= b.s ? a : b), null);
+    check(newest && dv >= newest.s, 'dataVersion 이 데이터 최신 수집일보다 뒤처지지 않는다',
+      newest ? `dataVersion=${dv} · 최신=${newest.s}(${newest.f})` : '수집일 없음');
+  }
+}
+
+console.log();
+console.log('(c) 페이지 간 링크 — 가리키는 곳이 실제로 있어야 한다');
+// 2026-09-03 '사이드바 자기 앵커 #kindTabs→#pageTabs(탭 2 안으로 들어가 죽은 링크)'.
+// 자기 앵커는 저장소 전체에 두 개뿐이라 그것만 봐서는 사실상 아무것도 검사하지 못한다.
+// 실제 위험은 **페이지 간 해시 링크**다(index.html#online 등 16건) — 대상 페이지가 그
+// id 를 갖거나, 해시 라우터가 그 값을 처리해야 한다.
+{
+  const anchorRe = /href="([a-z-]*\.html)?#([A-Za-z][\w-]*)"/g;
+  PAGES.forEach((p) => {
+    let m, bad = [];
+    while ((m = anchorRe.exec(HTML[p])) !== null) {
+      const target = m[1] || p, id = m[2];
+      if (!HTML[target]) { bad.push(`${m[0]} → 페이지 없음`); continue; }
+      const hasId = new RegExp('id=\\\\?["\']' + id + '\\\\?["\']').test(HTML[target])
+                 || new RegExp('id="' + id + '"').test(HTML[target]);
+      // index.html 은 4MB 번들이라 id 가 이스케이프된 형태로만 있고, 해시는 탭 라우터가
+      // 처리한다(applyHash). 라우터가 그 값을 명시적으로 다루면 살아 있는 링크다.
+      const routed = new RegExp('h\\s*===?\\s*\\\\?["\']' + id + '\\\\?["\']').test(HTML[target]);
+      if (!hasId && !routed) bad.push(m[0]);
+    }
+    check(bad.length === 0, `${p} 의 해시 링크가 전부 살아 있다`, bad.join(', '));
+  });
+}
+
+console.log();
+console.log('(d) 모바일 브레이크포인트 — 한 값으로 통일');
+// 2026-08-13 '브레이크포인트 900↔959 불일치(셸=모바일/지도=데스크톱 사각지대) 해소'.
+// 두 값이 섞이면 그 사이 폭에서 셸은 모바일인데 지도는 데스크톱인 상태가 생긴다.
+{
+  const files = PAGES.concat(['shell.css', 'chat-widget.css']);
+  const odd = [];
+  files.forEach((f) => {
+    const src = HTML[f] || rd(f);
+    const ms = src.match(/(max|min)-width:\s*(9[0-9][0-9])px/g) || [];
+    ms.forEach((x) => {
+      const n = +x.match(/(9[0-9][0-9])/)[1];
+      if (n !== 959 && n !== 960) odd.push(`${f}: ${x}`);
+    });
+  });
+  check(odd.length === 0, '900번대 브레이크포인트는 959/960 뿐이다', odd.join(', '));
+}
+
+console.log();
+console.log('(e) 문서 기본 — 탭 제목과 파비콘');
+// 2026-08-18 'index 파비콘·탭 제목 소실 — 번들 로더의 replaceWith 가 외곽 head 를 통째로
+// 날려, 로드 완료 후 title="" · link[rel=icon] 0개였다'.
+// index 는 브랜드명만 쓰고 하위 페이지는 "페이지명 — 브랜드" 다(2026-08-11 의도된 설계).
+{
+  const BRAND = '코스콤 디지털온누리 가이드';
+  PAGES.forEach((p) => {
+    const t = (HTML[p].match(/<title>([^<]*)<\/title>/) || [])[1] || '';
+    const okTitle = p === 'index.html' ? t === BRAND : t.endsWith(' — ' + BRAND) && t.length > BRAND.length + 3;
+    check(okTitle, `${p} 탭 제목`, JSON.stringify(t));
+    check(/rel="icon"/.test(HTML[p]), `${p} 파비콘 링크`);
+  });
+}
+
+console.log();
+console.log('(f) online-probe — 링크가 검색을 실행하는지 라벨이 구분한다');
+// 2026-09-04 '라벨이 몰에서 보기 하나뿐이라, 전용관 주소가 고정인 3곳(현대홈쇼핑·공영쇼핑·
+// 롯데ON)에서 누르면 검색어가 사라지는데 같은 말을 했다'.
+// 이 파일은 window 셤만 있으면 Node 에서 그대로 로드된다 — 순수 함수는 여기서 본다.
+{
+  global.window = {};
+  global.document = { addEventListener() {}, readyState: 'complete', getElementById: () => null };
+  global.location = { hostname: 'localhost' };
+  require(path.join(ROOT, 'online-probe.js'));
+  const P = global.window.OnnuriOnlineProbe;
+  check(!!P, 'online-probe.js 가 Node 에서 로드된다');
+
+  const src = rd('online-probe.js');
+  check(/function carriesQuery\(u, q\)/.test(src) && /function linkTag\(u, q\)/.test(src),
+    '판단 헬퍼가 모듈 스코프에 있다(네 경로가 같은 규칙을 쓴다)');
+  // 라벨이 하나로 되돌아가면(창구가 무너지면) 여기서 깨진다.
+  check(/검색 결과 보기/.test(src) && /몰 화면 열기/.test(src) && !/몰에서 보기 ↗/.test(src),
+    '링크 라벨이 두 갈래로 갈려 있다');
+  // 상대 표현은 매일 틀린다 — 배치는 당일 00:30 에 돈다(2026-09-04).
+  // 주석의 역사적 언급('그때 이름은 "전일 색인"이었다')까지 막으면 기록을 못 남긴다.
+  // 화면에 나가는 문자열만 본다 — eyebrow 와 각주.
+  check(!/>전일 색인</.test(src) && !/어제 올라와/.test(src) && !/전일 색인은 /.test(src),
+    "색인 층의 화면 문구에 '전일·어제' 상대 표기가 없다");
+
+  // 미지 사유 키를 원시 문자열로 노출하지 않는다(2026-09-02).
+  // renderResult 는 querySelector 가 null 을 줘도 정상 동작한다 — 가짜 mount 로 돌린다.
+  if (P && P.renderResult) {
+    const mount = { innerHTML: '', querySelector: () => null };
+    P.renderResult(mount, {
+      query: '김치', checkedAt: '2026-09-04 09:00', notice: '테스트', notProbedCount: 1,
+      items: [{ platformId: 'x', name: '어떤몰', status: 'not-probed', reason: 'zzq-unknown-reason',
+                searchUrl: 'https://example.com/', sampleTitles: [] }],
+      index: null,
+    }, null);
+    check(mount.innerHTML.indexOf('zzq-unknown-reason') === -1,
+      '모르는 제외 사유 키가 화면에 원시 문자열로 나가지 않는다');
+    check(mount.innerHTML.indexOf('몰 화면 열기') >= 0,
+      '검색어를 담지 못하는 링크는 그렇게 라벨된다');
+  }
+}
+
+console.log();
+console.log('(g) merchants — 결제 표시와 최근 본 기록의 창구가 하나여야 한다');
+// 2026-09-03 '표·개별 팝업·그룹 팝업이 각각 조건을 쓰다가 팝업 두 곳만 결제 줄을 통째로
+// 생략했다' → payTags 창구 신설. 2026-09-04 '그런데 표는 여전히 자기 사본을 갖고 있었고,
+// 리스트 행 클릭은 card·qr 없는 합성 객체를 넘겨 결제되는 곳을 지류 전용이라 단정했다'.
+{
+  const m = HTML['merchants.html'];
+  const tip = (m.match(/공식 목록 기준 카드형/g) || []).length;
+  check(tip === 1, '결제 불가 툴팁 문구가 파일에 한 번만 있다(사본 없음)', `${tip}회`);
+  check(/function payTags\(r, cls\)/.test(m), 'payTags 가 클래스 접두를 받는다(표도 같은 창구)');
+  check(/결제 수단 미확인/.test(m), "payTags 가 '모름'과 '안 됨'을 가른다");
+
+  // C-4 계약(2026-09-04 사용자 결정): 그룹 팝업은 스스로 기록하지 않는다.
+  // 최근 본 기록의 창구는 openInfo 하나여야 한다 — 여기가 늘면 그룹 통째 기록이 되살아난다.
+  const calls = (m.match(/^\s*recordRecent\(/gm) || []).length;
+  check(calls === 1, 'recordRecent 호출부가 한 곳뿐이다(openInfo)', `${calls}곳`);
+  check(/function openInfo\(anchor, r, backGroup\)/.test(m), 'openInfo 가 되돌아갈 그룹을 받는다');
+  check(/openInfo\(IWG\.anchor, r, g\)/.test(m), '그룹 항목 클릭이 openInfo 로 들어간다');
+  check(/data-ri="' \+ i \+ '" tabindex/.test(m), '결과 표 행이 원본 행 인덱스를 갖는다');
+  check(/SNAP\.list && SNAP\.list\[ri\]/.test(m), '행 클릭이 합성 객체가 아니라 원본 행을 넘긴다');
+  // InfoWindow 는 내부 클릭 전파를 막아 document 위임이 닿지 않는다(2026-08-13 실측).
+  check(/setTimeout\(function \(\) \{ wirePanoBtns\(\); wireIwgItems\(\); \}, 0\)/.test(m),
+    '팝업 배선이 openInfoWindow 한 곳에서 함께 돈다');
+}
+
+console.log();
+console.log('(h) online — 외부에서 들어오는 값은 창구를 거친다');
+// 2026-08-27 normKind(챗봇이 kind 를 보내는 모든 온라인 질문이 빈 화면으로 끝났다),
+// 2026-09-02 applyCat(대분류/소분류 슬래시 형식이 통째로 무시돼 10곳이 22곳이 됐다),
+// 2026-09-03 applyBrand(brand=삼성 → 0곳). 같은 유형이 세 번 났다.
+// 창구가 있어도 **입력 지점이 그것을 안 쓰면** 같은 일이 또 난다.
+{
+  const o = HTML['online.html'];
+  // 실제 구조는 한 겹 더 낫다 — 네 창구를 `applyLanding` 하나가 모아 쓰고,
+  // 챗 훅과 URL 파라미터 **두 입력 지점이 그 applyLanding 을 쓴다**.
+  // 그래서 각 창구의 호출부는 하나여도 되고, 지켜야 할 계약은 두 가지다:
+  //   ⓐ 창구가 존재하고 applyLanding 안에서 불린다
+  //   ⓑ applyLanding 을 두 입력 지점이 함께 쓴다 (여기가 갈리면 한쪽만 정규화된다)
+  const landing = (o.match(/function applyLanding\(o\)\s*\{[\s\S]*?\n  \}/) || [])[0] || '';
+  check(landing.length > 0, 'applyLanding 착지 창구가 있다');
+  ['normKind', 'applyCat', 'applyBrand', 'resolveTab'].forEach((fn) => {
+    check(new RegExp('function ' + fn + '\\(').test(o), `${fn} 창구가 있다`);
+    check(new RegExp('\\b' + fn + '\\(').test(landing), `applyLanding 이 ${fn} 을 거친다`);
+  });
+  const entries = (o.match(/^\s*applyLanding\(/gm) || []).length;
+  check(entries >= 2, 'applyLanding 을 두 입력 지점(챗 훅·URL)이 함께 쓴다', `${entries}곳`);
+  // 2026-09-04 '전국 이용 가능만' 은 확인하지 않은 사실을 단정했다.
+  check(!/전국 이용 가능만/.test(o) && /지역 한정 제외/.test(o),
+    '지역 필터 라벨이 하는 일 그대로다');
+  // 2026-09-04 폴백이 조용했다 — 저장소 사본을 그리면서 '자동 갱신'이라 말했다.
+  check(/META\.source/.test(o) && /서버 연결 실패/.test(o),
+    '어느 소스를 그렸는지 화면이 말한다');
+}
+
+console.log();
+console.log('(i) 데이터 사본 — 화면이 읽는 파일이 실제로 있다');
+// 2026-09-02 '파일이 없으면 이 경로만 조용히 꺼지고 직접 일치 검색은 그대로 동작한다'.
+// 즉 없어도 에러가 안 나고 검색 품질만 조용히 떨어진다.
+// (코드↔사본의 **내용** 일치는 test_survey_probe.js 가 본다. 여기서는 존재만.)
+{
+  ['data/cat_rules.json', 'data/brand_aliases.json'].forEach((f) => {
+    let ok = false;
+    try { ok = !!rj(f); } catch (e) { ok = false; }
+    check(ok, `${f} 가 있고 파싱된다`);
+  });
+  const o = HTML['online.html'];
+  check(/cat_rules\.json/.test(o), 'online.html 이 채록 규칙 사본을 읽는다');
+  check(/brand_aliases\.json/.test(o), 'online.html 이 브랜드 별칭 사본을 읽는다');
+}
+
+// ── 최종 판정 ─────────────────────────────────────────────────────────────
+// 새 블록은 반드시 **이 줄 위**에 넣어라. 아래에 넣으면 실패해도 종료 코드가 0 이 된다
+// (test_survey_probe.js 가 실제로 그 상태로 며칠 있었다 — 2026-09-04 발견).
+console.log();
+if (fail) { console.log(`실패 ${fail}건 / 전체 ${pass + fail}건`); process.exit(1); }
+console.log(`전체 통과 (${pass}건)`);

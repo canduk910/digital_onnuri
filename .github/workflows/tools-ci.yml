@@ -1,6 +1,6 @@
 # 배치·채록 도구 CI (2026-09-04 신설)
 #
-# `_workspace/dev_scripts` 의 순수 로직 테스트 4종(합계 314건)을 돌린다.
+# `_workspace/dev_scripts` 의 순수 로직 테스트 5종(합계 380건)을 돌린다.
 # 네트워크·DB·브라우저를 타지 않는다(4종 전부 실측 확인 — robots 감시는 urlopen 을
 # 가로채고, 색인 테스트는 playwright 를 지연 require 하는 코드만 부른다).
 #
@@ -35,7 +35,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "_workspace/dev_scripts/**"        # survey_probe.js·dump_*.js·테스트 4종
+      - "_workspace/dev_scripts/**"        # survey_probe.js·dump_*.js·테스트 5종
       - "backend/tools/**"                 # nightly_update.py·index_nightly.js·survey_nightly.js
       # 4종이 실제로 읽는 데이터만 적는다(파일 참조를 전수 확인해 역산).
       # `data/**` 로 두면 야간 배치가 매일 다시 쓰는 data/merchants/*.json 에도 걸리고,
@@ -45,6 +45,10 @@ on:
       - "data/online_catalog.json"
       - "data/cat_rules.json"
       - "data/brand_aliases.json"
+      # 프론트 정적 계약 테스트가 지키는 것 — 페이지·공용 자산·설정
+      - "*.html"
+      - "*.js"
+      - "*.css"
       - ".github/workflows/tools-ci.yml"
   workflow_dispatch: {}
 
@@ -59,7 +63,7 @@ concurrency:
 
 jobs:
   tools-test:
-    name: 배치·채록 로직 테스트 (314건)
+    name: 배치·채록·프론트 정적 테스트 (380건)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -97,6 +101,14 @@ jobs:
       - name: 카나리아 추세 (27건)
         if: '!cancelled()'
         run: python3 _workspace/dev_scripts/test_canary_trend.py
+      # 프론트 **정적** 계약만 여기서 돈다 — 브라우저가 필요 없어 준비물이 0이다.
+      # 렌더 층(test_frontend_render.js)은 playwright 설치가 필요해 넣지 않았다:
+      # 그 설치가 40~70초라 1초짜리 잡의 성격이 통째로 바뀌고, 무엇보다
+      # **pages.yml 이 조건 없이 배포하므로 어차피 게이트가 아니다** — 배포를 막지 못할
+      # 검사에 매 커밋 1분을 쓰는 대신, 사람이 커밋 전에 부르는 쪽이 맞다(README 참조).
+      - name: 프론트 정적 계약 (66건)
+        if: '!cancelled()'
+        run: node _workspace/dev_scripts/test_frontend_static.js
 
 # 넣지 않은 것: verify_build.py(D-F1, 84건).
 #   같은 디렉터리에 있고 0.05초에 도는 자연스러운 후보였으나 **CI 에서는 실행 자체가

@@ -372,7 +372,7 @@
       </div>
 
       <div class="controls">
-        <!-- 2026-09-04: 라벨이 '전국 이용 가능만' 이었는데, 이 필터가 실제로 하는 일은
+        <!-- 2026-09-04: 라벨이 전국 이용을 단정하고 있었는데, 이 필터가 실제로 하는 일은
              **'지역 한정' 표시가 붙은 곳을 빼는 것**뿐이다. 표시가 없다는 것은 그 몰의 전국
              이용을 확인했다는 뜻이 아니라 한정 사실이 확인되지 않았다는 뜻이다. 하는 일을
              그대로 부르게 바꾼다 — 없는 확인을 있다고 말하지 않는다. -->
@@ -421,7 +421,7 @@
 
 <script src="shell.js?v=6"></script>
 <script src="chat-widget.js?v=14" defer></script>
-<script src="config.js"></script>
+<script src="config.js?v=1"></script>
 <script src="online-source.js?v=3"></script>
 <script src="online-probe.js?v=15"></script>
 <script>
@@ -1092,7 +1092,7 @@
   function applyLanding(o) {
     state.kind = "전체"; state.cat = "전체"; state.sub = "전체"; state.brand = "전체";
     state.q = ""; state.pq = "";
-    // 전국 이용 가능만 체크도 되돌린다 — 안 되돌리면 챗봇이 "배달앱 8곳"이라 말한 뒤 3곳 화면에
+    // 지역 한정 제외 체크도 되돌린다 — 안 되돌리면 챗봇이 "배달앱 N곳"이라 말한 뒤 더 적은 화면에
     // 착지시킨다(2026-09-02 dev-qa F-1). goBrowseFrom·resetAll 과 같은 규칙.
     state.nationwideOnly = false; var nw = el("nationwideOnly"); if (nw) nw.checked = false;
     var qi = el("q"), pi = el("pq");
