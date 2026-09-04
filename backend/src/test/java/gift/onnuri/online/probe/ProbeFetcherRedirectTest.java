@@ -138,4 +138,24 @@ class ProbeFetcherRedirectTest {
         assertThrows(IllegalStateException.class, () -> ProbeFetcher.robotsBodyOrThrow(u, 403, u, ""));
         assertThrows(IllegalStateException.class, () -> ProbeFetcher.robotsBodyOrThrow(u, 500, u, ""));
     }
+
+    /**
+     * 관측 실패 사유가 **무슨 일인지 말해야** 한다. 클래스 이름만 적으면 배치 로그가
+     * `관측 실패: hyundai-ezwel-onnuri — IllegalStateException` 한 줄이 되어
+     * 아침에 그 줄을 보는 사람에게 아무것도 알려 주지 못한다(2026-09-05 실제로 겪었다).
+     */
+    @Test
+    void 관측_실패_사유가_무슨_일인지_말한다() {
+        String d = SelfTestService.describe(
+                new IllegalStateException("robots redirect to other host: withus.ezwel.com"));
+        assertTrue(d.contains("IllegalStateException"), d);
+        assertTrue(d.contains("other host"), "사유가 사라졌다: " + d);
+
+        // 메시지가 없으면 클래스 이름만.
+        assertEquals("RuntimeException", SelfTestService.describe(new RuntimeException()));
+
+        // 길면 자른다 — 리포트가 스택으로 부풀면 안 된다.
+        String longMsg = "x".repeat(500);
+        assertTrue(SelfTestService.describe(new IllegalStateException(longMsg)).length() <= 145);
+    }
 }

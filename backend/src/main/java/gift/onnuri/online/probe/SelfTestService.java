@@ -148,7 +148,11 @@ public class SelfTestService {
                     Thread.currentThread().interrupt();
                     errByHost.put(e.host(), "interrupted");
                 } catch (Exception ex) {
-                    errByHost.put(e.host(), ex.getClass().getSimpleName());
+                    /* 클래스 이름만 적으면 배치 로그가 `IllegalStateException` 한 줄이 되어
+                       **아무것도 말하지 않는다.** 사람이 아침에 그 줄만 보고 무슨 일인지
+                       알 수 있어야 한다(2026-09-05 이지웰 리다이렉트에서 실제로 겪었다).
+                       메시지를 붙이되 길이를 자른다 — 리포트가 스택으로 부풀면 안 된다. */
+                    errByHost.put(e.host(), describe(ex));
                 }
             }
             String err = errByHost.get(e.host());
@@ -264,5 +268,15 @@ public class SelfTestService {
         return new SelfTestCase(t.platformId(), q.normalized(), kind, expected,
                 v.status(), ok, null, v.matchCount(), samples, html.length(),
                 echoed, t.echoesQuery(), note);
+    }
+
+    /** 관측 실패 사유를 한 줄로. 메시지가 있으면 붙이고 120자에서 끊는다. */
+    static String describe(Exception ex) {
+        String name = ex.getClass().getSimpleName();
+        String msg = ex.getMessage();
+        if (msg == null || msg.isBlank()) return name;
+        String one = msg.replaceAll("\\s+", " ").trim();
+        if (one.length() > 120) one = one.substring(0, 117) + "…";
+        return name + ": " + one;
     }
 }
