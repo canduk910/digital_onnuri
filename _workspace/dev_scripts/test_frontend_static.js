@@ -44,7 +44,8 @@ console.log('(a) 캐시버스트 — 한 자산은 모든 페이지에서 같은
 // **화면은 멀쩡하다** — 새 기능이 조용히 없을 뿐이다.
 {
   const ASSETS = ['shell.css', 'shell.js', 'chat-widget.css', 'chat-widget.js',
-                  'config.js', 'online-source.js', 'online-probe.js', 'merchants.css', 'favicon.svg'];
+                  'config.js', 'online-source.js', 'online-probe.js',
+                  'merchants.css', 'merchants-pano.js', 'favicon.svg'];
   ASSETS.forEach((a) => {
     const seen = {};   // 버전 → 그 버전을 쓰는 페이지들
     PAGES.forEach((p) => {
@@ -209,6 +210,25 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   check(css.length > 5000, 'merchants.css 에 규칙이 들어 있다', `${css.length}자`);
   // 거리뷰 시트가 SDK 인라인 스타일을 이기는 규칙 — 순서·존재가 깨지면 패널이 무너진다.
   check(/!important/.test(css), 'SDK 인라인 스타일을 이기는 !important 규칙이 살아 있다');
+
+  // 2026-09-04: 거리뷰 328줄을 merchants-pano.js 로 외부화했다.
+  check(/<script src="merchants-pano\.js\?v=\d+"><\/script>/.test(m), 'merchants-pano.js 를 연결한다');
+  // 인라인 스크립트가 window.OnnuriPano 를 읽으므로 그보다 **먼저** 로드돼야 한다.
+  const iPano = m.indexOf('merchants-pano.js'), iInline = m.lastIndexOf('<script>');
+  check(iPano >= 0 && iPano < iInline, 'merchants-pano.js 가 인라인 스크립트보다 먼저 온다');
+  check(!/function openPano\(/.test(m), '거리뷰 함수가 merchants.html 에 남아 있지 않다(사본 방지)');
+  let pano = '';
+  try { pano = rd('merchants-pano.js'); } catch (e) {}
+  check(/window\.OnnuriPano = \{/.test(pano), 'OnnuriPano 계약을 노출한다');
+  // 지도는 **게터**로 받아야 한다 — initMap 이 나중에 채우므로 값으로 붙잡으면 영영 null 이고
+  // 에러 없이 아무 일도 안 일어난다(가장 조용한 실패 모드).
+  // 주석에는 설명을 위해 `mapObj` 라는 낱말이 나온다 — **코드에서만** 찾는다.
+  const panoCode = pano.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  check(/getMap\(\)/.test(panoCode) && !/\bmapObj\b/.test(panoCode),
+    '지도를 값이 아니라 게터로 받는다(코드 기준)');
+  check(/PANO\.attach\(/.test(m), 'merchants.html 이 attach 로 주입한다');
+  // SDK URL 의 submodules=panorama 가 빠지면 이 파일은 로드되나 파노라마가 안 열린다.
+  check(/submodules=panorama/.test(m), 'SDK URL 에 panorama 서브모듈이 있다');
 }
 
 console.log();

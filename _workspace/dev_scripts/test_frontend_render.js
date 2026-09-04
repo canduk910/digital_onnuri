@@ -371,8 +371,52 @@ async function onlineCount(ctx, query) {
       const alive = await p.evaluate(() => document.querySelectorAll('.iw').length);
       check(alive > 0, '팝업 전환 2.5초 뒤에도 팝업이 살아 있다', `${alive}개`);
     }
+    /* ── 거리뷰 (2026-09-04 merchants-pano.js 외부화) ──────────────────────
+       순수 이동이 조용히 깨지는 자리를 본다. 이 구획은 외부 심볼 5종을 주입받는데,
+       `mapObj`·`mapReady` 는 initMap 이 **나중에** 채우는 값이라 게터로 넘긴다 —
+       값으로 붙잡으면 영영 null 이고 **에러 없이 아무 일도 안 일어난다**. */
+    check(await p.evaluate(() => !!window.OnnuriPano), 'OnnuriPano 가 로드된다');
+    check(await p.evaluate(() => {
+      const P = window.OnnuriPano || {};
+      return ['attach', 'openPano', 'closePano', 'toggleStreetMode', 'initPanoFloat']
+        .every((k) => typeof P[k] === 'function');
+    }), '거리뷰 계약 5종이 노출된다');
+
+    // 지도 구석 토글 — StreetLayer(파란 길) 진입·이탈
+    await p.click('#streetBtn', { force: true }); await p.waitForTimeout(2500);
+    const st = await p.evaluate(() => ({
+      on: document.getElementById('streetBtn').classList.contains('on'),
+      pressed: document.getElementById('streetBtn').getAttribute('aria-pressed'),
+      note: ((document.getElementById('mapNote') || {}).textContent || '').slice(0, 40) }));
+    check(st.on && st.pressed === 'true', '거리뷰 토글이 켜진다', JSON.stringify(st));
+    check(/거리뷰|파란/.test(st.note), '거리뷰 모드 안내로 바뀐다', st.note);
+    await p.click('#streetBtn', { force: true }); await p.waitForTimeout(1800);
+    check(!(await p.evaluate(() => document.getElementById('streetBtn').classList.contains('on'))),
+      '다시 누르면 꺼진다');
+
+    // 팝업의 거리뷰 버튼 → 파노라마 패널
+    const pin = await p.$('.pin, .pin-multi');
+    if (pin) { await pin.click({ force: true }); await p.waitForTimeout(1500); }
+    const pbtn = await p.$('.iw-act-pano');
+    check(!!pbtn, '팝업에 거리뷰 버튼이 있다');
+    if (pbtn) {
+      await pbtn.click({ force: true }); await p.waitForTimeout(6000);
+      const pv = await p.evaluate(() => {
+        const m = document.getElementById('panoModal');
+        return { open: !!(m && !m.hidden),
+                 view: ((document.getElementById('panoView') || {}).innerHTML || '').length,
+                 title: (document.getElementById('panoTitle') || {}).textContent || '' };
+      });
+      check(pv.open, '파노라마 패널이 열린다');
+      // 패널이 열리기만 하고 비어 있으면 주입이 끊긴 것이다 — 에러가 안 나는 실패 모드.
+      check(pv.view > 3000, '파노라마가 실제로 렌더된다', pv.view + '자');
+      check(pv.title.length > 0, '패널 제목에 상호명이 있다', pv.title.slice(0, 24));
+      await p.click('#panoClose', { force: true }); await p.waitForTimeout(1200);
+      check(await p.evaluate(() => document.getElementById('panoModal').hidden), '패널이 닫힌다');
+    }
+
     const real = errs.filter((e) => !/401/.test(e));
-    check(real.length === 0, '지도 경로 스크립트 오류 없음', real.join(' | '));
+    check(real.length === 0, '지도·거리뷰 경로 스크립트 오류 없음', real.join(' | '));
     await p.close();
     console.log();
     }
