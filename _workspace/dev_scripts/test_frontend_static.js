@@ -44,7 +44,7 @@ console.log('(a) 캐시버스트 — 한 자산은 모든 페이지에서 같은
 // **화면은 멀쩡하다** — 새 기능이 조용히 없을 뿐이다.
 {
   const ASSETS = ['shell.css', 'shell.js', 'chat-widget.css', 'chat-widget.js',
-                  'config.js', 'online-source.js', 'online-probe.js', 'favicon.svg'];
+                  'config.js', 'online-source.js', 'online-probe.js', 'merchants.css', 'favicon.svg'];
   ASSETS.forEach((a) => {
     const seen = {};   // 버전 → 그 버전을 쓰는 페이지들
     PAGES.forEach((p) => {
@@ -194,7 +194,25 @@ console.log('(f) online-probe — 링크가 검색을 실행하는지 라벨이 
 }
 
 console.log();
-console.log('(g) merchants — 결제 표시와 최근 본 기록의 창구가 하나여야 한다');
+console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다');
+// 2026-09-04: <style> 412줄을 merchants.css 로 외부화했다. 링크가 빠지면 페이지가
+// 스타일 없이 뜨는데 **JS 는 멀쩡히 돌아** 테스트 대부분이 통과한다 — 조용한 실패다.
+{
+  const m = HTML['merchants.html'];
+  check(/<link rel="stylesheet" href="merchants\.css\?v=\d+">/.test(m), 'merchants.css 를 연결한다');
+  check(!/<style>/.test(m), '인라인 <style> 이 남아 있지 않다(사본 방지)');
+  // CSS 는 규칙 순서가 곧 우선순위다. shell.css 뒤에 와야 셸 토큰을 덮을 수 있다.
+  const iShell = m.indexOf('shell.css'), iOwn = m.indexOf('merchants.css');
+  check(iShell >= 0 && iOwn > iShell, 'merchants.css 가 shell.css 뒤에 온다(캐스케이드 순서)');
+  let css = '';
+  try { css = rd('merchants.css'); } catch (e) {}
+  check(css.length > 5000, 'merchants.css 에 규칙이 들어 있다', `${css.length}자`);
+  // 거리뷰 시트가 SDK 인라인 스타일을 이기는 규칙 — 순서·존재가 깨지면 패널이 무너진다.
+  check(/!important/.test(css), 'SDK 인라인 스타일을 이기는 !important 규칙이 살아 있다');
+}
+
+console.log();
+console.log('(h) merchants — 결제 표시와 최근 본 기록의 창구가 하나여야 한다');
 // 2026-09-03 '표·개별 팝업·그룹 팝업이 각각 조건을 쓰다가 팝업 두 곳만 결제 줄을 통째로
 // 생략했다' → payTags 창구 신설. 2026-09-04 '그런데 표는 여전히 자기 사본을 갖고 있었고,
 // 리스트 행 클릭은 card·qr 없는 합성 객체를 넘겨 결제되는 곳을 지류 전용이라 단정했다'.
@@ -219,7 +237,7 @@ console.log('(g) merchants — 결제 표시와 최근 본 기록의 창구가 �
 }
 
 console.log();
-console.log('(h) online — 외부에서 들어오는 값은 창구를 거친다');
+console.log('(i) online — 외부에서 들어오는 값은 창구를 거친다');
 // 2026-08-27 normKind(챗봇이 kind 를 보내는 모든 온라인 질문이 빈 화면으로 끝났다),
 // 2026-09-02 applyCat(대분류/소분류 슬래시 형식이 통째로 무시돼 10곳이 22곳이 됐다),
 // 2026-09-03 applyBrand(brand=삼성 → 0곳). 같은 유형이 세 번 났다.
@@ -248,7 +266,7 @@ console.log('(h) online — 외부에서 들어오는 값은 창구를 거친다
 }
 
 console.log();
-console.log('(i) 데이터 사본 — 화면이 읽는 파일이 실제로 있다');
+console.log('(j) 데이터 사본 — 화면이 읽는 파일이 실제로 있다');
 // 2026-09-02 '파일이 없으면 이 경로만 조용히 꺼지고 직접 일치 검색은 그대로 동작한다'.
 // 즉 없어도 에러가 안 나고 검색 품질만 조용히 떨어진다.
 // (코드↔사본의 **내용** 일치는 test_survey_probe.js 가 본다. 여기서는 존재만.)

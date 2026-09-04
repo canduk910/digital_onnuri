@@ -1,0 +1,424 @@
+/* 가맹점 검색 페이지 전용 스타일 (ADR-9 · 2026-09-04 외부화)
+ *
+ * merchants.html 의 <style> 블록을 **순서 그대로** 옮긴 것이다. CSS 는 규칙 순서가 곧
+ * 우선순위라 재배열하지 않았다 — 특히 거리뷰 패널은 네이버 SDK 의 인라인 스타일을
+ * `!important` 로 이기는 규칙이 있어(2026-08-13) 순서가 바뀌면 조용히 깨진다.
+ *
+ * <link> 는 shell.css·chat-widget.css **다음**에 온다(원래 <style> 이 있던 자리).
+ * 셸 토큰을 이 파일이 덮어쓰는 규칙이 있으므로 순서를 바꾸지 마라.
+ *
+ * 관심사별 정리는 하지 않았다 — '잘라 옮기기'와 '정리'는 다른 일이고, 한 커밋에 섞으면
+ * 회귀가 났을 때 어느 쪽인지 가릴 수 없다.
+ */
+  /* 공통 셸(토큰·사이드바·상단바·폭토글)은 shell.css — 이 블록은 가맹점 검색 페이지 전용 스타일만 (ADR-9) */
+
+  /* ===== 페이지 헤더 — 극단 타이포 + 자이언트 워터마크 ===== */
+  .page-head { position:relative; margin-bottom:26px; padding-top:6px; }
+  .page-head::after { /* signature: 초저투명 오렌지 '온' 워터마크 */
+    content:"온"; position:absolute; right:-8px; top:-46px; font-size:190px; font-weight:900;
+    color:var(--accent); opacity:.045; line-height:1; pointer-events:none; user-select:none; z-index:-1; }
+  h1 { font-family:var(--font-display); font-size:clamp(32px, 4.4vw, 50px); font-weight:700; letter-spacing:-0.035em; line-height:1.08; margin-bottom:10px; }
+  .subtitle { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent-press); margin-bottom:8px; }
+  .meta-line { font-size:13px; color:var(--text-sub); }
+  .meta-line .num, .num { font-variant-numeric:tabular-nums; }
+
+  /* ===== 배너 (M10-2) ===== */
+  .notice { background:repeating-linear-gradient(135deg, rgba(242,107,29,.03) 0 1px, transparent 1px 12px), var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:var(--r-md); padding:14px 18px; margin:0 0 18px; }
+  /* 자동 갱신이 멈춘 동안의 강조. 평소 배너와 확실히 구분돼야 한다 —
+     같은 톤이면 이용자가 늘 있던 안내로 읽고 지나친다. */
+  .notice.notice-stale { border-color:var(--accent); background:var(--accent-soft); }
+  .stale-flag { color:var(--accent-press); }
+  .stale-why { color:var(--text-faint); font-size:12px; }
+  .notice p { font-size:13.5px; color:var(--text-sub); }
+  .notice strong { color:var(--text); font-weight:700; }
+
+  /* ===== 시도 탭 — 숫자가 주인공(극단 대비) ===== */
+  .sido-tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .sido-tab { flex:1; font-family:inherit; cursor:pointer; text-align:left; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; border-radius:var(--r-sm); padding:12px 14px 10px; color:var(--text-faint); background:var(--bg); border:1px solid var(--border); transition:.15s ease; }
+  .sido-tab:hover { border-color:var(--border-2); background:var(--surface); }
+  .sido-tab.active { color:rgba(255,255,255,.75); background:var(--text); border-color:var(--text); }
+  .sido-tab .tab-sub { display:block; font-family:var(--font-display); font-size:clamp(16px, 1.7vw, 22px); font-weight:700; letter-spacing:-0.02em; color:var(--text); opacity:1; margin-top:3px; font-variant-numeric:tabular-nums; }
+  .sido-tab.active .tab-sub { color:#fff; }
+
+  /* ===== 지역 계층 드롭다운 ===== */
+  .region-row { display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .rr-label { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); }
+  select.sel { font-family:inherit; font-size:13px; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:9px 12px; outline:none; cursor:pointer; min-width:120px; transition:.15s ease; }
+  select.sel:hover { border-color:var(--border-2); }
+  select.sel:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  select.sel:disabled { color:var(--text-faint); background:var(--surface); cursor:not-allowed; }
+
+  /* ===== 칩 (샤프 라운드, pill 아님) ===== */
+  .chip-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
+  .chip-label { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); margin-right:2px; }
+  .chip-hint { font-size:11.5px; color:var(--text-faint); margin-right:4px; }
+  .chip-scope-note { flex-basis:100%; margin:2px 0 0; font-size:11.5px; color:var(--text-faint); line-height:1.5; }
+  .chip-scope-note b { font-weight:700; color:var(--text-sub); }
+  .chip-hint b { font-weight:700; color:var(--text-sub); }
+  .chip { font-family:inherit; cursor:pointer; font-size:13px; font-weight:600; border-radius:var(--r-sm); padding:6px 12px; color:var(--text-sub); background:var(--bg); border:1px solid var(--border); transition:.15s ease; }
+  .chip:hover { border-color:var(--border-2); background:var(--surface); }
+  .chip b { font-variant-numeric:tabular-nums; color:inherit; }
+  .chip.active { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .chip.active:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
+  .aux-row { display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; margin-bottom:14px; padding:12px 14px; background:var(--pat-hatch), var(--surface); border:1px solid var(--border); border-radius:var(--r-md); }
+  .aux-group { display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
+
+  /* ===== 컨트롤 (검색·토글·정렬) ===== */
+  .controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:14px; }
+  .search-wrap { position:relative; flex:1; min-width:230px; }
+  .search-wrap svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); width:15px; height:15px; stroke:var(--text-faint); fill:none; stroke-width:2; pointer-events:none; }
+  .search-wrap input { width:100%; font-family:inherit; font-size:14px; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:10px 36px; outline:none; transition:.15s ease; }
+  .search-wrap input:hover { border-color:var(--border-2); }
+  .search-wrap input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .search-clear { position:absolute; right:6px; top:50%; transform:translateY(-50%); border:none; background:none; color:var(--text-faint); cursor:pointer; font-size:14px; padding:4px 9px; border-radius:var(--r-sm); font-family:inherit; }
+  .search-clear:hover { background:var(--surface-2); color:var(--text); }
+  .digital-toggle { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:8px 12px; user-select:none; transition:.15s ease; }
+  .digital-toggle:hover { border-color:var(--border-2); }
+  .digital-toggle input { accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
+  .count-text { font-size:16px; font-weight:800; letter-spacing:-0.02em; color:var(--text); margin-left:auto; font-variant-numeric:tabular-nums; }
+
+  /* ===== 결과 카드·표 ===== */
+  .card { background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; }
+  /* PC: 리스트는 지도와 같은 높이의 자체 스크롤 — 페이지 스크롤과 분리 */
+  @media (min-width:960px){
+    /* 직계(>) 필수 — 하위에 span.pay.card(결제 '카드' 태그)가 있어 후손 선택 시 태그가 420px로 커진다 */
+    /* 헤더·페이저 고정(2026-08-12): 카드=플렉스 컬럼, 스크롤은 표 본문(.table-scroll)만 */
+    .result-list > .card { height:var(--panel-h, calc(100vh - 120px)); min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+    .result-list > .card > #resultArea { display:flex; flex-direction:column; min-height:0; flex:1; }
+    .result-list #resultArea > .table-scroll { flex:1; min-height:0; overflow:auto; }
+    .result-list #resultArea > .pager { flex:none; background:var(--bg); }
+    thead th { position:sticky; top:0; z-index:2; box-shadow:0 1px 0 var(--border); }
+  }
+  /* 서버 사이드 클러스터 마커(2026-08-12) — 상한 초과 뷰의 밀도 표시 */
+  .cmark { display:flex; align-items:center; justify-content:center; border-radius:50%; cursor:pointer;
+    background:rgba(242,107,29,.88); color:#fff; font-weight:800; font-variant-numeric:tabular-nums;
+    border:2px solid #fff; box-shadow:0 2px 8px rgba(11,12,14,.25); }
+  .cmark.c1 { width:38px; height:38px; font-size:11px; }
+  .cmark.c2 { width:46px; height:46px; font-size:12px; }
+  .cmark.c3 { width:54px; height:54px; font-size:12.5px; background:rgba(221,94,18,.9); }
+  .cmark.c4 { width:64px; height:64px; font-size:13px; background:rgba(196,81,15,.92); }
+  .table-scroll { overflow-x:auto; }
+  /* min-width는 결과 표(.table-scroll 안)에만 — 맨 table 셀렉터로 두면 챗 위젯 등
+     다른 표까지 오염된다(2026-08-11 결함: 위젯 말풍선 표가 880px로 삐져나감). */
+  .table-scroll table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:880px; }
+  /* 컬럼 구분: 본문 셀 구분선은 두지 않는다(원래 디자인 유지 — 2026-08-11 원복).
+     헤더에만 짧은 세로선을 살짝 표시해 열 경계를 암시한다. */
+  .table-scroll th:not(:last-child)::after { content:""; position:absolute; right:0; top:30%; bottom:30%; width:1px; background:var(--border-2); }
+  th { position:relative; padding:11px 16px; text-align:left; font-size:10.5px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); background:var(--surface); border-bottom:1px solid var(--border); white-space:nowrap; }
+  /* 컬럼 폭 드래그 그립 — 헤더 우측 경계 */
+  .col-grip { position:absolute; top:0; right:-5px; bottom:0; width:10px; cursor:col-resize; z-index:3; touch-action:none; }
+  .col-grip::after { content:""; position:absolute; top:20%; bottom:20%; left:4px; width:2px; border-radius:2px; background:transparent; transition:background .15s ease; }
+  .col-grip:hover::after, .col-grip.dragging::after { background:var(--accent); }
+  /* 폭 고정(table-layout:fixed) 시 셀 내용 말줄임 — 표가 깨지지 않게 */
+  table[style*="fixed"] td, table[style*="fixed"] th { overflow:hidden; text-overflow:ellipsis; }
+  td { padding:12px 16px; border-top:1px solid var(--border); vertical-align:middle; }
+  tr:hover td { background:var(--surface); }
+  td.name { font-weight:700; color:var(--text); }
+  td.market { color:var(--text); }
+  td.addr { color:var(--text); }
+  td.addr .dong { color:var(--text-faint); font-size:12.5px; }
+  .cat-badge { display:inline-flex; align-items:center; padding:3px 9px; border-radius:var(--r-sm); font-size:12px; font-weight:600; background:var(--accent-soft); color:var(--accent-press); white-space:nowrap; }
+  .cat-badge.etc { background:var(--no-soft); color:var(--text-sub); }
+  .brand-tag { display:inline-flex; align-items:center; margin-left:6px; padding:2px 7px; border-radius:var(--r-sm); font-size:11px; font-weight:700; background:var(--text); color:#fff; white-space:nowrap; vertical-align:middle; }
+  .dist-tag { display:inline-flex; align-items:center; margin-left:6px; padding:2px 7px; border-radius:var(--r-sm); font-size:11px; font-weight:700; background:var(--accent-soft); color:var(--accent-press); white-space:nowrap; vertical-align:middle; font-variant-numeric:tabular-nums; }
+  /* 즐겨찾기 별(행) + 저장 모달 (2026-08-13) */
+  .fav-btn { border:none; background:none; cursor:pointer; font-size:14px; color:var(--border-2); padding:2px 4px; margin-right:2px; vertical-align:middle; line-height:1; }
+  .fav-btn:hover { color:var(--accent); }
+  .fav-btn.on { color:var(--accent); }
+  .sv-open { cursor:pointer; white-space:nowrap; }
+  .sv-open b { color:var(--accent-press); }
+  .sv-sec { position:sticky; top:0; padding:6px 16px; font-size:11px; font-weight:800; letter-spacing:.05em; color:var(--text-faint); background:var(--surface); }
+  .sv-item { display:flex; align-items:center; gap:8px; padding:9px 16px; border-bottom:1px solid var(--border); }
+  .sv-item .sv-main { flex:1; min-width:0; cursor:pointer; }
+  .sv-item .sv-name { font-size:13.5px; font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sv-item .sv-addr { font-size:11.5px; color:var(--text-sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; }
+  .sv-item .sv-act { flex:none; display:flex; gap:4px; }
+  .sv-item .sv-act button { border:1px solid var(--border-2); background:var(--bg); border-radius:6px; cursor:pointer; font-size:12px; padding:5px 9px; color:var(--text-sub); }
+  .sv-item .sv-act button:hover { border-color:var(--accent); color:var(--accent-press); }
+  .sv-empty { padding:26px 16px; text-align:center; color:var(--text-faint); font-size:13px; }
+  /* 거리뷰 플로팅 패널 — 메인 지도를 가리지 않게 우하단 기본, 헤더 드래그로 이동·그립으로 크기조절 */
+  .pano-float { position:fixed; right:14px; bottom:14px; z-index:900; width:min(560px, 92vw);
+    background:var(--bg); border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden;
+    display:flex; flex-direction:column; box-shadow:0 10px 34px rgba(20,22,26,.3); }
+  .pano-float[hidden] { display:none; }
+  .pano-float .modal-head { cursor:move; user-select:none; touch-action:none; }
+  .pano-date { margin-left:auto; margin-right:8px; font-size:11.5px; font-weight:700; color:var(--text-faint); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  #panoView { width:100%; height:var(--pano-h, min(44vh, 400px)); background:var(--surface); position:relative; }
+  #panoView .pano-msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--text-faint); font-size:13.5px; text-align:center; padding:20px; }
+  .pano-hint { padding:10px 16px 12px; font-size:11.5px; color:var(--text-faint); line-height:1.5; }
+  /* 파노라마 안 '지정 위치' 표시(2026-08-24) — 가맹점 좌표를 현재 시선에 투영해 그린다.
+     클릭은 통과시킨다(pointer-events:none): 지면 화살표와 드래그를 가리면 안 된다. */
+  #panoView .pano-target { position:absolute; z-index:5; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%); }
+  #panoView .pano-target[hidden] { display:none; }
+  .pt-label { max-width:190px; padding:4px 10px; border-radius:var(--r-sm); background:rgba(11,12,14,.82);
+    color:#fff; font-size:11.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    box-shadow:0 2px 8px rgba(20,22,26,.45); }
+  .pt-label i { font-style:normal; font-weight:500; opacity:.72; margin-left:5px; }
+  .pt-stem { width:2px; height:16px; background:#fff; box-shadow:0 0 3px rgba(20,22,26,.7); }
+  .pt-pin { width:14px; height:14px; border-radius:50%; background:var(--accent); border:3px solid #fff;
+    box-shadow:0 0 0 2px var(--accent), 0 2px 10px rgba(20,22,26,.5); }
+  /* 지정 위치가 시야 밖일 때 — 어느 쪽으로 돌리면 되는지 가장자리에서 알려준다 */
+  #panoView .pano-edge { position:absolute; top:50%; transform:translateY(-50%); z-index:5; pointer-events:none;
+    display:flex; align-items:center; gap:6px; max-width:46%; padding:6px 11px; border-radius:20px;
+    background:rgba(11,12,14,.72); color:#fff; font-size:11.5px; font-weight:700;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 2px 8px rgba(20,22,26,.4); }
+  #panoView .pano-edge[hidden] { display:none; }
+  #panoView .pano-edge.left { left:10px; }
+  #panoView .pano-edge.right { right:10px; }
+  .pano-resize { position:absolute; right:0; bottom:0; width:22px; height:22px; cursor:nwse-resize; touch-action:none; z-index:6;
+    background:linear-gradient(135deg, transparent 55%, var(--border-2) 55%, var(--border-2) 65%, transparent 65%, transparent 75%, var(--border-2) 75%, var(--border-2) 85%, transparent 85%); }
+  /* 거리뷰 모드 — 메인 지도 위 '현재 보는 위치+방향' 마커. 부채꼴(콘)이 파노라마 시선 방향(pov.pan)을 따라 회전 */
+  .street-spot-wrap { width:88px; height:88px; position:relative; transition:transform .15s ease; will-change:transform; }
+  /* 시야 부채꼴 — conic-gradient 로 그린 원호(2026-08-24, 이전에는 border 삼각형이었다).
+     0deg 가 12시이고 시계방향이라, 정북을 중심에 두려면 시야각의 절반만큼 앞당겨 시작한다. */
+  .street-cone { position:absolute; left:50%; top:50%; width:88px; height:88px; transform:translate(-50%,-50%);
+    border-radius:50%; background:conic-gradient(from -34deg, rgba(242,107,29,.38) 0deg 68deg, transparent 68deg); }
+  .street-spot { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:18px; height:18px; border-radius:50%; background:var(--accent); border:3px solid #fff;
+    box-shadow:0 0 0 2px var(--accent), 0 2px 8px rgba(20,22,26,.45); }
+  .mt-tag { display:block; font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+  .pay { display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--r-sm); font-size:11px; font-weight:700; margin-right:4px; white-space:nowrap; }
+  .pay.card { background:var(--text); color:#fff; }
+  .pay.qr { background:var(--accent-soft); color:var(--accent-press); }
+  .pay.none { background:var(--no-soft); color:var(--text-faint); }
+
+  /* ===== 상태(로딩·빈결과) ===== */
+  .state { padding:52px 20px; text-align:center; color:var(--text-sub); font-size:13.5px; line-height:1.7; }
+  .state .lead { display:block; color:var(--text); font-weight:800; font-size:19px; letter-spacing:-0.02em; margin-bottom:4px; }
+  .state-actions { margin-top:14px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .app-install { margin-top:12px; font-size:12.5px; color:var(--text-faint); }
+  .app-install a { font-weight:700; }
+
+  /* ===== 버튼 ===== */
+  .btn-primary, .btn-outline { font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; border-radius:var(--r-sm); padding:9px 16px; text-decoration:none; display:inline-flex; align-items:center; transition:.15s ease; }
+  .btn-primary { background:var(--accent); color:#fff; border:1px solid var(--accent); }
+  .btn-primary:hover { background:var(--accent-hover); border-color:var(--accent-hover); color:#fff; text-decoration:none; }
+  .btn-primary:active { background:var(--accent-press); border-color:var(--accent-press); }
+  .btn-outline { background:var(--bg); color:var(--text); border:1px solid var(--border-2); }
+  .btn-outline:hover { background:var(--surface); color:var(--text); text-decoration:none; }
+
+  /* ===== 페이지네이션 ===== */
+  .pager { display:flex; align-items:center; justify-content:center; gap:10px; padding:14px; border-top:1px solid var(--border); flex-wrap:wrap; }
+  .pager button { font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:7px 13px; transition:.15s ease; }
+  .pager button:hover:not(:disabled) { border-color:var(--border-2); background:var(--surface); }
+  .pager button:disabled { color:var(--text-faint); cursor:default; }
+  .pager .page-ind { font-size:13px; color:var(--text-sub); font-variant-numeric:tabular-nums; }
+
+  /* ===== 각주 ===== */
+  .footnotes { margin-top:26px; padding-top:16px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:6px; }
+  .footnotes p { font-size:12.5px; color:var(--text-faint); line-height:1.6; }
+  .footnotes strong { color:var(--text-sub); }
+
+  /* ===== 반응형: 모바일 드로어 ===== */
+  @media (max-width:959px){
+    /* 셸 반응형은 shell.css — 여기는 페이지 전용만 */
+    .count-text { margin-left:0; width:100%; }
+    .page-head::after { font-size:120px; top:-28px; right:-4px; }
+    .sido-tab { padding:10px 10px 8px; }
+  }
+
+  /* ── 지도+리스트 병행 ── */
+  .result-split{ display:flex; gap:8px; align-items:flex-start; }
+  .result-list{ flex:1 1 auto; min-width:0; }
+  /* 지도 폭: 드래그 스플리터가 --map-w를 갱신(기본 clamp). */
+  .result-map{ flex:0 0 var(--map-w, clamp(360px,34vw,460px)); position:sticky; top:16px; min-width:0; }
+  /* 드래그 핸들 — PC 전용(모바일 세로 스택에선 숨김) */
+  .split-handle{ flex:0 0 12px; align-self:stretch; position:sticky; top:16px; height:var(--panel-h, calc(100vh - 120px)); min-height:260px;
+    display:flex; align-items:center; justify-content:center; cursor:col-resize; border-radius:6px; touch-action:none; user-select:none; }
+  .split-handle span{ width:4px; height:44px; border-radius:999px; background:var(--border-2); transition:background .15s ease, height .15s ease; }
+  .split-handle:hover span, .split-handle.dragging span{ background:var(--accent); height:64px; }
+  .split-handle:focus-visible{ outline:2px solid var(--accent); outline-offset:0; }
+  /* 수직 높이 조절 핸들(2026-08-12) — 지도·리스트 높이를 드래그로 조절해
+     필터·지도·리스트를 한 화면에 담을 수 있게 한다. */
+  .vsplit-handle{ display:flex; align-items:center; justify-content:center; height:14px; margin:6px 0 0;
+    cursor:row-resize; touch-action:none; border-radius:var(--r-sm); }
+  .vsplit-handle span{ height:4px; width:44px; border-radius:999px; background:var(--border-2); transition:background .15s ease, width .15s ease; }
+  .vsplit-handle:hover span, .vsplit-handle.dragging span{ background:var(--accent); width:64px; }
+  .vsplit-handle:focus-visible{ outline:2px solid var(--accent); outline-offset:0; }
+  body.split-dragging{ cursor:col-resize; user-select:none; }
+  body.split-dragging iframe, body.split-dragging #map{ pointer-events:none; } /* 드래그 중 지도가 이벤트 삼키지 않게 */
+  .map-wrap{ position:relative; }
+  /* isolation+z-index:0 — 네이버 지도 내부 컨트롤(NAVER 로고 등)의 높은 z-index가
+     사이드바(z-50)·챗 패널(z-70)을 뚫지 않도록 지도 레이어 안에 가둔다(2026-08-12 제보). */
+  #map{ width:100%; height:var(--panel-h, calc(100vh - 120px)); min-height:260px; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; background:var(--surface); position:relative; z-index:0; isolation:isolate; }
+  .bounds-btn{ position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:5;
+    padding:8px 14px; font-size:12.5px; font-weight:700; color:var(--text); background:#fff;
+    border:1px solid var(--border); border-radius:999px; box-shadow:0 1px 4px rgba(0,0,0,.14); cursor:pointer; white-space:nowrap; }
+  .bounds-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .bounds-btn.on{ background:var(--text); color:#fff; border-color:var(--text); }
+  .bounds-btn.on:hover{ background:#26282c; color:#fff; }
+  .map-trunc{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%); z-index:5;
+    max-width:86%; padding:9px 15px; font-size:12.5px; font-weight:700; line-height:1.45; text-align:center;
+    color:#fff; background:rgba(11,12,14,.82); border-radius:var(--r-md); box-shadow:0 2px 8px rgba(0,0,0,.25); pointer-events:none; }
+  .map-trunc b{ color:#FFB37E; }
+  .loc-btn{ position:absolute; top:12px; right:12px; z-index:5; display:inline-flex; align-items:center; gap:6px;
+    padding:8px 12px; font-size:13px; font-weight:600; color:var(--text); background:#fff;
+    border:1px solid var(--border); border-radius:var(--r-md); box-shadow:0 1px 4px rgba(0,0,0,.12); cursor:pointer; }
+  .loc-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .loc-btn:disabled{ opacity:.6; cursor:default; }
+  /* 거리뷰 모드 토글 — 내 위치 버튼 아래 */
+  .street-btn{ position:absolute; top:58px; right:12px; z-index:5; display:inline-flex; align-items:center; gap:6px;
+    padding:8px 12px; font-size:13px; font-weight:600; color:var(--text); background:#fff;
+    border:1px solid var(--border); border-radius:var(--r-md); box-shadow:0 1px 4px rgba(0,0,0,.12); cursor:pointer; }
+  .street-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .street-btn.on{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .loc-btn svg{ display:block; }
+  .my-loc-dot{ width:18px; height:18px; border-radius:50%; background:#1a73e8; border:3px solid #fff; box-shadow:0 0 0 2px rgba(26,115,232,.4), 0 1px 3px rgba(0,0,0,.3); }
+
+  /* 브랜드 검색 트리거 — 칩 줄 맨 앞. 178종 전체로 가는 유일한 통로라 칩과 같은 크기·오렌지 강조로 둔다
+     (2026-08-26: 종전에는 칩 아래 별도 줄의 20px 버튼이라 칩에 파묻혀 보이지 않았다). */
+  .brand-find{ display:inline-flex; align-items:center; gap:6px; font-family:inherit; cursor:pointer;
+    font-size:13px; font-weight:700; border-radius:var(--r-sm); padding:6px 12px;
+    color:var(--accent-press); background:var(--accent-soft); border:1px solid var(--accent); transition:.15s ease; }
+  .brand-find:hover{ background:var(--accent); color:#fff; }
+  .brand-find:hover .bf-more{ background:rgba(255,255,255,.25); color:#fff; }
+  .brand-find svg{ display:block; flex:none; }
+  .brand-find .bf-more{ font-size:11px; font-weight:800; padding:1px 6px; border-radius:999px;
+    background:rgba(242,107,29,.16); color:var(--accent-press); font-variant-numeric:tabular-nums; }
+  /* 브랜드 검색 팝업 */
+  .modal[hidden]{ display:none; }
+  .modal{ position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; }
+  .modal-backdrop{ position:absolute; inset:0; background:rgba(20,20,20,.45); }
+  .modal-box{ position:relative; width:min(560px,92vw); max-height:82vh; display:flex; flex-direction:column;
+    background:#fff; border:1px solid var(--border); border-radius:var(--r-md); box-shadow:0 12px 40px rgba(0,0,0,.25); overflow:hidden; }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); background:var(--pat-dot), var(--bg); }
+  .modal-head strong{ font-family:var(--font-display); font-size:16px; font-weight:700; letter-spacing:-0.02em; }
+  .modal-close{ border:0; background:transparent; font-size:16px; cursor:pointer; color:var(--text-faint); padding:4px 8px; border-radius:6px; }
+  .modal-close:hover{ background:var(--surface); color:var(--text); }
+  .modal-tools{ display:flex; gap:10px; padding:12px 16px; border-bottom:1px solid var(--border); align-items:center; flex-wrap:wrap; }
+  .bm-catwrap{ font-size:12px; font-weight:600; color:var(--text-faint); display:flex; align-items:center; gap:6px; }
+  .bm-catwrap select{ font-size:13px; }
+  .bm-searchwrap{ position:relative; flex:1; min-width:180px; display:flex; align-items:center; }
+  .bm-searchwrap svg{ position:absolute; left:10px; color:var(--text-faint); }
+  .bm-searchwrap input{ width:100%; padding:9px 12px 9px 32px; border:1px solid var(--border); border-radius:var(--r-md); font-size:14px; }
+  .bm-searchwrap input:focus{ outline:none; border-color:var(--accent); }
+  .bm-scope-hint{ flex-basis:100%; margin:2px 0 0; font-size:11.5px; color:var(--text-faint); line-height:1.5; }
+  .modal-body{ display:flex; min-height:0; flex:1; }
+  .bm-index{ list-style:none; margin:0; padding:6px 2px; width:26px; overflow-y:auto; border-right:1px solid var(--border); text-align:center; }
+  .bm-index li{ font-size:11px; line-height:1.5; color:var(--text-faint); cursor:pointer; border-radius:4px; padding:1px 0; }
+  .bm-index li:hover{ background:var(--surface); color:var(--accent); }
+  .bm-index li.disabled{ opacity:.3; cursor:default; }
+  .bm-list{ flex:1; overflow-y:auto; padding:6px 0; position:relative; }  /* position:relative — 헤더 offsetTop 기준을 이 컨테이너로 고정(색인 점프) */
+  .bm-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; text-align:left;
+    padding:10px 16px; border:0; background:transparent; cursor:pointer; font-size:14px; color:var(--text); }
+  .bm-item:hover{ background:var(--surface); }
+  .bm-item.active{ color:var(--accent); font-weight:700; }
+  .bm-item .cnt{ font-size:12px; color:var(--text-faint); font-variant-numeric:tabular-nums; }
+  .bm-head{ position:sticky; top:0; padding:4px 16px; font-size:11px; font-weight:700; color:var(--text-faint); background:#fff; letter-spacing:.04em; }
+  .bm-empty{ padding:24px 16px; color:var(--text-faint); font-size:13px; text-align:center; }
+  .map-note{ font-size:12.5px; color:var(--text-sub); padding:8px 2px 0; line-height:1.5; }
+  .map-note b{ color:var(--text); font-weight:650; }
+  .loc-note{ font-size:12.5px; line-height:1.5; padding:4px 2px 0; color:var(--text-sub); }
+  .loc-note.err{ color:#B3540E; font-weight:650; }
+  /* 네이버 인포윈도우 커스텀 */
+  /* 단일 상세 팝업 — 이름+업종 한 줄, 주소, 결제 태그 순의 간격 리듬(그룹 팝업과 동일 규칙) */
+  .iw{ font-family:inherit; padding:12px 14px; min-width:200px; max-width:260px; }
+  .iw .iw-name{ font-weight:800; font-size:14px; color:var(--text); line-height:1.35; }
+  .iw .iw-cat{ font-size:11px; color:var(--accent-press); font-weight:600; margin-top:2px; }
+  .iw .iw-addr{ font-size:12px; color:var(--text-sub); margin-top:6px; line-height:1.5; }
+  .iw .iw-pay{ margin-top:8px; display:flex; gap:4px; flex-wrap:wrap; }
+  .iw .iw-pay span{ display:inline-flex; align-items:center; font-size:11px; font-weight:700;
+    padding:2px 8px; border-radius:4px; margin-right:0; line-height:1.5; }
+  .iw .iw-pay .card{ background:var(--accent-soft); color:var(--accent-press); }
+  .iw .iw-pay .qr{ background:#EEF6EF; color:#1F7A47; }
+  .iw .iw-pay .none{ background:var(--no-soft); color:var(--text-sub); }
+  /* 상세 팝업 액션 — 네이버 지도 장소보기·길찾기 (터치 타깃 ≥38px, 라벨 줄바꿈 금지) */
+  .iw-actions{ display:flex; gap:6px; margin-top:10px; }
+  .iw-act{ flex:1; min-height:38px; display:flex; align-items:center; justify-content:center;
+    white-space:nowrap; padding:0 8px; font-size:12px; font-weight:700; border-radius:6px; text-decoration:none;
+    border:1px solid var(--border-2); color:var(--text); background:var(--bg); font-family:inherit; cursor:pointer; }
+  .iw-act:hover{ border-color:var(--accent); color:var(--accent-press); }
+  .iw-act.iw-act-dir{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .iw-act.iw-act-dir:hover{ background:var(--accent-hover); color:#fff; }
+  /* 이 위치 가맹점 목록 팝업(동일좌표 여러 곳) — 항목: 좌(이름·업종) / 우(결제 태그) 2열 정렬 */
+  .iw.iwg{ max-width:300px; min-width:250px; }
+  .iwg-head{ font-size:12px; font-weight:800; color:var(--text); }
+  .iwg-head b{ color:var(--accent-press); }
+  .iwg-addr{ font-size:11.5px; color:var(--text-sub); margin:2px 0 8px; line-height:1.4; }
+  .iwg-list{ max-height:230px; overflow-y:auto; display:flex; flex-direction:column; margin-top:8px; }
+  /* 모바일 지도는 min(46dvh,400px) 라 팝업(그룹 12곳 ≈ 347px)이 지도를 거의 가린다.
+     목록을 줄여 지도가 함께 보이게 한다 — 항목은 스크롤로 계속 볼 수 있다. */
+  @media (max-width:959px){ .iwg-list{ max-height:150px; } }
+  .iwg-item{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:8px 0; border-top:1px solid var(--border); }
+  .iwg-item .iwg-l{ min-width:0; }
+  /* 2026-09-04: text-overflow:ellipsis 가 white-space:nowrap 없이 있어 **사실상 죽어 있었다** —
+     긴 상호는 말줄임이 아니라 줄바꿈돼 항목 높이가 53px 과 71px 로 갈렸다. 셰브론이 붙어
+     이름 칸이 좁아지면 그 갈림이 더 잦아지므로 한 줄 말줄임으로 확정한다(전체 이름은 눌러서
+     여는 개별 팝업에 그대로 나온다). */
+  .iwg-item .iwg-name{ font-size:13px; font-weight:700; color:var(--text); line-height:1.35;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .iwg-item .iwg-cat{ font-size:11px; color:var(--accent-press); font-weight:600; margin-top:1px; }
+  .iwg-item .iw-pay{ margin-top:0; flex:none; display:flex; gap:3px; }
+  .iwg-item .iw-pay span{ margin-right:0; }
+  /* 눌러서 그 한 곳만 보기 (2026-09-04). hover 는 PC 에서만 뜨므로 모바일에는 :active 와
+     셰브론이 유일한 신호다 — 정작 팝업이 지도를 가장 많이 가리는 쪽이 모바일이다. */
+  .iwg-item.tap{ cursor:pointer; border-radius:4px; padding-left:4px; padding-right:2px;
+    transition:background .12s ease; }
+  .iwg-item.tap:hover{ background:var(--surface); }
+  .iwg-item.tap:active{ background:var(--accent-soft); }
+  .iwg-item.tap:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+  .iwg-go{ flex:none; font-size:14px; line-height:1; color:var(--text-sub); font-weight:700; }
+  .iwg-scope{ font-size:10px; font-weight:600; color:var(--text-sub); margin-left:6px;
+    letter-spacing:.02em; }
+  /* 그룹 목록으로 돌아가기 — 같은 건물 여러 곳을 견주는 것이 이 팝업의 존재 이유라
+     한 곳을 본 뒤 목록이 사라지면 마커를 다시 눌러야 한다. */
+  .iw-back{ display:block; width:100%; text-align:left; background:none; border:0; cursor:pointer;
+    padding:0 0 6px; margin:0; font:inherit; font-size:11.5px; font-weight:700;
+    color:var(--text-sub); min-height:24px; }
+  .iw-back:hover{ color:var(--accent-press); }
+  .iw-back:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  /* 클러스터 마커 (모노톤+오렌지) */
+  .cluster{ display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:12px; border-radius:999px; box-shadow:0 2px 6px rgba(20,22,26,.28); border:2px solid #fff; }
+  .cluster.s1{ width:34px; height:34px; background:#F6A66B; }
+  .cluster.s2{ width:40px; height:40px; background:#F2842F; }
+  .cluster.s3{ width:48px; height:48px; background:#E8620F; }
+  .cluster.s4{ width:56px; height:56px; background:#C4510F; }
+  .pin{ width:14px; height:14px; border-radius:999px; background:var(--accent); border:2px solid #fff; box-shadow:0 1px 3px rgba(20,22,26,.4); cursor:pointer; }
+  .pin.active{ width:18px; height:18px; background:var(--accent-press); z-index:10; }
+  /* 동일좌표(같은 건물) 여러 가맹점을 묶은 마커 — 개수 배지. 온누리 대표좌표가 건물 단위라 겹친다. */
+  .pin-multi{ min-width:22px; height:22px; padding:0 5px; border-radius:999px; background:var(--accent); border:2px solid #fff;
+    color:#fff; font-size:11px; font-weight:800; line-height:1; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 1px 4px rgba(20,22,26,.45); cursor:pointer; font-variant-numeric:tabular-nums; }
+  tr.row-link{ cursor:pointer; }
+  tr.row-link:hover{ background:var(--accent-soft); }
+  tr.row-link:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+  /* 모바일(셸 드로어와 동일 브레이크포인트 959) — 세로 스택 + 결과 표를 카드형으로 재구성.
+     900↔959 불일치(셸=모바일/지도=데스크톱)로 생기던 태블릿 사각지대를 없앤다. */
+  @media (max-width:959px){
+    .result-split{ flex-direction:column; }
+    .result-map{ position:static; width:100%; flex-basis:auto; order:-1; }
+    .split-handle, .vsplit-handle{ display:none; } /* 세로 스택에선 드래그 조절 미제공 */
+    #map{ height:min(46dvh, 400px); min-height:240px; }   /* 300px 고정 → 뷰포트 비례(큰 폰에서도 충분) */
+    .result-list, .result-list > .card, #resultArea{ min-width:0; max-width:100%; }
+    #resultArea{ overflow-x:hidden; }
+
+    /* 표 → 카드: table/thead/tbody/tr/td를 블록으로. 가로 스크롤·컬럼 드래그 제거. */
+    #resultArea .table-scroll{ overflow-x:visible; }
+    #resultArea .table-scroll table{ min-width:0 !important; width:100%; display:block; }
+    #resultArea thead{ display:none; }
+    #resultArea colgroup{ display:none; }
+    #resultArea tbody{ display:block; }
+    #resultArea tr.row-link{ display:block; border:1px solid var(--border); border-radius:var(--r-md);
+      padding:12px 14px; margin:0 0 10px; background:var(--bg); }
+    #resultArea tr.row-link:last-child{ margin-bottom:0; }
+    #resultArea td{ display:block; border:none !important; padding:2px 0; white-space:normal; max-width:none; }
+    #resultArea td.name{ font-size:15px; font-weight:800; margin-bottom:5px; }
+    #resultArea td[data-label]::before{ content:attr(data-label); display:inline-block; min-width:66px;
+      font-size:11px; font-weight:700; color:var(--text-faint); }
+    #resultArea .col-grip{ display:none; }   /* 컬럼 폭 드래그는 데스크톱 전용 — 터치 스크롤과 경합 방지 */
+    #resultArea .pager{ padding-top:6px; }
+    /* 좁은 화면에선 상단 중앙(지도범위)과 우측(거리뷰·내 위치) 버튼이 겹친다 → 지도범위 버튼을 하단 중앙으로 */
+    .bounds-btn{ top:auto; bottom:12px; }
+  }
+
+  /* 모바일 거리뷰 — 하단 고정 시트(낮게 시작, 지도가 위에 보여 파란 길 재탭 용이). 이동·크기조절은 PC 전용 */
+  @media (max-width:600px){
+    .pano-float{ left:0 !important; right:0 !important; top:auto !important; bottom:0 !important;
+      width:100% !important; border-radius:12px 12px 0 0; }
+    #panoView{ height:32dvh !important; }
+    .pano-resize{ display:none; }
+    .pano-float .modal-head{ cursor:default; touch-action:auto; }
+  }
