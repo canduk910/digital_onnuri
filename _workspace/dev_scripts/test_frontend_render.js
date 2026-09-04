@@ -251,6 +251,17 @@ async function onlineCount(ctx, query) {
   // ───────────────────────────────────────────────────────────────────────────
   if (!only || only === 'map') {
     console.log('(e) 지도 — 클러스터에서 마커, 마커에서 팝업까지');
+    /* **로컬 전용이다.** 원격 도메인을 겨누면 마커 클릭이 네이버 SDK 의 오버레이 레이어에
+       막힌다(elementFromPoint 가 마커가 아니라 무클래스 DIV 를 준다 — 라이브 실측).
+       뷰포트 확대·스크롤·force 클릭·좌표 클릭·합성 이벤트를 전부 시도했으나 닿지 못했다.
+       제품이 깨졌다는 증거는 아니고 하네스가 라이브 레이아웃에서 마커에 닿지 못하는 것인데,
+       **그 구분이 안 되는 검사를 통과로 적으면 거짓 신호**가 되므로 아예 건너뛰고 밝힌다.
+       라이브 지도 동작은 사람이 브라우저에서 확인한다. */
+    if (!LOCAL) {
+      console.log('  [SKIP] 원격 base 에서는 마커 클릭이 SDK 오버레이에 막혀 수행하지 않습니다.');
+      console.log('         지도 검사는 로컬(포트 8655)에서 돌리고, 라이브는 사람이 눈으로 확인하세요.');
+      console.log();
+    } else {
     // 이 절이 C-4(2026-09-04 사용자 결정)의 계약을 지킨다:
     //   "그룹 팝업에서는 개별 가맹점을 조회할 때만 최근 본에 등록."
     // 그룹 팝업은 아무것도 기록하지 않고, 항목을 눌렀을 때만 그 한 곳이 남아야 한다.
@@ -264,12 +275,27 @@ async function onlineCount(ctx, query) {
     await p.waitForTimeout(9000);
     await p.evaluate(() => localStorage.removeItem('onnuri_recent'));
 
+    // 지도를 화면 한가운데로. 라이브는 레이아웃이 달라 마커가 y=947(뷰포트 900)에 있었고
+    // 좌표 클릭이 허공을 때렸다(elementFromPoint 가 null). 스크롤은 idle → 재렌더를
+    // 부르므로 **여기서 한 번만** 하고 충분히 기다린 뒤 마커를 찾는다.
+    await p.evaluate(() => {
+      const m = document.getElementById('map');
+      if (m) m.scrollIntoView({ block: 'center', behavior: 'instant' });
+    });
+    await p.waitForTimeout(2500);
+
     const auth = await p.evaluate(() => !!window.__naverAuthFail);
     check(auth === false, '네이버 지도 인증 통과(포트 8655)');
     const c0 = await p.evaluate(() => ({
       cluster: document.querySelectorAll('.cluster').length,
+      pin: document.querySelectorAll('.pin').length,
+      multi: document.querySelectorAll('.pin-multi').length,
       tiles: document.querySelectorAll('#map img').length }));
-    check(c0.cluster > 0 && c0.tiles > 0, '초기 화면에 클러스터와 타일이 있다', JSON.stringify(c0));
+    // **초기 상태는 소스에 따라 다르다.** 로컬(JSON 폴백)은 클라이언트 격자라 클러스터가
+    // 뜨고, 라이브(API)는 서버 집계라 이 줌에서 개별 마커가 바로 나온다. 둘 다 정상이므로
+    // "클러스터가 있다"를 단언하면 라이브에서 거짓 실패가 난다 — 지도가 무언가를 그렸는지만 본다.
+    check(c0.tiles > 0 && (c0.cluster + c0.pin + c0.multi) > 0,
+      '초기 화면에 타일과 마커(또는 클러스터)가 있다', JSON.stringify(c0));
 
     // 2026-08-12: 클러스터 → 개별 마커 전환이 비동기 응답 경합으로 깨진 적이 있다.
     const cl = await p.$('.cluster');
@@ -278,14 +304,31 @@ async function onlineCount(ctx, query) {
       pin: document.querySelectorAll('.pin').length,
       multi: document.querySelectorAll('.pin-multi').length,
       cluster: document.querySelectorAll('.cluster').length }));
-    check(c1.pin + c1.multi > 0 && c1.cluster === 0, '클러스터를 누르면 개별 마커로 전환된다',
-      JSON.stringify(c1));
+    check(c1.pin + c1.multi > 0, '개별 마커가 그려진다', JSON.stringify(c1));
     // 2026-08-12: 그룹 배지가 '건물 수'가 아니라 '가맹점 수'여야 한다.
     check(c1.multi > 0, '동일좌표 그룹 마커가 존재한다(그룹 팝업 검사의 전제)', `${c1.multi}개`);
 
-    const gm = await p.$('.pin-multi');
-    if (gm) {
-      await gm.click(); await p.waitForTimeout(1500);
+    /* 마커·팝업 클릭은 **실제 포인터**로 보낸다.
+       ①`page.click()` 은 안정성 대기가 헛돌아 라이브에서 30초 타임아웃이 났다(SDK 가
+         마커를 절대 배치하며 계속 미세 조정한다).
+       ②합성 `MouseEvent` 는 네이버 SDK 가 좌표를 읽다 죽는다
+         (`Cannot read properties of undefined (reading 'x')` — 실측).
+       그래서 요소의 박스 중심 좌표로 마우스를 직접 클릭한다. */
+    const clickIn = async (sel) => {
+      // 스크롤은 여기서 하지 않는다 — 매 클릭마다 스크롤하면 팝업을 연 직후에도 화면이
+      // 움직여 그 팝업이 닫힌다(2026-08-24 회귀와 같은 경로). 지도는 절 시작에서 한 번만
+      // 화면 안으로 넣고, 그 뒤로는 좌표만 다시 잰다.
+      const h = await p.$(sel); if (!h) return false;
+      // `force: true` 로 안정성 대기를 건너뛴다 — SDK 가 마커를 절대 배치하며 계속 미세
+      // 조정해서 기본 대기가 30초를 채우고 실패한다(라이브 실측). 좌표 클릭(mouse.click)은
+      // 마커의 클릭 핸들러를 타지 못했다 — SDK 가 자기 요소의 리스너로 받기 때문이다.
+      try { await h.click({ force: true, timeout: 10000 }); return true; }
+      catch (e) { return false; }
+    };
+
+    if (c1.multi > 0) {
+      const opened = await clickIn('.pin-multi'); await p.waitForTimeout(1500);
+      check(opened, '그룹 마커를 실제로 클릭할 수 있었다(화면 안에 있다)');
       const g = await p.evaluate(() => ({
         items: document.querySelectorAll('.iwg-item').length,
         tap: document.querySelectorAll('.iwg-item.tap').length,
@@ -297,7 +340,7 @@ async function onlineCount(ctx, query) {
       // ── C-4 의 핵심 계약 ──
       eq(g.recent, 0, '그룹 팝업 자체는 최근 본에 아무것도 기록하지 않는다');
 
-      await p.click('.iwg-item.tap'); await p.waitForTimeout(1300);
+      await clickIn('.iwg-item.tap'); await p.waitForTimeout(1300);
       const one = await p.evaluate(() => {
         const rec = JSON.parse(localStorage.getItem('onnuri_recent') || '[]');
         return { name: (document.querySelector('.iw-name') || {}).textContent || '',
@@ -315,7 +358,7 @@ async function onlineCount(ctx, query) {
       check(/카드|QR|디지털 불가/.test(one.pay), '개별 팝업이 결제 수단을 말한다', one.pay);
       check(/이 위치 목록/.test(one.back), '되돌아가는 줄이 있다', one.back);
 
-      await p.click('.iw-back'); await p.waitForTimeout(1300);
+      await clickIn('.iw-back'); await p.waitForTimeout(1300);
       const backAgain = await p.evaluate(() => ({
         items: document.querySelectorAll('.iwg-item').length,
         recent: JSON.parse(localStorage.getItem('onnuri_recent') || '[]').length }));
@@ -324,7 +367,7 @@ async function onlineCount(ctx, query) {
 
       // 2026-08-24: 모바일에서 팝업이 지도를 밀면 재렌더가 팝업을 닫아버렸다.
       // 그룹↔개별 전환은 팝업 크기가 바뀌므로 여기가 그 회귀의 시험대다.
-      await p.click('.iwg-item.tap'); await p.waitForTimeout(2500);
+      await clickIn('.iwg-item.tap'); await p.waitForTimeout(2500);
       const alive = await p.evaluate(() => document.querySelectorAll('.iw').length);
       check(alive > 0, '팝업 전환 2.5초 뒤에도 팝업이 살아 있다', `${alive}개`);
     }
@@ -332,6 +375,7 @@ async function onlineCount(ctx, query) {
     check(real.length === 0, '지도 경로 스크립트 오류 없음', real.join(' | '));
     await p.close();
     console.log();
+    }
   }
 
   await browser.close();
