@@ -84,6 +84,30 @@ class ProbeJudgeTest {
         }
     }
 
+    /**
+     * 온누리공공몰이 **없음 문구의 태그 위치를 바꿨다** — 2026-09-05 야간 카나리아가
+     * 이틀 연속(09-04·09-05) `absent 기대=none 실제=unclear` 로 잡았다.
+     *
+     *   옛 마크업: `<strong class="_highlight">0</strong>개의 검색결과`  → 텍스트 `0 개의`
+     *   새 마크업: `<strong class="_highlight">0개</strong>의 검색결과`  → 텍스트 `0개 의`
+     *
+     * `개` 가 태그 안으로 들어가면서 공백이 `개` 앞에서 뒤로 옮겨 갔다. 우리 템플릿은
+     * 리터럴 공백만 `\s*` 로 눅이므로 **템플릿에 없는 자리에 생긴 공백**은 흡수하지 못한다.
+     *
+     * 판정은 안전한 쪽으로 틀어졌다(없는데 '있다'가 아니라 '모르겠다') — 그러나 이 몰은
+     * 이제 무엇을 물어도 '없음'을 말할 수 없고, 그것이 곧 카나리아가 지키는 것이다.
+     * 픽스처는 그날 실측 응답 그대로다(onnuri-gonggong-mall-none-20260905.html).
+     */
+    @Test
+    void 공공몰_없음문구는_태그_위치가_바뀌어도_없음으로_읽힌다() {
+        ProbeTarget t = ProbeTargets.byId("onnuri-gonggong-mall").orElseThrow();
+        for (String fx : List.of("onnuri-gonggong-mall-none.html",              // 옛 마크업
+                                 "onnuri-gonggong-mall-none-20260905.html")) {  // 새 마크업
+            Verdict v = ProbeJudge.judge(t, fixture(fx), ProbeQuery.of("zzqqxyw12345"));
+            assertEquals(Verdict.NONE, v.status(), fx + " 를 '없음'으로 읽지 못했다");
+        }
+    }
+
     @Test
     void 없음_픽스처에서는_상품명_샘플이_나오지_않는다() {
         // 샘플이 나오면 judge 가 likely 로 기울어 "없는데 있다"가 된다 — 가장 위험한 방향.

@@ -137,13 +137,19 @@ public final class ProbeTargets {
                     false, 5, T_MARKET, 0, "김치", 0, MEASURED, ROBOTS),
 
             // robots.txt: 그누보드 계열 다수 Disallow 하나 /shop/search.php 는 목록에 없다
-            // 없음 실측: `'zzqqxyw12345' 에 대한 0 개의 검색결과` — 건수를 명시해 가장 견고하다
+            // 없음 실측: `'zzqqxyw12345' 에 대한 0개 의 검색결과`(2026-09-05 재실측 — 종전 `0 개의`)
+            //   건수를 명시해 가장 견고하다
             // 느리다 — 실측 5.2초, 결과가 많은 질의는 6초를 넘긴다(2026-08-31 게이트에서 타임아웃).
             // 커버리지가 큰 종합몰이라 빼지 않고 이 몰만 예산을 늘린다.
             new ProbeTarget("onnuri-gonggong-mall",
                     "https://www.ongong.kr/shop/search.php?stx={q}",
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
-                    List.of("'{q}' 에 대한 0 개의 검색결과"),
+                    // 2026-09-05: 몰이 마크업을 바꿨다 — `<strong>0</strong>개의` → `<strong>0개</strong>의`.
+                    // 태그가 옮겨 가면서 텍스트의 공백도 `0 개의` → `0개 의` 로 옮겨 갔고, 템플릿은
+                    // **자기가 가진 공백만** `\s*` 로 눅이므로 새 자리의 공백을 흡수하지 못해
+                    // 이 몰이 무엇을 물어도 '없음'을 말할 수 없게 됐다(카나리아가 이틀 연속 적발).
+                    // 쪼개질 수 있는 자리마다 공백을 넣어 **두 마크업을 모두** 받는다.
+                    List.of("'{q}' 에 대한 0 개 의 검색결과"),
                     List.of(),
                     true, 5, T_GONGGONG, 0, "김치", 8000, MEASURED, ROBOTS),
 
