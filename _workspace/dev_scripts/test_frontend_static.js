@@ -206,6 +206,22 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   // CSS 는 규칙 순서가 곧 우선순위다. shell.css 뒤에 와야 셸 토큰을 덮을 수 있다.
   const iShell = m.indexOf('shell.css'), iOwn = m.indexOf('merchants.css');
   check(iShell >= 0 && iOwn > iShell, 'merchants.css 가 shell.css 뒤에 온다(캐스케이드 순서)');
+
+  /* 모듈 스크립트는 **본문 스크립트보다 먼저** 실려야 한다. 본문은 맨 위에서
+     `var SAVED = window.OnnuriSaved || null;` 처럼 손잡이를 한 번 잡는데, 태그가
+     뒤로 밀리면 그 값이 `null` 이 되고 **에러 없이 그 기능만 조용히 죽는다**
+     (대역이 무해하게 만들어져 있어 더 안 보인다). 캐시버스트도 함께 본다 —
+     빠뜨리면 이용자가 옛 파일을 계속 받는다. */
+  const MODULES = ['merchants-pano', 'merchants-split', 'merchants-colresize',
+                   'merchants-saved', 'merchants-brandmodal', 'merchants-infowindow'];
+  const bodyAt = m.indexOf('var PANO = window.OnnuriPano');
+  check(bodyAt > 0, '본문 스크립트가 모듈 손잡이를 잡는다(순서 검사의 기준점)');
+  MODULES.forEach((name) => {
+    const tag = new RegExp('<script src="' + name + '\\.js\\?v=\\d+"></script>');
+    const at = m.search(tag);
+    check(at > 0, `${name}.js 를 캐시버스트와 함께 싣는다`);
+    check(at > 0 && at < bodyAt, `${name}.js 가 본문 스크립트보다 먼저 실린다`);
+  });
   let css = '';
   try { css = rd('merchants.css'); } catch (e) {}
   check(css.length > 5000, 'merchants.css 에 규칙이 들어 있다', `${css.length}자`);
