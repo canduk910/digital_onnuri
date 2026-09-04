@@ -9,7 +9,12 @@
    남아 onOpenSpot 배선을 끊어도 통과한다(변조 실험으로 실제로 걸렸다).
 */
 const { chromium } = require('/Users/koscom/Projects/auto_stock/node_modules/playwright');
-const U='http://localhost:8655/merchants.html?region=%EC%84%9C%EC%9A%B8';
+/* 기본은 로컬(포트 8655 고정 — 네이버 지도 Client ID 가 도메인+포트 허용 목록이라
+   다른 포트는 401). 배포 뒤 **배달된 것**을 재려면 기준 주소를 바꿔 준다:
+     ONNURI_BASE=https://onnuri.koscomlabor.cloud node <이 파일>
+   로컬 통과와 라이브 통과는 다른 질문이다 — 캐시버스트를 빠뜨리면 옛 파일이 나간다. */
+const BASE = process.env.ONNURI_BASE || 'http://localhost:8655';
+const U = BASE + '/merchants.html?region=%EC%84%9C%EC%9A%B8';
 let fail=0;
 /* 감시 시계 — 매달리면 **실패로** 끝나야 한다(변조 실험에서 한 변종이 8분 넘게 매달렸다). */
 const WATCHDOG=setTimeout(()=>{console.log('\nFAIL 시간 초과(150초)');process.exit(1);},150000);

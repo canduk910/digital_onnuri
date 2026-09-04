@@ -5,7 +5,12 @@
    실행: python3 -m http.server 8655 후 node _workspace/dev_scripts/test_infowindow_live.js
    **포트 8655 고정** — 네이버 지도 Client ID 가 도메인+포트 허용 목록이라 다른 포트는 401. */
 const { chromium } = require('/Users/koscom/Projects/auto_stock/node_modules/playwright');
-const U = 'http://localhost:8655/merchants.html?region=%EC%84%9C%EC%9A%B8';
+/* 기본은 로컬(포트 8655 고정 — 네이버 지도 Client ID 가 도메인+포트 허용 목록이라
+   다른 포트는 401). 배포 뒤 **배달된 것**을 재려면 기준 주소를 바꿔 준다:
+     ONNURI_BASE=https://onnuri.koscomlabor.cloud node <이 파일>
+   로컬 통과와 라이브 통과는 다른 질문이다 — 캐시버스트를 빠뜨리면 옛 파일이 나간다. */
+const BASE = process.env.ONNURI_BASE || 'http://localhost:8655';
+const U = BASE + '/merchants.html?region=%EC%84%9C%EC%9A%B8';
 let fail = 0;
 const WATCHDOG = setTimeout(() => { console.log('\nFAIL 시간 초과(180초)'); process.exit(1); }, 180000);
 WATCHDOG.unref && WATCHDOG.unref();
