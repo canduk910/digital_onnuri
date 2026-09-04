@@ -310,8 +310,15 @@
   .bm-empty{ padding:24px 16px; color:var(--text-faint); font-size:13px; text-align:center; }
   .map-note{ font-size:12.5px; color:var(--text-sub); padding:8px 2px 0; line-height:1.5; }
   .map-note b{ color:var(--text); font-weight:650; }
-  .loc-note{ font-size:12.5px; line-height:1.5; padding:4px 2px 0; color:var(--text-sub); }
+  /* 지도 아래 보조 안내 두 줄 — 치수는 한곳에서(따로 두면 조용히 갈린다), 의미는 나눈다. */
+  .loc-note, .street-note{ font-size:12.5px; line-height:1.5; padding:4px 2px 0; color:var(--text-sub); }
   .loc-note.err{ color:#B3540E; font-weight:650; }
+  /* 거리뷰 모드 표시 — 지도가 파란 길로 덮인 이유를 말하는 유일한 문장이다.
+     지도 우상단 .street-btn.on 과 같은 계열 색을 써서 "그 버튼 때문에 이 상태다"를 잇는다.
+     글자색만 쓰고 배경을 채우지 않아 '오렌지는 포인트만' 원칙과 충돌하지 않는다.
+     이 줄이 지도 바로 아래 첫 줄이므로 padding-top 은 .map-note 와 같은 8px. */
+  .street-note{ color:var(--accent-press); padding-top:8px; }
+  .street-note b{ color:var(--accent-press); font-weight:700; }
   /* 네이버 인포윈도우 커스텀 */
   /* 단일 상세 팝업 — 이름+업종 한 줄, 주소, 결제 태그 순의 간격 리듬(그룹 팝업과 동일 규칙) */
   .iw{ font-family:inherit; padding:12px 14px; min-width:200px; max-width:260px; }

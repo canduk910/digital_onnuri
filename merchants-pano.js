@@ -1,37 +1,40 @@
 /* 가맹점 거리뷰 — 네이버 파노라마 (ADR-9 계열 · 2026-09-04 외부화)
  *
- * merchants.html 의 거리뷰 구획 328줄을 **한 줄도 고치지 않고** 옮긴 것이다.
- * 옮기면서 눈에 띈 것을 함께 고치고 싶어지지만(예: #mapNote 공유), 그건 동작 변경이라
- * 회귀가 났을 때 이동 탓인지 수정 탓인지 못 가린다 — 별도 커밋으로 미룬다.
+ * merchants.html 의 거리뷰 구획 328줄을 한 줄도 고치지 않고 옮긴 것이다(2026-09-04).
+ * 그때 "눈에 띄었지만 별도 커밋으로 미룬다"고 적어 둔 지도 안내줄 공유는 **그 다음 커밋에서
+ * 끊었다** — 이 파일은 더 이상 `#mapNote` 를 알지 못한다(아래 계약 `setStreetNote`).
  *
  * ── 계약 ────────────────────────────────────────────────────────────────
- * 바깥에서 필요한 것 5종을 attach 로 주입받는다. `mapObj`·`mapReady` 는 initMap 이
+ * 바깥에서 필요한 것 6종을 attach 로 주입받는다. `mapObj`·`mapReady` 는 initMap 이
  * **나중에** 채우는 값이라 값이 아니라 **게터**로 받는다 — 로드 시점에 붙잡으면 영영 null 이다.
  *
- *   OnnuriPano.attach({ el, esc, getMap, isMapReady, ensureMap })
+ *   OnnuriPano.attach({ el, esc, getMap, isMapReady, ensureMap, setStreetNote })
  *   OnnuriPano.openPano(lat, lng, name)   ← 팝업의 '거리뷰' 버튼
  *   OnnuriPano.closePano()                ← 패널 닫기 버튼
  *   OnnuriPano.toggleStreetMode()         ← 지도 구석 토글
  *   OnnuriPano.initPanoFloat()            ← 패널 이동·크기조절 초기화
  *
+ * 모드 표시는 **`setStreetNote(on)` 로만 말한다** — 이 파일은 그 문장도, 그 줄이 어디
+ * 있는지도 모른다. 문장과 자리는 merchants.html 이 소유한다(`#locNote` 와 같은 형태).
+ *
  * ── 남아 있는 결합 (옮긴다고 사라지지 않는다) ──────────────────────────────
- * ①`#mapNote` 를 거리뷰가 진입 시 저장했다가 나갈 때 되돌린다(panoNoteSaved).
- *   그 사이 지도가 재렌더하면 저장본이 낡는다 — 파일을 나눠 **보이게** 됐을 뿐이다.
+ * ①`#streetBtn` — 이 파일의 `updateStreetBtn` 이 그 클래스·aria-pressed 를 직접 만지고,
+ *   배선(click)은 merchants.html 의 bindControls 가 한다. 지도 구획의 DOM 을 아직 하나 안다.
  * ②SDK URL 의 `&submodules=panorama` 가 merchants.html 에 남는다. 그것이 빠지면
  *   이 파일은 로드되지만 파노라마가 열리지 않는다.
- * ③`#panoClose`·`#streetBtn` 은 merchants.html 의 bindControls 가 배선한다.
+ * ③`#panoClose` 도 merchants.html 의 bindControls 가 배선한다.
  */
 (function () {
   "use strict";
 
   // 주입 대상. attach 전에는 아무 함수도 부르면 안 된다(boot 가 가장 먼저 부른다).
-  var el = null, esc = null, getMap = null, isMapReady = null, ensureMap = null;
+  var el = null, esc = null, getMap = null, isMapReady = null, ensureMap = null, setStreetNote = null;
 
   /* ── 거리뷰 (2026-08-13) — 네이버 공식 panorama 서브모듈, 플로팅 패널(이동·크기조절).
      열려 있는 동안 메인 지도가 '거리뷰 모드': StreetLayer(파란 길) 표시 + 지도 클릭 = 그 지점 거리뷰 이동,
      현재 보는 위치는 지도 위 주황 원(street-spot)으로 동기화. ── */
   var panoObj = null, panoTimer = null;
-  var streetLayer = null, spotMarker = null, streetClickL = null, panoNoteSaved = null;
+  var streetLayer = null, spotMarker = null, streetClickL = null;
   function showNoPano(view) {
     view.innerHTML = '<div class="pano-msg">이 위치 주변에는 거리뷰가 제공되지 않습니다.<br>메인 지도의 파란 길을 눌러 근처 촬영 지점을 선택해 보세요.</div>';
     panoObj = null;
@@ -218,19 +221,16 @@
       });
     }
     updateStreetBtn(true);
-    var note = el("mapNote");
-    if (note) {
-      if (panoNoteSaved == null) panoNoteSaved = note.innerHTML;
-      note.innerHTML = "거리뷰 모드 — 지도의 <b>파란 길</b>을 누르면 그 지점 거리뷰가 열리고, 다시 누르면 이동합니다.";
-    }
+    // 두 번 불릴 수 있다(구석 토글 진입 → 파란 길 클릭 → openPano 가 다시 enterStreetMode).
+    // 같은 문장을 다시 쓸 뿐이라 옛 `panoNoteSaved == null` 가드가 필요 없어졌다.
+    if (setStreetNote) setStreetNote(true);
   }
   function exitStreetMode() {
     if (streetLayer) streetLayer.setMap(null);
     if (spotMarker) spotMarker.setMap(null);
     if (streetClickL) { naver.maps.Event.removeListener(streetClickL); streetClickL = null; }
     updateStreetBtn(false);
-    var note = el("mapNote");
-    if (note && panoNoteSaved != null) { note.innerHTML = panoNoteSaved; panoNoteSaved = null; }
+    if (setStreetNote) setStreetNote(false);
   }
   function toggleStreetMode() {
     if (streetClickL) closePano();   // 모드 중이면 패널까지 닫고 완전 종료(closePano→exitStreetMode)
@@ -359,6 +359,8 @@
   window.OnnuriPano = {
     attach: function (d) {
       el = d.el; esc = d.esc; getMap = d.getMap; isMapReady = d.isMapReady; ensureMap = d.ensureMap;
+      // 없으면 모드 표시만 없고 거리뷰 기능은 산다(옛 merchants.html 이 캐시된 조합 대비).
+      setStreetNote = d.setStreetNote || null;
     },
     openPano: function (lat, lng, name) { return openPano(lat, lng, name); },
     closePano: function () { return closePano(); },

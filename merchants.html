@@ -7,7 +7,7 @@
 <link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">
 <link rel="stylesheet" href="shell.css?v=8">
 <link rel="stylesheet" href="chat-widget.css?v=12">
-<link rel="stylesheet" href="merchants.css?v=1">
+<link rel="stylesheet" href="merchants.css?v=2">
 </head>
 <body>
   <!-- 모바일 상단바 -->
@@ -109,6 +109,15 @@
             <span>내 위치</span>
           </button>
         </div>
+        <!-- 거리뷰 모드 표시 전용 줄 (2026-09-04). 종전에는 이 안내를 아래 #mapNote 에 쓰고
+             진입 시 저장했다가 나갈 때 되돌렸는데, 두 가지가 깨졌다 —
+             ①모드 중에 지도를 확대하면 idle → viewportRender 가 이 자리를 덮어 **안내가 사라진다**
+               (파란 길을 찾으려면 확대는 반드시 하는 동작이다. '지도 범위' 버튼은 확대 없이도 덮는다)
+             ②나갈 때 되돌리는 저장본이 그 사이 낡아, 개별 마커 1,269곳 화면에
+               "29,728곳 클러스터 표시 중"을 복원했다 — 목록 카운트와 어긋난 채 남는다.
+             #locNote 와 같은 처방으로 자기 자리를 준다. 단, 이 줄은 **모드 표시**라
+             자동으로 사라지지 않는다(모드가 꺼질 때까지 남는다). -->
+        <div class="street-note" id="streetNote" hidden></div>
         <div class="map-note" id="mapNote"></div>
         <!-- 2026-09-04: 위치 안내를 mapNote 에 쓰고 있었는데, 성공 경로가 곧바로 morph 를
              일으키고 그 idle 이 viewportRender → renderMap 으로 이어져 **방금 쓴 문장을
@@ -205,7 +214,7 @@
 <script src="shell.js?v=6"></script>
 <script src="chat-widget.js?v=14" defer></script>
 <script src="config.js?v=1"></script>
-<script src="merchants-pano.js?v=1"></script>
+<script src="merchants-pano.js?v=2"></script>
 <script>
 (function () {
   "use strict";
@@ -1591,6 +1600,18 @@
 
 
   /* ── 현재 위치(GPS·Wi‑Fi·기지국 = 브라우저 Geolocation) ── */
+  /* 거리뷰 모드 표시 전용 줄. 거리뷰(merchants-pano.js)는 이 함수만 부르고 문장도 자리도
+     모른다 — 화면에 나가는 한국어 문장을 페이지 쪽에 모아 둔다.
+     locNote 와 달리 **자동으로 사라지지 않는다**. 안내가 아니라 모드가 켜져 있다는 표시라,
+     12초 뒤 증발하면 지도가 왜 파란 길로 덮여 있는지 설명이 없어진다.
+     문구에 <b> 강조가 들어가므로 textContent 가 아니라 innerHTML 이다(리터럴만 담는다). */
+  function setStreetNote(on) {
+    var n = el("streetNote"); if (!n) return;
+    if (!on) { n.hidden = true; n.innerHTML = ""; return; }
+    n.innerHTML = "거리뷰 모드 — 지도의 <b>파란 길</b>을 누르면 그 지점 거리뷰가 열리고, 다시 누르면 이동합니다.";
+    n.hidden = false;
+  }
+
   /* 위치 안내 전용 줄. renderMap 이 mapNote 를 매 렌더 다시 쓰므로 여기 쓴 문장은
      덮이지 않는다. 성공 안내는 잠시 뒤 스스로 사라지고, 실패 안내는 사람이 다시 누를
      때까지 남는다 — 실패를 조용히 지우면 아무 일도 안 일어난 것처럼 보인다. */
@@ -1876,7 +1897,8 @@
     if (PANO) PANO.attach({ el: el, esc: esc,
       getMap: function () { return mapObj; },
       isMapReady: function () { return mapReady; },
-      ensureMap: function () { return initMap(); } });
+      ensureMap: function () { return initMap(); },
+      setStreetNote: setStreetNote });
     initSplit(); initVSplit(); renderSidoTabs(); bindControls();
     updateSvCount();
     // 위치 공유 딥링크(?spot=lat,lng,이름) — 착지 후 그 위치로 이동해 팝업을 연다

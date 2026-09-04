@@ -382,17 +382,45 @@ async function onlineCount(ctx, query) {
         .every((k) => typeof P[k] === 'function');
     }), '거리뷰 계약 5종이 노출된다');
 
-    // 지도 구석 토글 — StreetLayer(파란 길) 진입·이탈
-    await p.click('#streetBtn', { force: true }); await p.waitForTimeout(2500);
-    const st = await p.evaluate(() => ({
+    /* 지도 구석 토글 — StreetLayer(파란 길) 진입·이탈.
+       2026-09-04: 이 안내는 **전용 줄 `#streetNote`** 로 옮겼다. 종전에는 `#mapNote` 를
+       공유하며 진입 시 저장 → 이탈 시 복원했는데 두 가지가 깨졌다(둘 다 재현했다) —
+       ①모드 중에 지도를 확대하면 idle → viewportRender 가 그 자리를 덮어 안내가 사라진다
+       ②이탈 시 되돌리는 저장본이 그 사이 낡아, 개별 마커 화면에 옛 클러스터 문구를 복원한다.
+       아래 두 검사가 정확히 그 둘을 고정한다. */
+    const noteState = () => p.evaluate(() => ({
+      street: (() => { const n = document.getElementById('streetNote');
+                       return n && !n.hidden ? n.textContent.trim() : null; })(),
+      map: ((document.getElementById('mapNote') || {}).textContent || '').trim(),
       on: document.getElementById('streetBtn').classList.contains('on'),
-      pressed: document.getElementById('streetBtn').getAttribute('aria-pressed'),
-      note: ((document.getElementById('mapNote') || {}).textContent || '').slice(0, 40) }));
-    check(st.on && st.pressed === 'true', '거리뷰 토글이 켜진다', JSON.stringify(st));
-    check(/거리뷰|파란/.test(st.note), '거리뷰 모드 안내로 바뀐다', st.note);
-    await p.click('#streetBtn', { force: true }); await p.waitForTimeout(1800);
-    check(!(await p.evaluate(() => document.getElementById('streetBtn').classList.contains('on'))),
-      '다시 누르면 꺼진다');
+    }));
+    const before = await noteState();
+    check(before.street === null, '평소에는 거리뷰 줄이 숨어 있다');
+
+    await p.click('#streetBtn', { force: true }); await p.waitForTimeout(2500);
+    const st = await noteState();
+    check(st.on && /파란 길/.test(st.street || ''), '진입하면 전용 줄에 안내가 뜬다',
+      (st.street || '(없음)').slice(0, 30));
+    check(st.map === before.map, '거리뷰가 지도 안내줄을 건드리지 않는다', st.map.slice(0, 34));
+
+    /* ① 모드 중 지도 재렌더 — 종전에는 여기서 안내가 사라졌다.
+       확대(.cmark 클릭)는 화면에 따라 안내 문장이 안 바뀔 수 있어(개포동 144곳처럼 이미
+       개별 마커인 경우) **재렌더가 일어났는지**를 확증하지 못한다. 업종 칩을 눌러
+       refresh("filter") → renderMap 을 확실히 태우고, 지도 안내가 바뀐 것으로 그것을 증명한다. */
+    const chip = await p.$('#catChips .chip:not(.chip-label):nth-of-type(2)')
+              || await p.$('#catChips .chip');
+    if (chip) { await chip.click({ force: true }); await p.waitForTimeout(3500); }
+    const zoomed = await noteState();
+    check(zoomed.map !== before.map, '재렌더가 실제로 일어났다(지도 안내가 바뀜)',
+      before.map.slice(0, 26) + ' → ' + zoomed.map.slice(0, 26));
+    check(/파란 길/.test(zoomed.street || ''), '재렌더에도 거리뷰 안내가 살아 있다',
+      (zoomed.street || '(사라짐)').slice(0, 30));
+
+    // ② 이탈 — 낡은 저장본이 되살아나면 안 된다.
+    await p.click('#streetBtn', { force: true }); await p.waitForTimeout(2000);
+    const off = await noteState();
+    check(off.street === null && !off.on, '이탈하면 전용 줄이 숨고 버튼도 꺼진다');
+    check(off.map === zoomed.map, '이탈 시 낡은 지도 안내가 복원되지 않는다', off.map.slice(0, 34));
 
     // 팝업의 거리뷰 버튼 → 파노라마 패널
     const pin = await p.$('.pin, .pin-multi');

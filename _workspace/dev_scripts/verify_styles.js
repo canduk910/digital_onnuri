@@ -108,7 +108,12 @@ async function snapshot(dir, label) {
             const par = n.parentElement;
             let i = 0;
             if (par) for (const c of par.children) { if (c === n) break; if (!SKIP.test(c.tagName)) i++; }
-            parts.unshift(n.tagName.toLowerCase() + (n.id ? '#' + n.id : '') + ':' + i);
+            // **id 가 있으면 인덱스를 붙이지 않는다.** 인덱스는 형제 위치라, 요소를 하나
+            // 끼워 넣기만 해도 뒤 형제의 키가 전부 바뀌어 '새 요소' 로 쏟아진다
+            // (2026-09-04 두 번째로 겪었다 — 처음은 <script>, 이번은 숨은 안내줄).
+            // id 는 그 자체가 정체성이므로 위치와 무관하게 같은 것으로 봐야 한다.
+            parts.unshift(n.id ? n.tagName.toLowerCase() + '#' + n.id
+                               : n.tagName.toLowerCase() + ':' + i);
           }
           return parts.join('>');
         };

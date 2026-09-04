@@ -227,6 +227,18 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   check(/getMap\(\)/.test(panoCode) && !/\bmapObj\b/.test(panoCode),
     '지도를 값이 아니라 게터로 받는다(코드 기준)');
   check(/PANO\.attach\(/.test(m), 'merchants.html 이 attach 로 주입한다');
+  // 2026-09-04: 거리뷰가 #mapNote 를 공유하며 저장·복원하던 것을 전용 줄로 끊었다.
+  // 코드에 mapNote 가 다시 나타나면 그 결합이 되살아난 것이다(주석의 설명 문구는 제외).
+  check(!/\bmapNote\b/.test(panoCode), '거리뷰가 지도 안내줄을 알지 못한다(코드 기준)');
+  check(!/panoNoteSaved/.test(panoCode), '저장·복원 변수가 없다');
+  check(/setStreetNote/.test(pano) && /setStreetNote: setStreetNote/.test(m),
+    '모드 표시를 setStreetNote 로 주입받는다');
+  check(/id="streetNote"/.test(m) && /function setStreetNote\(on\)/.test(m),
+    '전용 줄과 그 창구가 merchants.html 에 있다(문장·자리를 페이지가 소유)');
+  // 숨은 기본값 — 평소 화면이 1px 도 움직이지 않는 근거다.
+  check(/id="streetNote" hidden/.test(m), '전용 줄의 기본값은 hidden 이다');
+  check(/\.street-note\{/.test(css) && /\.street-note b\{/.test(css),
+    'street-note 와 그 <b> 강조 규칙이 있다');
   // SDK URL 의 submodules=panorama 가 빠지면 이 파일은 로드되나 파노라마가 안 열린다.
   check(/submodules=panorama/.test(m), 'SDK URL 에 panorama 서브모듈이 있다');
 }
