@@ -43,9 +43,12 @@ def check(cond, label, detail=""):
 
 # ── robots.txt 응답을 흉내 내는 가짜 urlopen ────────────────────────────────
 class _Resp(io.BytesIO):
-    def __init__(self, body, status=200):
+    def __init__(self, body, status=200, url=None):
         super().__init__(body.encode())
         self.status = status
+        # 실제 urlopen 응답은 **리다이렉트를 따라간 최종 주소**를 `url` 로 준다.
+        # 그것을 흉내 내야 "다른 호스트에서 온 것"을 시험할 수 있다.
+        self.url = url
 
     def __enter__(self):
         return self
@@ -57,9 +60,10 @@ class _Resp(io.BytesIO):
 class FakeNet:
     """열린 robots.txt 를 흉내 내고 **누가 몇 번 두드렸는지** 센다."""
 
-    def __init__(self, bodies=None, codes=None):
+    def __init__(self, bodies=None, codes=None, finals=None):
         self.bodies = bodies or {}
         self.codes = codes or {}
+        self.finals = finals or {}          # host → 리다이렉트가 실제로 닿은 주소
         self.calls = []
 
     def __call__(self, req, timeout=None):
@@ -68,7 +72,8 @@ class FakeNet:
         self.calls.append(host)
         if host in self.codes:
             raise urllib.error.HTTPError(url, self.codes[host], "err", None, None)
-        return _Resp(self.bodies.get(host, "User-agent: *\nAllow: /\n"))
+        final = self.finals.get(host, url)      # 리다이렉트 최종 주소(기본은 요청 그대로)
+        return _Resp(self.bodies.get(host, "User-agent: *\nAllow: /\n"), url=final)
 
 
 def with_net(net, fn):
@@ -271,6 +276,27 @@ check(with_net(net410, lambda: nu._robots_scan(["a.com"]))["a.com"]["blocked_all
 net_blocked = FakeNet(bodies={"a.com": "User-agent: *\nDisallow: /\n"})
 check(with_net(net_blocked, lambda: nu._robots_scan(["a.com"]))["a.com"]["blocked_all"] is True,
       "`Disallow: /` 한 줄이면 전면 차단")
+
+# 2026-09-05: **다른 호스트에서 온 것은 그 몰의 robots.txt 가 아니다.**
+# 앱 쪽에서 실측으로 걸렸다 — 현대이지웰이 점검에 들어가며 robots.txt 요청을 다른
+# 도메인의 HTML 안내 페이지로 302 보냈고, 그것을 robots 로 파싱해 '허용'이라 적고 있었다.
+# 배치 스캐너도 urlopen 이 리다이렉트를 따라가므로 같은 함정이 있다. 관측 실패로 남긴다 —
+# '금지 없음'으로도 '전면 차단'으로도 적지 않는다(ADR-21: 모르는 것을 어느 쪽으로도 세지 않는다).
+net_moved = FakeNet(bodies={"a.com": "<!DOCTYPE html><html><title>점검 안내</title></html>"},
+                    finals={"a.com": "https://maint.other.com/index.html"})
+r_moved = with_net(net_moved, lambda: nu._robots_scan(["a.com"]))["a.com"]
+check(r_moved.get("error") is not None,
+      "robots 가 다른 호스트에서 오면 관측 실패로 남긴다", str(r_moved))
+check("blocked_all" not in r_moved,
+      "관측 실패를 차단 여부로 적지 않는다", str(r_moved))
+check("other host" in str(r_moved.get("error", "")),
+      "사유가 무슨 일인지 말한다", str(r_moved.get("error")))
+# 같은 호스트 안에서 경로만 바뀌는 리다이렉트는 흔하다 — 그것까지 막으면 고장이다.
+net_same = FakeNet(bodies={"a.com": "User-agent: *\nDisallow: /\n"},
+                   finals={"a.com": "https://a.com/robots.txt?v=2"})
+r_same = with_net(net_same, lambda: nu._robots_scan(["a.com"]))["a.com"]
+check(r_same.get("blocked_all") is True and r_same.get("error") is None,
+      "같은 호스트 안의 경로 이동은 그대로 읽는다", str(r_same))
 
 print("(f) 어제와 비교 — 기준선은 손으로 적는 상수가 아니다")
 now = nu._probe_robots_from_app(live_report())

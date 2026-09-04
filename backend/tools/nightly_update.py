@@ -740,6 +740,18 @@ def _robots_scan(hosts):
             req = urllib.request.Request(url, headers={"User-Agent": UA})
             with urllib.request.urlopen(req, timeout=10) as r:
                 body = r.read(20000).decode("utf-8", "replace")
+                final = getattr(r, "url", None) or url
+            # **다른 호스트에서 온 것은 그 몰의 robots.txt 가 아니다.** urlopen 은
+            # 리다이렉트를 따라가므로 200 이라고 그 몰의 파일인 것은 아니다 —
+            # 2026-09-05 현대이지웰이 점검에 들어가며 robots.txt 요청을 다른 도메인의
+            # **HTML 안내 페이지**로 보냈고, 앱은 그것을 robots 로 파싱해 '허용'이라
+            # 적고 있었다(같은 날 앱 쪽 가드로 잡았다). 배치도 같은 함정에 있다.
+            # 관측 실패로 남긴다 — '금지 없음'으로도 '전면 차단'으로도 적지 않는다.
+            fh = final.split("//", 1)[-1].split("/", 1)[0]
+            if fh != host:
+                out[host] = {"status": getattr(r, "status", None),
+                             "error": f"redirect to other host: {fh}"[:120]}
+                continue
             # `Disallow: /` 한 줄(뒤에 경로가 더 없는 것)이 전면 차단이다.
             blocked = any(re.fullmatch(r"disallow:\s*/\s*", ln.strip(), re.I)
                           for ln in body.splitlines())
