@@ -47,7 +47,21 @@ NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chro
 
 # index 빌드 산출물 (D-F1) — index.html 을 재생성했으면
 python3 _workspace/dev_scripts/verify_build.py
+
+# 렌더된 스타일·기하 전수 대조 — **CSS·레이아웃을 만졌으면 이것도**
+NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chrome \
+  node _workspace/dev_scripts/verify_styles.js guard HEAD
+#   --page=online.html 로 다른 페이지도. `noise` 는 도구 자체의 잡음 측정(큰 작업 전 1회).
 ```
+
+**CSS 를 옮기거나 규칙 순서를 건드렸으면 `verify_styles.js guard` 를 반드시 돌려라.**
+캐스케이드가 통째로 걸린 변경은 기능 테스트로 안 잡힌다 — 곳 수도 맞고 클릭도 되는데
+어떤 요소의 여백 하나가 달라져 있을 수 있고 **에러가 나지 않는다**. 이 도구는 PC·모바일
+두 뷰포트에서 렌더된 모든 요소(1,737개)의 기하 + 계산된 속성 43종을 대조한다.
+실측: `font-size` 를 **0.4px** 바꾸니 1,118건이 걸렸다.
+
+`guard` 는 지정한 커밋을 임시 워크트리로 꺼내 **같은 도구로** 기준선을 새로 찍는다.
+옛 JSON 을 재활용하면 안 된다 — 도구를 고치는 순간 비교가 성립하지 않는다.
 
 앞의 다섯은 `tools-ci` 워크플로가 자동으로 돌린다. **렌더 층과 `verify_build.py` 는 CI 밖이다** —
 렌더는 playwright 설치가 필요하고, `verify_build.py` 는 gitignore 된 원본 번들을 읽어 신선한
