@@ -105,9 +105,16 @@
      헤더에만 짧은 세로선을 살짝 표시해 열 경계를 암시한다. */
   .table-scroll th:not(:last-child)::after { content:""; position:absolute; right:0; top:30%; bottom:30%; width:1px; background:var(--border-2); }
   th { position:relative; padding:11px 16px; text-align:left; font-size:10.5px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); background:var(--surface); border-bottom:1px solid var(--border); white-space:nowrap; }
-  /* 컬럼 폭 드래그 그립 — 헤더 우측 경계 */
-  .col-grip { position:absolute; top:0; right:-5px; bottom:0; width:10px; cursor:col-resize; z-index:3; touch-action:none; }
-  .col-grip::after { content:""; position:absolute; top:20%; bottom:20%; left:4px; width:2px; border-radius:2px; background:transparent; transition:background .15s ease; }
+  /* 컬럼 폭 드래그 그립 — 헤더 우측 경계
+     2026-09-05: 종전에는 `right:-5px` 로 경계에 걸쳐 뒀는데 **오른쪽 절반이 잡히지 않았다.**
+     `thead th` 가 각각 `position:sticky; z-index:2` 라 th 마다 스택 컨텍스트가 생기고,
+     뒤 열의 th 가 앞 열의 **자식 전체**(z-index:3 인 이 그립 포함)를 덮기 때문이다 —
+     형제 스택 컨텍스트 사이에서는 자식의 z-index 가 소용없다.
+     실측: `elementFromPoint` 로 재면 왼쪽 4px 만 `.col-grip`, 5px 부터는 `TH`.
+     그립을 열 **안쪽**으로 들여 겹침 자체를 없앤다 — 잡히는 폭이 ~4px → 10px 이 된다.
+     표시선(::after)은 오른쪽 끝에 두어 경계에 그대로 남는다. */
+  .col-grip { position:absolute; top:0; right:0; bottom:0; width:10px; cursor:col-resize; z-index:3; touch-action:none; }
+  .col-grip::after { content:""; position:absolute; top:20%; bottom:20%; right:0; width:2px; border-radius:2px; background:transparent; transition:background .15s ease; }
   .col-grip:hover::after, .col-grip.dragging::after { background:var(--accent); }
   /* 폭 고정(table-layout:fixed) 시 셀 내용 말줄임 — 표가 깨지지 않게 */
   table[style*="fixed"] td, table[style*="fixed"] th { overflow:hidden; text-overflow:ellipsis; }

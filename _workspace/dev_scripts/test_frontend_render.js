@@ -562,8 +562,21 @@ async function onlineCount(ctx, query) {
     if (grip) {
       const gb = await grip.boundingBox();
       const gy = gb.y + gb.height / 2;
-      await p.mouse.move(gb.x + 2, gy); await p.mouse.down();
-      await p.mouse.move(gb.x + 82, gy, { steps: 8 }); await p.mouse.up();
+      // 손잡이 **전 폭**이 실제로 잡히는지. 2026-09-05 전에는 `right:-5px` 로 경계에 걸쳐 있어
+      // 오른쪽 절반이 다음 열 th(sticky, 형제 스택 컨텍스트)에 덮여 잡히지 않았다.
+      const hits = await p.evaluate((b) => {
+        const out = [];
+        for (let dx = 1; dx < b.w; dx += 2) {
+          const e = document.elementFromPoint(b.x + dx, b.y + b.h / 2);
+          out.push(e && e.classList.contains('col-grip'));
+        }
+        return out;
+      }, { x: gb.x, y: gb.y, w: gb.width, h: gb.height });
+      check(hits.length >= 4 && hits.every(Boolean),
+        '손잡이 전 폭이 잡힌다(다음 열 th 에 덮이지 않는다)', hits.length + '점 중 ' + hits.filter(Boolean).length);
+      // 드래그도 **가운데**에서 건다 — 수정 전에는 여기가 죽은 자리였다.
+      await p.mouse.move(gb.x + gb.width / 2, gy); await p.mouse.down();
+      await p.mouse.move(gb.x + gb.width / 2 + 80, gy, { steps: 8 }); await p.mouse.up();
       await p.waitForTimeout(700);
       const c1 = await cw();
       check(c1.ls !== null, '열을 끌면 폭이 저장된다', String(c1.ls).slice(0, 30));
@@ -576,7 +589,7 @@ async function onlineCount(ctx, query) {
         '표를 다시 그려도 폭이 유지된다(render 가 게터를 읽는다)');
       // 초기화 — onReset 콜백이 표를 다시 그려야 폭 지정이 사라진다.
       const g2 = await p.$('.col-grip'); const gb2 = await g2.boundingBox();
-      await p.mouse.dblclick(gb2.x + 2, gb2.y + gb2.height / 2); await p.waitForTimeout(900);
+      await p.mouse.dblclick(gb2.x + gb2.width / 2, gb2.y + gb2.height / 2); await p.waitForTimeout(900);
       const c3 = await cw();
       check(c3.ls === null && c3.cols.length === 0,
         '더블클릭이 저장을 지우고 onReset 이 표를 다시 그린다', JSON.stringify(c3.cols));

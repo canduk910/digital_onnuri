@@ -302,6 +302,11 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   check(/var COL_W = COLR \? COLR\.widths\(\) : null;/.test(mCode),
     'render 가 폭을 렌더 시점에 게터로 읽는다(코드 기준)');
   check(/onReset/.test(m) && /onReset/.test(colrCode), '초기화가 콜백으로 표를 다시 그린다');
+  // 손잡이는 열 **안쪽**에 있어야 한다. `right:-5px` 로 경계에 걸치면 다음 열 th 가
+  // (각 th 가 sticky 라 형제 스택 컨텍스트다) 오른쪽 절반을 덮어 **잡히지 않는다** —
+  // 2026-09-05 실측: elementFromPoint 로 재면 왼쪽 4px 만 `.col-grip`, 5px 부터는 `TH`.
+  check(/\.col-grip \{[^}]*right:0;/.test(rd('merchants.css')),
+    '컬럼 손잡이가 열 안쪽에 있다(right:0 — 경계에 걸치지 않는다)');
 }
 
 console.log();
