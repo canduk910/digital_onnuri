@@ -1,6 +1,12 @@
 .idea/
 .DS_Store
 *.bak-*
+# 예외: index.html 의 **원본 번들**. build_index.py 가 이것을 읽어 index.html 을 만들고
+# (18·82행), verify_build.py 가 이것과 대조해 "산출물이 원본에서 388행만 갈아끼운 것"임을
+# 확인한다(7·21행). 즉 이 파일이 없으면 index.html 을 **재생성할 수도, 검증할 수도 없다** —
+# CI 가 D-F1 을 못 돌리던 이유가 이것이었다(신선한 체크아웃에서 FileNotFoundError 로 즉사).
+# 저장소가 2.5 MB 늘지만 한 번 넣으면 다시 바뀌지 않는 불변 파일이다.
+!index.html.bak-20260806
 _workspace/raw/
 .playwright-mcp/
 *.png
