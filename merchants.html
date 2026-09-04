@@ -218,6 +218,7 @@
 <script src="merchants-colresize.js?v=1"></script>
 <script src="merchants-saved.js?v=1"></script>
 <script src="merchants-brandmodal.js?v=1"></script>
+<script src="merchants-infowindow.js?v=1"></script>
 <script>
 (function () {
   "use strict";
@@ -937,7 +938,7 @@
   // 뷰포트 자동 지도(2026-08-12): 지도는 항상 "필터 ∩ 현재 화면"을 스스로 판단해
   // 3,000곳 이하면 개별 도트, 초과면 클러스터를 그린다. 별도 모드·버튼 없음.
   var viewportTimer = null, viewportSeq = 0, SKIP_IDLE_ONCE = false, listByMapTimer = null;
-  var popupOpenedAt = 0;         // 마지막으로 팝업을 연 시각 — clearMarkers 가 방금 연 팝업을 지키는 기준
+  // 팝업을 연 시각은 팝업 모듈이 갖는다(IW.openedAt) — 값을 복제하면 둘이 갈라진다.
   var POPUP_GRACE_MS = 1500;     // 팝업이 민 지도의 재렌더는 400ms 뒤에 온다 — 그보다 넉넉히 잡는다
   // '이 지도 범위로 목록 보기' 토글. 켜면 리스트가 현재 지도 화면 bounds로 스코프되고, 지도 이동 시 따라 갱신된다.
   function toggleListByMap() {
@@ -1058,7 +1059,7 @@
     // 방금 연 팝업이 사라졌다. KEEP_INFO_ONCE면 그 1회(=morph 직후 재렌더)만 팝업을 유지한다.
     if (infoWin) {
       if (KEEP_INFO_ONCE) KEEP_INFO_ONCE = false;
-      else if (Date.now() - popupOpenedAt < POPUP_GRACE_MS) { /* 방금 연 팝업 — 팝업 자신이 민 지도 때문에 닫지 않는다 */ }
+      else if (IW && Date.now() - IW.openedAt() < POPUP_GRACE_MS) { /* 방금 연 팝업 — 팝업 자신이 민 지도 때문에 닫지 않는다 */ }
       else infoWin.close();
     }
   }
@@ -1068,154 +1069,15 @@
       size: new naver.maps.Size(40, 40), anchor: new naver.maps.Point(20, 20) };
   }
 
-  // 네이버 지도 링크 — 장소 보기(이름+주소 검색)·길찾기(목적지 좌표+이름). 좌표·주소는 데이터에 이미 있다.
-  // 앱 설치 시 앱으로, 아니면 웹으로 열린다(라벨엔 '앱' 단정 금지 — guide-content-style).
-  function naverPlaceUrl(r) {
-    var q = ((r.name || "") + " " + (r.addr || "")).trim();
-    return "https://map.naver.com/p/search/" + encodeURIComponent(q);
-  }
-  function naverDirUrl(r) {
-    if (!r.lat || !r.lng) return null;
-    return "https://map.naver.com/p/directions/-/" + r.lng + "," + r.lat + ","
-      + encodeURIComponent(r.name || "") + "/-/transit";
-  }
-  // InfoWindow는 내부 클릭 전파를 막아 document 위임이 닿지 않는다 — 팝업을 연 직후 직접 바인딩.
-  function wirePanoBtns() {
-    Array.prototype.forEach.call(document.querySelectorAll(".iw-act-pano"), function (b) {
-      if (b.__wired) return; b.__wired = true;
-      b.addEventListener("click", function () {
-        if (PANO) PANO.openPano(parseFloat(b.getAttribute("data-lat")), parseFloat(b.getAttribute("data-lng")), b.getAttribute("data-name"));
-      });
-    });
-  }
-
-  function mapActions(r) {
-    var html = '<div class="iw-actions">'
-      + '<a class="iw-act" href="' + naverPlaceUrl(r) + '" target="_blank" rel="noopener">네이버 지도</a>';
-    if (r.lat && r.lng) {
-      html += '<button type="button" class="iw-act iw-act-pano" data-lat="' + r.lat + '" data-lng="' + r.lng
-        + '" data-name="' + esc(r.name || "") + '">거리뷰</button>';
-    }
-    var dir = naverDirUrl(r);
-    if (dir) html += '<a class="iw-act iw-act-dir" href="' + dir + '" target="_blank" rel="noopener">길찾기</a>';
-    return html + '</div>';
-  }
-
-  /**
-   * 결제 수단 태그. **창구를 하나로 둔다** — 표·개별 팝업·그룹 팝업이 각각 조건을 쓰다가
-   * 팝업 두 곳만 "둘 다 N 이면 결제 줄을 통째로 생략"하고 있었다(2026-09-03 적발).
-   * 결제가 안 되는 곳에서 결제에 관해 **아무 말도 안 하는 것**이 가장 나쁜 침묵이다.
-   * card·qr 은 공식 API 가 늘 Y/N 을 주므로 "모름" 상태는 존재하지 않는다.
-   */
-  function payTags(r, cls) {
-    var p = cls || "";
-    var t = "";
-    if (r.card === "Y") t += '<span class="' + p + 'card">카드</span>';
-    if (r.qr === "Y") t += '<span class="' + p + 'qr">QR</span>';
-    if (t) return t;
-    // 2026-09-04: "둘 다 N = 디지털 불가" 는 **공식 API 가 준 행에서만** 참이다.
-    // 그런데 이 파일 안에서 openInfo 에 card·qr 이 아예 없는 객체를 넘기는 경로가 있었고
-    // (리스트 행 클릭이 만들던 합성 객체, 그리고 그때 저장된 옛 '최근 본' 스냅샷),
-    // 그 경우 값이 undefined 라 여기 폴백에 걸려 **결제되는 가맹점을 지류 전용이라 단정**했다.
-    // 호출부는 고쳤지만(아래 wireRowMap), 이미 저장된 스냅샷은 되돌릴 수 없다.
-    // 모르는 것과 안 되는 것을 가른다 — 모르면서 안 된다고 말하는 쪽이 더 나쁘다.
-    if (r.card !== "N" && r.qr !== "N") {
-      return '<span class="' + p + 'none" title="저장된 기록에 결제 수단이 없어 확인하지 못했습니다 — 목록에서 이 가맹점을 다시 찾아보세요">결제 수단 미확인</span>';
-    }
-    return '<span class="' + p + 'none" title="공식 목록 기준 카드형·모바일형(QR) 결제가 되지 않는 곳입니다 — 지류(종이) 상품권만 받습니다">디지털 불가 · 지류만</span>';
-  }
-
-  /* 팝업 컨텍스트. 데이터 속성에는 객체를 실을 수 없으므로(인덱스만 실린다) 지금 열려 있는
-     그룹을 코드가 들고 있는다. 그룹 팝업↔개별 팝업을 오가는 두 방향이 같은 배열을 본다. */
-  var IWG = { anchor: null, group: null };
-
-  /**
-   * 개별 팝업. `backGroup` 이 있으면 그룹 목록으로 돌아가는 줄이 맨 위에 붙는다.
-   *
-   * **최근 본 기록의 유일한 창구가 이 함수다**(recordRecent 호출부는 여기 한 곳뿐이다).
-   * 그래서 그룹 항목 클릭을 이 함수로 보내면 기록 규칙을 새로 쓸 필요가 없고,
-   * 그룹 팝업 자체는 계속 아무것도 기록하지 않는다 — 사용자 결정(2026-09-04)이
-   * "그룹 팝업에서는 개별 가맹점을 조회할 때만 등록" 이었다.
-   */
-  function openInfo(anchor, r, backGroup) {
-    recordRecent(r);   // 최근 본 기록(이 브라우저에만, 최대 10)
-    IWG = { anchor: anchor, group: backGroup || null };
-    var pay = payTags(r);
-    var back = backGroup
-      ? '<button type="button" class="iw-back">‹ 이 위치 목록 ' + backGroup.length + '곳</button>'
-      : "";
-    var html = '<div class="iw">' + back + '<div class="iw-name">' + esc(r.name) + '</div>'
-      + '<div class="iw-cat">' + esc(catLabel(r.cat)) + (r.brand === SSM_BRAND ? " · SSM" : "") + '</div>'
-      + '<div class="iw-addr">' + esc(r.addr || "") + (r.market ? " · " + esc(r.market) : "") + '</div>'
-      + '<div class="iw-pay">' + pay + '</div>'
-      + mapActions(r) + '</div>';
-    openInfoWindow(html, (anchor instanceof naver.maps.Marker) ? anchor : new naver.maps.LatLng(r.lat, r.lng));
-  }
-
-  // 동일좌표(같은 건물) 여러 가맹점 — 그 위치의 전체 목록 팝업(온누리 '선택 위치 가맹점'과 동일 UX).
-  function openGroupInfo(anchor, group) {
-    IWG = { anchor: anchor, group: group };
-    var items = group.map(function (r, i) {
-      var pay = payTags(r);
-      // data-i 는 group 배열의 자리뿐이다. 이름·좌표를 마크업에 싣지 않는다 —
-      // DOM 텍스트에서 되읽으면 2026-08-24 의 '☆·태그가 이름에 섞인' 결함이 되살아난다.
-      return '<div class="iwg-item tap" role="button" tabindex="0" data-i="' + i + '">'
-        + '<div class="iwg-l"><div class="iwg-name">' + esc(r.name) + '</div>'
-        + '<div class="iwg-cat">' + esc(catLabel(r.cat)) + (r.brand === SSM_BRAND ? " · SSM" : "") + '</div></div>'
-        + '<div class="iw-pay">' + pay + '</div><div class="iwg-go" aria-hidden="true">›</div></div>';
-    }).join("");
-    // 그룹은 좌표·주소가 동일하므로 지도/길찾기 링크는 상단에 한 세트만(개별 항목엔 중복 안 함).
-    // 곳 수는 **현재 필터를 통과한 수**다(drawPins 가 SNAP.mapPins 를 그룹핑한다) — 그 주소의
-    // 전부가 아니다. 부분만 보여줄 땐 그렇다고 말한다는 원칙에 따라 제목에 밝힌다.
-    var html = '<div class="iw iwg"><div class="iwg-head">이 위치 가맹점 <b>' + group.length + '곳</b>'
-      + '<span class="iwg-scope" title="지금 켜 둔 업종·브랜드·검색 조건을 통과한 곳만 셉니다">현재 조건 기준</span></div>'
-      + '<div class="iwg-addr">' + esc(group[0].addr || "") + '</div>'
-      + mapActions(group[0])
-      + '<div class="iwg-list">' + items + '</div></div>';
-    // 되돌아가는 시점에는 마커가 이미 지워졌을 수 있다 — openInfo 와 같게 정규화한다.
-    openInfoWindow(html, (anchor instanceof naver.maps.Marker) ? anchor
-      : new naver.maps.LatLng(group[0].lat, group[0].lng));
-  }
-
-  /* 그룹 항목·되돌아가기 배선. wirePanoBtns 와 같은 패턴 —
-     InfoWindow 는 내부 클릭 전파를 막아 document 위임이 닿지 않으므로 직접 바인딩하고,
-     __wired 가드로 같은 노드에 두 번 걸리지 않게 한다. */
-  function wireIwgItems() {
-    Array.prototype.forEach.call(document.querySelectorAll(".iwg-item[data-i]"), function (it) {
-      if (it.__wired) return; it.__wired = true;
-      function go() {
-        var g = IWG.group; if (!g) return;
-        var r = g[parseInt(it.getAttribute("data-i"), 10)];
-        if (r) openInfo(IWG.anchor, r, g);   // ← 여기서만 최근 본에 남는다
-      }
-      it.addEventListener("click", go);
-      it.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
-      });
-    });
-    Array.prototype.forEach.call(document.querySelectorAll(".iw-back"), function (b) {
-      if (b.__wired) return; b.__wired = true;
-      b.addEventListener("click", function () {
-        if (IWG.group) openGroupInfo(IWG.anchor, IWG.group);
-      });
-    });
-  }
-
-  /* 팝업 열기 창구 — 여는 경로(개별·그룹)가 모두 같은 보호를 받게 한다.
-     모바일은 지도(≈388px)에 견줘 팝업이 커서(그룹 12곳이면 347px) SDK 가 지도를 자동으로
-     민다. 그 pan 이 idle → 400ms 뒤 viewportRender → clearMarkers 로 이어져 방금 연 팝업을
-     닫아버렸다(PC 는 지도가 780px 라 pan 이 없어 멀쩡했다 — 대조 실측).
-
-     idle 자체를 건너뛰는 방식은 쓰지 않는다. 팝업 뒤에 오는 첫 idle 이 팝업 pan 이 아닐 수
-     있어서다 — 딥링크 착지는 morph 로 지도를 옮긴 뒤 팝업을 여는데, 그 morph 의 idle 을
-     먹어버리면 마커가 아예 그려지지 않는다(실제로 그렇게 깨졌다).
-     그래서 재렌더는 그대로 두고, **방금 연 팝업만** 닫지 않는다. */
-  function openInfoWindow(html, anchor) {
-    popupOpenedAt = Date.now();
-    infoWin.setContent(html);
-    infoWin.open(mapObj, anchor);
-    setTimeout(function () { wirePanoBtns(); wireIwgItems(); }, 0);
-  }
+  /* ── 지도 상세 팝업 ──
+     2026-09-05: 148줄을 merchants-infowindow.js 로 외부화했다. 여기서는 계약만 쓴다 —
+     `OnnuriInfoWindow.attach()` 로 esc·업종라벨·SSM 상수와 지도 게터 둘, 그리고 콜백
+     둘(최근 본 기록·거리뷰)을 주입하고(boot), openInfo·openGroup·payTags·openedAt 을 부른다.
+     **팝업이 저장·거리뷰를 알지 않게** 그 둘은 여기서 연결한다. */
+  var IW = window.OnnuriInfoWindow || null;
+  function openInfo(anchor, r, backGroup) { if (IW) IW.openInfo(anchor, r, backGroup); }
+  function openGroupInfo(anchor, group) { if (IW) IW.openGroup(anchor, group); }
+  function payTags(r, cls) { return IW ? IW.payTags(r, cls) : ""; }
 
   function renderMap() {
     var note = el("mapNote");
@@ -1650,6 +1512,13 @@
       getBrand: function () { return state.brand; },
       getScopeLabel: brandScopeLabel,
       onPick: pickBrand });
+    /* 상세 팝업 — 지도는 게터로, 저장(최근 본)과 거리뷰는 콜백으로 잇는다.
+       팝업 모듈이 그 둘을 직접 알면 셋 중 하나를 고칠 때마다 나머지를 봐야 한다. */
+    if (IW) IW.attach({ esc: esc, catLabel: catLabel, ssmBrand: SSM_BRAND,
+      getMap: function () { return mapObj; },
+      getInfoWin: function () { return infoWin; },
+      onOpen: recordRecent,
+      onPano: function (lat, lng, name) { if (PANO) PANO.openPano(lat, lng, name); } });
     renderSidoTabs(); bindControls();
     updateSvCount();
     // 위치 공유 딥링크(?spot=lat,lng,이름) — 착지 후 그 위치로 이동해 팝업을 연다

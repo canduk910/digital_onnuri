@@ -45,7 +45,7 @@ console.log('(a) 캐시버스트 — 한 자산은 모든 페이지에서 같은
 {
   const ASSETS = ['shell.css', 'shell.js', 'chat-widget.css', 'chat-widget.js',
                   'config.js', 'online-source.js', 'online-probe.js',
-                  'merchants.css', 'merchants-pano.js', 'merchants-split.js', 'merchants-saved.js', 'merchants-brandmodal.js',
+                  'merchants.css', 'merchants-pano.js', 'merchants-split.js', 'merchants-saved.js', 'merchants-brandmodal.js', 'merchants-infowindow.js',
                   'merchants-colresize.js', 'favicon.svg'];
   ASSETS.forEach((a) => {
     const seen = {};   // 버전 → 그 버전을 쓰는 페이지들
@@ -338,6 +338,24 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   // 내야 하는 자리라 팝업이 갖고 있으면 규칙이 갈라진다.
   check(/function brandsForCat\(cat\) \{/.test(mCode) && /fetchBrands: brandsForCat/.test(mCode),
     '브랜드 목록 조회는 merchants 에 남아 두 경로가 갈라지지 않는다');
+
+  // 지도 상세 팝업 (2026-09-05 분리)
+  const iw = rd('merchants-infowindow.js');
+  const iwCode = iw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  check(/window\.OnnuriInfoWindow = \{/.test(iw), 'merchants-infowindow.js 가 OnnuriInfoWindow 를 노출한다');
+  ['attach', 'openInfo', 'openGroup', 'payTags', 'openedAt']
+    .forEach((k) => check(new RegExp('\\b' + k + ':').test(iw), `OnnuriInfoWindow 가 ${k} 를 노출한다`));
+  check(!/\b(state|SNAP|refresh|PANO|recordRecent|mapObj)\b/.test(iwCode),
+    '팝업이 허브·저장·거리뷰를 모른다(게터와 콜백만 쓴다)');
+  // 팝업을 연 시각은 **한 곳**에만 둔다. 복제하면 clearMarkers 의 유예 판단과 갈라져
+  // 모바일에서 방금 연 팝업이 닫히던 2026-08-24 결함이 되살아난다.
+  check(!/popupOpenedAt/.test(mCode) && /IW\.openedAt\(\)/.test(mCode),
+    '팝업을 연 시각이 모듈 한 곳에만 있고 바깥은 게터로 읽는다');
+  check(/onOpen: recordRecent/.test(mCode) && /onPano: function/.test(mCode),
+    'merchants 가 최근 본·거리뷰를 콜백으로 잇는다');
+  // 결제 표시는 표·팝업이 **같은 창구**를 써야 한다(2026-09-04 사본 적발).
+  check(/payTags\(r, "pay "\)/.test(mCode) && /payTags: function/.test(iw),
+    '결제 표시 창구가 하나다(표가 모듈의 payTags 를 쓴다)');
   // 손잡이는 열 **안쪽**에 있어야 한다. `right:-5px` 로 경계에 걸치면 다음 열 th 가
   // (각 th 가 sticky 라 형제 스택 컨텍스트다) 오른쪽 절반을 덮어 **잡히지 않는다** —
   // 2026-09-05 실측: elementFromPoint 로 재면 왼쪽 4px 만 `.col-grip`, 5px 부터는 `TH`.
@@ -350,23 +368,30 @@ console.log('(h) merchants — 결제 표시와 최근 본 기록의 창구가 �
 // 2026-09-03 '표·개별 팝업·그룹 팝업이 각각 조건을 쓰다가 팝업 두 곳만 결제 줄을 통째로
 // 생략했다' → payTags 창구 신설. 2026-09-04 '그런데 표는 여전히 자기 사본을 갖고 있었고,
 // 리스트 행 클릭은 card·qr 없는 합성 객체를 넘겨 결제되는 곳을 지류 전용이라 단정했다'.
+/* 2026-09-05: 팝업 층이 merchants-infowindow.js 로 옮겨 갔다. 검사를 **지우지 않고
+   겨냥만 옮긴다** — 지우면 '이관'과 '소실'이 구분되지 않는다(verify_build.py 의 (i)
+   이관 무결성과 같은 원칙). 표 쪽 계약(m)과 팝업 쪽 계약(iwm)을 나눠 본다. */
 {
   const m = HTML['merchants.html'];
-  const tip = (m.match(/공식 목록 기준 카드형/g) || []).length;
-  check(tip === 1, '결제 불가 툴팁 문구가 파일에 한 번만 있다(사본 없음)', `${tip}회`);
-  check(/function payTags\(r, cls\)/.test(m), 'payTags 가 클래스 접두를 받는다(표도 같은 창구)');
-  check(/결제 수단 미확인/.test(m), "payTags 가 '모름'과 '안 됨'을 가른다");
+  const iwm = rd('merchants-infowindow.js');
+  const both = m + '\n' + iwm;
+  const tip = (both.match(/공식 목록 기준 카드형/g) || []).length;
+  check(tip === 1, '결제 불가 툴팁 문구가 저장소에 한 번만 있다(사본 없음)', `${tip}회`);
+  check(/function payTags\(r, cls\)/.test(iwm), 'payTags 가 클래스 접두를 받는다(표도 같은 창구)');
+  check(/결제 수단 미확인/.test(iwm), "payTags 가 '모름'과 '안 됨'을 가른다");
 
   // C-4 계약(2026-09-04 사용자 결정): 그룹 팝업은 스스로 기록하지 않는다.
   // 최근 본 기록의 창구는 openInfo 하나여야 한다 — 여기가 늘면 그룹 통째 기록이 되살아난다.
-  const calls = (m.match(/^\s*recordRecent\(/gm) || []).length;
-  check(calls === 1, 'recordRecent 호출부가 한 곳뿐이다(openInfo)', `${calls}곳`);
-  check(/function openInfo\(anchor, r, backGroup\)/.test(m), 'openInfo 가 되돌아갈 그룹을 받는다');
-  check(/openInfo\(IWG\.anchor, r, g\)/.test(m), '그룹 항목 클릭이 openInfo 로 들어간다');
+  // 분리 후 그 창구는 팝업 모듈의 `onOpen(r)` 한 줄이다.
+  const calls = (iwm.match(/^\s*if \(onOpen\) onOpen\(r\);/gm) || []).length;
+  check(calls === 1, '최근 본 기록 창구가 한 곳뿐이다(openInfo 안)', `${calls}곳`);
+  check(!/recordRecent/.test(iwm), '팝업 모듈이 저장 모듈을 직접 부르지 않는다(콜백을 쓴다)');
+  check(/function openInfo\(anchor, r, backGroup\)/.test(iwm), 'openInfo 가 되돌아갈 그룹을 받는다');
+  check(/openInfo\(IWG\.anchor, r, g\)/.test(iwm), '그룹 항목 클릭이 openInfo 로 들어간다');
   check(/data-ri="' \+ i \+ '" tabindex/.test(m), '결과 표 행이 원본 행 인덱스를 갖는다');
   check(/SNAP\.list && SNAP\.list\[ri\]/.test(m), '행 클릭이 합성 객체가 아니라 원본 행을 넘긴다');
   // InfoWindow 는 내부 클릭 전파를 막아 document 위임이 닿지 않는다(2026-08-13 실측).
-  check(/setTimeout\(function \(\) \{ wirePanoBtns\(\); wireIwgItems\(\); \}, 0\)/.test(m),
+  check(/setTimeout\(function \(\) \{ wirePanoBtns\(\); wireIwgItems\(\); \}, 0\)/.test(iwm),
     '팝업 배선이 openInfoWindow 한 곳에서 함께 돈다');
 }
 
