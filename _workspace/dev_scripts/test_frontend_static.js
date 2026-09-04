@@ -45,7 +45,7 @@ console.log('(a) 캐시버스트 — 한 자산은 모든 페이지에서 같은
 {
   const ASSETS = ['shell.css', 'shell.js', 'chat-widget.css', 'chat-widget.js',
                   'config.js', 'online-source.js', 'online-probe.js',
-                  'merchants.css', 'merchants-pano.js', 'merchants-split.js', 'merchants-saved.js',
+                  'merchants.css', 'merchants-pano.js', 'merchants-split.js', 'merchants-saved.js', 'merchants-brandmodal.js',
                   'merchants-colresize.js', 'favicon.svg'];
   ASSETS.forEach((a) => {
     const seen = {};   // 버전 → 그 버전을 쓰는 페이지들
@@ -320,6 +320,24 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   check(/onOpenSpot: goSpot/.test(mCode), 'merchants 가 지도 이동을 onOpenSpot 으로 넘긴다');
   check(/getRegion: function \(\) \{ return state\.sido; \}/.test(mCode),
     'merchants 가 시도를 게터로 주입한다');
+
+  // 브랜드 검색 팝업 (2026-09-05 분리)
+  const bm = rd('merchants-brandmodal.js');
+  const bmCode = bm.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  check(/window\.OnnuriBrandModal = \{/.test(bm), 'merchants-brandmodal.js 가 OnnuriBrandModal 을 노출한다');
+  ['attach', 'wire', 'open', 'close', 'isOpen']
+    .forEach((k) => check(new RegExp('\\b' + k + ':').test(bm), `OnnuriBrandModal 이 ${k} 를 노출한다`));
+  check(!/\b(state|SNAP|refresh|MODE|apiGet|jsonAllItems|LIST_BY_MAP|multiToggle)\b/.test(bmCode),
+    '브랜드 팝업이 허브·데이터소스를 모른다(게터와 콜백만 쓴다)');
+  // 배선을 모듈이 한다. 종전에는 bindControls 가 `bmState.cat = ...` 로 내부 상태를
+  // 직접 만졌다 — 바깥이 내부를 쓰면 경계가 이름뿐이 된다.
+  check(/if \(BM\) BM\.wire\(\);/.test(mCode) && !/bmState/.test(mCode),
+    'merchants 가 배선을 모듈에 맡기고 내부 상태를 직접 만지지 않는다');
+  check(/onPick: pickBrand/.test(mCode), 'merchants 가 고르기(허브 쓰기)를 onPick 으로 받는다');
+  // 브랜드 목록 조회는 바깥에 남아야 한다 — API 모드와 JSON 폴백이 **같은 답**을
+  // 내야 하는 자리라 팝업이 갖고 있으면 규칙이 갈라진다.
+  check(/function brandsForCat\(cat\) \{/.test(mCode) && /fetchBrands: brandsForCat/.test(mCode),
+    '브랜드 목록 조회는 merchants 에 남아 두 경로가 갈라지지 않는다');
   // 손잡이는 열 **안쪽**에 있어야 한다. `right:-5px` 로 경계에 걸치면 다음 열 th 가
   // (각 th 가 sticky 라 형제 스택 컨텍스트다) 오른쪽 절반을 덮어 **잡히지 않는다** —
   // 2026-09-05 실측: elementFromPoint 로 재면 왼쪽 4px 만 `.col-grip`, 5px 부터는 `TH`.

@@ -217,6 +217,7 @@
 <script src="merchants-split.js?v=1"></script>
 <script src="merchants-colresize.js?v=1"></script>
 <script src="merchants-saved.js?v=1"></script>
+<script src="merchants-brandmodal.js?v=1"></script>
 <script>
 (function () {
   "use strict";
@@ -812,19 +813,17 @@
     mt.innerHTML = h;
   }
 
-  /* ── 브랜드 검색 팝업 ── */
-  var CHO = ["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-  var CHO_ALL = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-  var CHO_BASE = { "ㄲ":"ㄱ","ㄸ":"ㄷ","ㅃ":"ㅂ","ㅆ":"ㅅ","ㅉ":"ㅈ" };
-  var INDEX_KEYS = CHO.concat("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")).concat(["#"]);
-  function initialOf(name) {
-    var ch = (name || "").charAt(0), code = ch.charCodeAt(0);
-    if (code >= 0xAC00 && code <= 0xD7A3) { var c = CHO_ALL[Math.floor((code - 0xAC00) / 588)]; return CHO_BASE[c] || c; }
-    if (/[a-zA-Z]/.test(ch)) return ch.toUpperCase();
-    return "#";
-  }
-  // 팝업용 브랜드 목록 — **전 지역(서울·인천·경기·부산) 기준**. 지역·지도범위·디지털 필터와 무관하게
-  // 전체 리스트에서 집계한다. 선택한 브랜드가 현재 지역에 없으면 결과가 0곳으로 표시되는 것이 정상 동작.
+  /* ── 브랜드 검색 팝업 ──
+     2026-09-05: 112줄을 merchants-brandmodal.js 로 외부화했다. 여기서는 계약만 쓴다 —
+     `OnnuriBrandModal.attach()` 로 el·esc·숫자포맷·업종목록·조회함수와 게터 셋,
+     그리고 고르기 콜백을 주입하고(boot), wire·open·close·isOpen 을 부른다.
+     **허브 쓰기는 여기 남았다**(onPick) — 브랜드 토글·업종 동반 적용·페이지 되돌림·
+     재조회는 전부 필터 상태의 일이라 모듈이 알 필요가 없다. */
+  var BM = window.OnnuriBrandModal || null;
+  function openBrandModal() { if (BM) BM.open(); }
+  function closeBrandModal() { if (BM) BM.close(); }
+  /* 브랜드 목록 조회 — API 모드와 JSON 폴백이 **같은 답**을 내야 하는 자리라
+     팝업이 아니라 여기 둔다(경계면 규칙이 갈라지면 조용히 다른 숫자가 나온다). */
   function brandsForCat(cat) {
     if (MODE === "json") {
       return jsonAllItems().then(function (items) {
@@ -836,93 +835,18 @@
     var p = {}; if (cat !== "전체") p.cat = cat; // region 생략 = 전 지역
     return apiGet("/merchants/facets", p).then(function (d) { return d.brand || []; });
   }
-
-  var bmState = { cat: "전체", list: [], q: "" };
-  function openBrandModal() {
-    bmState.cat = state.cat;
-    bmState.q = "";
-    var qEl = el("bmQ"); if (qEl) qEl.value = "";
-    // 업종 콤보: 현재 업종 반영. 이미 업종이 선택돼 있으면 비활성(변경 제한).
-    var sel = el("bmCat");
-    var oh = '<option value="전체">업종 전체</option>';
-    CAT_ORDER.forEach(function (pair) { oh += '<option value="' + esc(pair[0]) + '"' + (state.cat === pair[0] ? " selected" : "") + ">" + esc(pair[1]) + "</option>"; });
-    sel.innerHTML = oh;
-    sel.value = state.cat;
-    sel.disabled = (state.cat !== "전체");
-    // 안내 문구에 **지금 좁혀질 범위**를 그대로 적는다(2026-09-03 사용자 지적). 종전 문구는
-    // "현재 선택한 지역·지도 범위"를 언급해 팝업 숫자에 그 범위가 반영되는 것처럼 읽혔다 —
-    // 숫자는 전 지역 합산이고 범위는 고른 뒤 목록에만 걸린다. 둘의 관계를 문장이 말해야 한다.
-    var hint = el("bmScopeHint");
-    if (hint) {
-      var scope = LIST_BY_MAP ? "지금 보고 있는 지도 범위"
-        : (state.sido || "선택한 지역") + (state.gu !== "전체" ? " " + state.gu : "") + (state.dong !== "전체" ? " " + state.dong : "");
-      hint.textContent = "숫자는 서울·인천·경기·부산 전체 매장 수입니다. 브랜드를 고르면 " + scope
-        + "의 목록으로 좁혀지고, 그 범위에 없는 브랜드는 0곳이 됩니다.";
-    }
-    el("brandModal").hidden = false;
-    document.body.style.overflow = "hidden";
-    loadBrandModalList();
-    if (qEl) qEl.focus();
+  /* 팝업이 좁혀질 범위를 문장에 그대로 싣는다(2026-09-03 사용자 지적).
+     LIST_BY_MAP·state 는 여기 것이라 문자열만 만들어 넘긴다. */
+  function brandScopeLabel() {
+    return LIST_BY_MAP ? "지금 보고 있는 지도 범위"
+      : (state.sido || "선택한 지역") + (state.gu !== "전체" ? " " + state.gu : "")
+        + (state.dong !== "전체" ? " " + state.dong : "");
   }
-  function closeBrandModal() { el("brandModal").hidden = true; document.body.style.overflow = ""; }
-  function loadBrandModalList() {
-    el("bmList").innerHTML = '<div class="bm-empty">불러오는 중…</div>';
-    brandsForCat(bmState.cat).then(function (list) {
-      bmState.list = list.slice().sort(function (a, b) { return a.key.localeCompare(b.key, "ko"); });
-      renderBrandModal();
-    }).catch(function () { el("bmList").innerHTML = '<div class="bm-empty">브랜드 목록을 불러오지 못했습니다.</div>'; });
-  }
-  function renderBrandModal() {
-    var q = bmState.q.trim().toLowerCase();
-    var rows = q ? bmState.list.filter(function (b) { return b.key.toLowerCase().indexOf(q) !== -1; }) : bmState.list;
-    // 색인: 결과에 존재하는 초성만 활성
-    var present = {}; rows.forEach(function (b) { present[initialOf(b.key)] = true; });
-    var idx = el("bmIndex"); idx.innerHTML = "";
-    INDEX_KEYS.forEach(function (k) {
-      var li = document.createElement("li");
-      li.textContent = k;
-      if (present[k]) { li.onclick = function () { jumpToInitial(k); }; }
-      else li.className = "disabled";
-      idx.appendChild(li);
-    });
-    // 리스트
-    var listEl = el("bmList");
-    if (!rows.length) { listEl.innerHTML = '<div class="bm-empty">' + (q ? '"' + esc(bmState.q) + '"에 해당하는 브랜드가 없습니다.' : "브랜드가 없습니다.") + "</div>"; return; }
-    listEl.innerHTML = "";
-    // 전체(해제)
-    var all = document.createElement("button");
-    all.className = "bm-item" + (state.brand === "전체" ? " active" : "");
-    all.innerHTML = '<span>브랜드 전체(해제)</span>';
-    all.onclick = function () { pickBrand("전체"); };
-    listEl.appendChild(all);
-    var lastInit = null;
-    rows.forEach(function (b) {
-      var ini = initialOf(b.key);
-      if (ini !== lastInit) { var hd = document.createElement("div"); hd.className = "bm-head"; hd.textContent = ini; hd.setAttribute("data-init", ini); listEl.appendChild(hd); lastInit = ini; }
-      var it = document.createElement("button");
-      it.className = "bm-item" + (state.brand === b.key ? " active" : "");
-      it.innerHTML = '<span>' + esc(b.key) + '</span><span class="cnt">' + nf(b.count) + "</span>";
-      it.onclick = function () { pickBrand(b.key); };
-      listEl.appendChild(it);
-    });
-  }
-  function jumpToInitial(k) {
-    var list = el("bmList");
-    var hd = list.querySelector('.bm-head[data-init="' + k + '"]');
-    if (!hd) return;
-    // 함정: .bm-head는 sticky(top:0)라 offsetTop·getBoundingClientRect 모두 '고정된 렌더 위치'를
-    // 반환해(스크롤에 따라 값이 변함) 위로 올라가는 방향에서 어긋난다. 헤더 바로 다음 아이템은
-    // non-sticky라 offsetTop이 정확하므로, 그 값에서 헤더 높이를 빼 헤더 상단으로 이동한다.
-    var item = hd.nextElementSibling;
-    var top = item ? Math.max(0, item.offsetTop - hd.offsetHeight) : hd.offsetTop;
-    list.scrollTo({ top: top, behavior: "smooth" });
-  }
-  function pickBrand(key) {
+  function pickBrand(key, modalCat) {
     state.brand = multiToggle(state.brand, key);   // 팝업에서도 다중 토글(2026-08-12)
     // 팝업에서 업종을 (활성 상태로) 골랐다면 그 업종도 함께 적용.
-    if (!el("bmCat").disabled && bmState.cat !== state.cat) state.cat = bmState.cat;
+    if (modalCat !== null && modalCat !== state.cat) state.cat = modalCat;
     state.page = 1;
-    closeBrandModal();
     refresh("filter");
   }
 
@@ -1675,18 +1599,11 @@
     // 거리뷰 — 플로팅 패널(이동·크기조절). 팝업 버튼 자체는 wirePanoBtns가 직접 바인딩.
     if (PANO) { el("panoClose").addEventListener("click", PANO.closePano); PANO.initPanoFloat(); }
     // 브랜드 검색 팝업 (열기 버튼은 renderBrandChips 가 만들 때 바인딩)
-    el("bmClose").addEventListener("click", closeBrandModal);
-    el("brandModal").addEventListener("click", function (e) { if (e.target.getAttribute("data-close")) closeBrandModal(); });
-    el("bmCat").addEventListener("change", function (e) { bmState.cat = e.target.value; loadBrandModalList(); });
-    var bmqTimer = null;
-    el("bmQ").addEventListener("input", function (e) {
-      bmState.q = e.target.value; clearTimeout(bmqTimer);
-      bmqTimer = setTimeout(renderBrandModal, 120);
-    });
+    if (BM) BM.wire();
     document.addEventListener("keydown", function (e) {
       var t = document.activeElement;
       var typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
-      if (e.key === "Escape" && !el("brandModal").hidden) { closeBrandModal(); return; }
+      if (e.key === "Escape" && BM && BM.isOpen()) { BM.close(); return; }
       if (e.key === "/" && !typing) { e.preventDefault(); el("q").focus(); }
       if (e.key === "Escape" && t === el("q")) resetSearch();
     });
@@ -1725,6 +1642,14 @@
       getRegion: function () { return state.sido; },
       onOpenSpot: goSpot,
       onChange: function () { render(); } });
+    /* 브랜드 팝업 — 필터 상태는 게터로 읽고, 고르는 순간의 허브 쓰기만 콜백으로 받는다. */
+    if (BM) BM.attach({ el: el, esc: esc, fmt: nf,
+      catOrder: function () { return CAT_ORDER; },
+      fetchBrands: brandsForCat,
+      getCat: function () { return state.cat; },
+      getBrand: function () { return state.brand; },
+      getScopeLabel: brandScopeLabel,
+      onPick: pickBrand });
     renderSidoTabs(); bindControls();
     updateSvCount();
     // 위치 공유 딥링크(?spot=lat,lng,이름) — 착지 후 그 위치로 이동해 팝업을 연다

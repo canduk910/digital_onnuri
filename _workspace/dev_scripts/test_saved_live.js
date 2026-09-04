@@ -10,7 +10,10 @@
 */
 const { chromium } = require('/Users/koscom/Projects/auto_stock/node_modules/playwright');
 const U='http://localhost:8655/merchants.html?region=%EC%84%9C%EC%9A%B8';
-let fail=0; const ck=(o,t,d)=>{console.log(`  [${o?'PASS':'FAIL'}] ${t}${d?' — '+d:''}`); if(!o)fail++;};
+let fail=0;
+/* 감시 시계 — 매달리면 **실패로** 끝나야 한다(변조 실험에서 한 변종이 8분 넘게 매달렸다). */
+const WATCHDOG=setTimeout(()=>{console.log('\nFAIL 시간 초과(150초)');process.exit(1);},150000);
+WATCHDOG.unref&&WATCHDOG.unref(); const ck=(o,t,d)=>{console.log(`  [${o?'PASS':'FAIL'}] ${t}${d?' — '+d:''}`); if(!o)fail++;};
 (async()=>{
 const b=await chromium.launch({channel:'chrome'});
 const p=await b.newPage({viewport:{width:1440,height:900}});
@@ -77,5 +80,5 @@ ck(g.closed, '⑬ 항목을 고르면 팝업이 닫힌다');
 ck(g.all.indexOf(other) !== -1, '⑭ 고른 가맹점의 지도 팝업이 열린다(onOpenSpot 배선)', other + ' / ' + g.all.slice(0, 40));
 const real=errs.filter(e=>!/401/.test(e));
 ck(real.length===0,'⑮ 스크립트 오류 없음',real.slice(0,1).join(''));
-console.log(fail?`\n실패 ${fail}건`:`\n전체 통과 (15건)`); await b.close(); process.exit(fail?1:0);
+console.log(fail?`\n실패 ${fail}건`:`\n전체 통과 (15건)`); clearTimeout(WATCHDOG); await b.close(); process.exit(fail?1:0);
 })().catch(e=>{console.log('FAIL',String(e).slice(0,200));process.exit(1);});
