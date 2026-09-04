@@ -225,7 +225,13 @@
   /* 지도 폭: 드래그 스플리터가 --map-w를 갱신(기본 clamp). */
   .result-map{ flex:0 0 var(--map-w, clamp(360px,34vw,460px)); position:sticky; top:16px; min-width:0; }
   /* 드래그 핸들 — PC 전용(모바일 세로 스택에선 숨김) */
-  .split-handle{ flex:0 0 12px; align-self:stretch; position:sticky; top:16px; height:var(--panel-h, calc(100vh - 120px)); min-height:260px;
+  /* 높이를 `--panel-h`(지도 높이)로 못 박고 있었다. 그런데 이 핸들이 옆에 선 열(.result-map)은
+     지도 **아래 안내줄만큼 더 길다** — 평소 45.5px, 거리뷰를 켜면 72.3px, 세 줄이면 95px 짧았다
+     (2026-09-04 실측). 그만큼 핸들 아래쪽에서는 드래그가 잡히지 않는다.
+     `align-self:stretch` 는 이미 있었는데 명시 height 가 그것을 이기고 있었다 — height 를 빼면
+     플렉스 줄의 교차 크기(= 가장 큰 열인 .result-map)까지 자라 두 열과 키가 맞는다.
+     `min-height` 는 그대로 둔다(열이 아주 짧아져도 잡을 곳은 남는다). */
+  .split-handle{ flex:0 0 12px; align-self:stretch; position:sticky; top:16px; min-height:260px;
     display:flex; align-items:center; justify-content:center; cursor:col-resize; border-radius:6px; touch-action:none; user-select:none; }
   .split-handle span{ width:4px; height:44px; border-radius:999px; background:var(--border-2); transition:background .15s ease, height .15s ease; }
   .split-handle:hover span, .split-handle.dragging span{ background:var(--accent); height:64px; }

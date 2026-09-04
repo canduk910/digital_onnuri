@@ -239,6 +239,11 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   check(/id="streetNote" hidden/.test(m), '전용 줄의 기본값은 hidden 이다');
   check(/\.street-note\{/.test(css) && /\.street-note b\{/.test(css),
     'street-note 와 그 <b> 강조 규칙이 있다');
+  // 드래그 핸들은 옆 열(지도 + 안내줄)과 키가 맞아야 한다. height 를 다시 박으면
+  // 안내줄만큼 짧아져 아래쪽에서 안 잡힌다(2026-09-04 실측 45~95px).
+  const sh = (css.match(/\.split-handle\{[^}]*\}/) || [''])[0];
+  check(/align-self:\s*stretch/.test(sh), '핸들이 align-self:stretch 로 열에 맞춘다');
+  check(!/height:\s*var\(--panel-h/.test(sh), '핸들 높이를 지도 높이로 못 박지 않는다');
   /* #mapNote 의 writer 는 **지도 자신에 관한 셋**만 남아야 한다 —
      renderMap · viewportRender · navermap_authFailure.
      거리뷰(전용 줄로 분리)와 위치 권한 오류(locNote 로 이관)가 여기 다시 나타나면

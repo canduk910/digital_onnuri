@@ -443,6 +443,40 @@ async function onlineCount(ctx, query) {
       check(await p.evaluate(() => document.getElementById('panoModal').hidden), '패널이 닫힌다');
     }
 
+    /* ── 리스트↔지도 드래그 핸들 (2026-09-04) ────────────────────────────
+       높이를 `--panel-h`(지도 높이)로 못 박고 있었는데, 이 핸들이 옆에 선 열은 지도
+       **아래 안내줄만큼 더 길다** — 평소 45.5px, 거리뷰를 켜면 72.3px 짧았고 그만큼
+       아래쪽에서 드래그가 잡히지 않았다. `align-self:stretch` 가 살아나도록 height 를
+       뺐다. 안내줄이 늘고 주는 화면이므로 **키가 맞는지**를 계속 본다. */
+    await p.evaluate(() => document.getElementById('map').scrollIntoView({ block: 'start' }));
+    await p.waitForTimeout(1000);
+    const hb = () => p.evaluate(() => {
+      const h = document.querySelector('.split-handle').getBoundingClientRect();
+      const m = document.querySelector('.result-map').getBoundingClientRect();
+      return { hTop: h.top, hBot: h.bottom, hMid: h.left + h.width / 2,
+               hH: Math.round(h.height * 10) / 10, mH: Math.round(m.height * 10) / 10,
+               mapW: Math.round(m.width) };
+    });
+    const h0 = await hb();
+    check(Math.abs(h0.hH - h0.mH) < 1, '드래그 핸들 높이가 지도 열과 같다', `${h0.hH} vs ${h0.mH}`);
+    // 화면에 보이는 부분의 아래쪽 — 수정 전에는 여기가 핸들 밖이었다.
+    const gy = Math.round(h0.hTop + (Math.min(h0.hBot, 896) - h0.hTop) * 0.9);
+    const onHandle = await p.evaluate(([x, y]) => {
+      const e = document.elementFromPoint(x, y);
+      return !!(e && e.closest('.split-handle'));
+    }, [h0.hMid, gy]);
+    check(onHandle, '핸들 아래쪽에서도 실제로 잡힌다');
+    if (onHandle) {
+      await p.mouse.move(h0.hMid, gy); await p.mouse.down();
+      await p.mouse.move(h0.hMid - 120, gy, { steps: 10 }); await p.mouse.up();
+      await p.waitForTimeout(800);
+      const h1 = await hb();
+      check(h1.mapW < h0.mapW - 60, '아래쪽에서 끌어 지도 폭이 줄었다', `${h0.mapW} → ${h1.mapW}`);
+      check(Math.abs(h1.hH - h1.mH) < 1, '드래그 후에도 키가 맞는다', `${h1.hH} vs ${h1.mH}`);
+      await p.dblclick('.split-handle', { force: true }); await p.waitForTimeout(600);
+      check((await hb()).mapW > h1.mapW, '더블클릭으로 초기화된다');
+    }
+
     const real = errs.filter((e) => !/401/.test(e));
     check(real.length === 0, '지도·거리뷰 경로 스크립트 오류 없음', real.join(' | '));
     await p.close();
