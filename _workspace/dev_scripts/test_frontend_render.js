@@ -284,6 +284,29 @@ async function onlineCount(ctx, query) {
     });
     await p.waitForTimeout(2500);
 
+    /* 상한(3,000곳) 초과 경로 — 2026-08-10 에 지도 위 다크 오버레이(`#mapTrunc`)로 알리다가
+       2026-08-12 클러스터 마커로 대체됐고, 그때 **보여주던 코드만 지우고 요소는 남았다**.
+       2026-09-04 에 그 잔재를 치웠다. 안내가 지도 아래 문장으로 나오는지 계속 본다 —
+       "마커가 없다"가 "가맹점이 없다"로 읽히는 것이 이 분기가 존재하는 이유다. */
+    {
+      const t = await ctx.newPage();
+      await t.goto(`${BASE}/merchants.html?region=${encodeURIComponent('서울')}`,
+        { waitUntil: 'domcontentloaded' });
+      await t.waitForTimeout(9000);
+      const tr = await t.evaluate(() => ({
+        el: !!document.getElementById('mapTrunc'),
+        note: ((document.getElementById('mapNote') || {}).textContent || '').trim(),
+        cmark: document.querySelectorAll('.cmark').length,
+        pin: document.querySelectorAll('.pin').length,
+      }));
+      check(!tr.el, '죽은 #mapTrunc 요소가 없다(2026-09-04 정리)');
+      check(/묶음\(클러스터\)/.test(tr.note), '상한 초과 안내가 지도 아래 문장으로 나온다',
+        tr.note.slice(0, 40));
+      check(tr.cmark > 0 && tr.pin === 0, '상한 초과 시 클러스터로만 그린다',
+        `클러스터 ${tr.cmark} · 개별 ${tr.pin}`);
+      await t.close();
+    }
+
     const auth = await p.evaluate(() => !!window.__naverAuthFail);
     check(auth === false, '네이버 지도 인증 통과(포트 8655)');
     const c0 = await p.evaluate(() => ({
