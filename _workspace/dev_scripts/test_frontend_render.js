@@ -540,8 +540,50 @@ async function onlineCount(ctx, query) {
     }));
     check(fired >= 1, 'pagewidthchange 가 지도 resize 를 부른다', fired + '회');
 
+    /* ── 컬럼 폭 리사이저 (2026-09-05 merchants-colresize.js 외부화) ────────
+       **손잡이를 잡는 데 두 가지 함정이 있다(둘 다 이번에 실측으로 알아냈다):**
+       ①손잡이는 10px 인데 `right:-5px` 라 오른쪽 절반이 다음 열의 sticky `th` 에 덮인다.
+         `elementFromPoint` 로 재면 **왼쪽 4px 만** 손잡이다. 가운데를 누르면 th 가 먹는다.
+       ②챗 패널이 기본으로 열려 우하단을 덮는다. 열을 넓히면 손잡이가 그 아래로 들어간다.
+       둘 다 제품의 성질이라(회귀 아님) 테스트가 피해 간다. ①은 별건으로 기록. */
+    await p.evaluate(() => { sessionStorage.setItem('onnuri_chat_closed', '1');
+                             localStorage.removeItem('onnuri_col_w'); });
+    await p.reload({ waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => document.querySelectorAll('.col-grip').length > 0,
+      { timeout: 20000 }).catch(() => {});
+    await p.waitForTimeout(2000);
+    const cw = () => p.evaluate(() => ({
+      cols: [...document.querySelectorAll('#resultArea colgroup col')].map((c) => c.style.width || 'auto'),
+      ls: localStorage.getItem('onnuri_col_w') }));
+    check(await p.evaluate(() => !!window.OnnuriColResize
+      && ['attach', 'wire', 'widths'].every((k) => typeof OnnuriColResize[k] === 'function')),
+      'OnnuriColResize 가 로드되고 계약 3종을 노출한다');
+    const grip = await p.$('.col-grip');
+    if (grip) {
+      const gb = await grip.boundingBox();
+      const gy = gb.y + gb.height / 2;
+      await p.mouse.move(gb.x + 2, gy); await p.mouse.down();
+      await p.mouse.move(gb.x + 82, gy, { steps: 8 }); await p.mouse.up();
+      await p.waitForTimeout(700);
+      const c1 = await cw();
+      check(c1.ls !== null, '열을 끌면 폭이 저장된다', String(c1.ls).slice(0, 30));
+      check(c1.cols.length === 5, 'colgroup 이 고정 폭으로 그려진다', JSON.stringify(c1.cols).slice(0, 56));
+      // 필터를 바꿔 표를 다시 그린다 — render 가 게터를 읽는지 본다.
+      const chip2 = await p.$('#catChips .chip');
+      if (chip2) { await chip2.click({ force: true }); await p.waitForTimeout(3000); }
+      const c2 = await cw();
+      check(JSON.stringify(c2.cols) === JSON.stringify(c1.cols),
+        '표를 다시 그려도 폭이 유지된다(render 가 게터를 읽는다)');
+      // 초기화 — onReset 콜백이 표를 다시 그려야 폭 지정이 사라진다.
+      const g2 = await p.$('.col-grip'); const gb2 = await g2.boundingBox();
+      await p.mouse.dblclick(gb2.x + 2, gb2.y + gb2.height / 2); await p.waitForTimeout(900);
+      const c3 = await cw();
+      check(c3.ls === null && c3.cols.length === 0,
+        '더블클릭이 저장을 지우고 onReset 이 표를 다시 그린다', JSON.stringify(c3.cols));
+    }
+
     const real = errs.filter((e) => !/401/.test(e));
-    check(real.length === 0, '지도·거리뷰·스플리터 경로 스크립트 오류 없음', real.join(' | '));
+    check(real.length === 0, '지도·거리뷰·스플리터·리사이저 경로 스크립트 오류 없음', real.join(' | '));
     await p.close();
     console.log();
     }

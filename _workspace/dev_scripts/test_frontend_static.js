@@ -45,7 +45,8 @@ console.log('(a) 캐시버스트 — 한 자산은 모든 페이지에서 같은
 {
   const ASSETS = ['shell.css', 'shell.js', 'chat-widget.css', 'chat-widget.js',
                   'config.js', 'online-source.js', 'online-probe.js',
-                  'merchants.css', 'merchants-pano.js', 'merchants-split.js', 'favicon.svg'];
+                  'merchants.css', 'merchants-pano.js', 'merchants-split.js',
+                  'merchants-colresize.js', 'favicon.svg'];
   ASSETS.forEach((a) => {
     const seen = {};   // 버전 → 그 버전을 쓰는 페이지들
     PAGES.forEach((p) => {
@@ -283,6 +284,24 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   const initBody = (splitCode.match(/init: function \(\) \{[\s\S]*?\n    \}/) || [''])[0];
   check(/addEventListener\("pagewidthchange"/.test(initBody),
     'pagewidthchange 청취자를 init 안에서 등록한다(attach 이후 보장)');
+
+  // 2026-09-05: 컬럼 폭 리사이저 55줄 외부화(3단계 두 번째 걸음).
+  check(/<script src="merchants-colresize\.js\?v=\d+"><\/script>/.test(m), 'merchants-colresize.js 를 연결한다');
+  check(!/function wireColResize\(/.test(m) && !/var COL_MIN/.test(m),
+    '리사이저 함수·상수가 merchants.html 에 남아 있지 않다(사본 방지)');
+  let colr = '';
+  try { colr = rd('merchants-colresize.js'); } catch (e) {}
+  check(/window\.OnnuriColResize = \{/.test(colr), 'OnnuriColResize 계약을 노출한다');
+  const colrCode = colr.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  check(!/\b(state|SNAP|refresh)\b/.test(colrCode) && !/\brender\(/.test(colrCode),
+    '리사이저가 허브와 render 를 직접 부르지 않는다(onReset 콜백을 쓴다)');
+  // 폭은 드래그 중에 바뀐다. render 가 값으로 붙잡으면 옛 배열을 그린다 —
+  // **에러 없이 폭이 되돌아간 것처럼 보이는** 조용한 실패 모드다.
+  // **코드에서** 게터를 읽어야 한다. 주석에도 `COLR.widths()` 가 나오므로 원문 그대로
+  // 찾으면 render 가 값을 붙잡도록 바뀌어도 통과한다(실측으로 걸렸다).
+  check(/var COL_W = COLR \? COLR\.widths\(\) : null;/.test(mCode),
+    'render 가 폭을 렌더 시점에 게터로 읽는다(코드 기준)');
+  check(/onReset/.test(m) && /onReset/.test(colrCode), '초기화가 콜백으로 표를 다시 그린다');
 }
 
 console.log();
