@@ -45,7 +45,7 @@ console.log('(a) 캐시버스트 — 한 자산은 모든 페이지에서 같은
 {
   const ASSETS = ['shell.css', 'shell.js', 'chat-widget.css', 'chat-widget.js',
                   'config.js', 'online-source.js', 'online-probe.js',
-                  'merchants.css', 'merchants-pano.js', 'merchants-split.js',
+                  'merchants.css', 'merchants-pano.js', 'merchants-split.js', 'merchants-saved.js',
                   'merchants-colresize.js', 'favicon.svg'];
   ASSETS.forEach((a) => {
     const seen = {};   // 버전 → 그 버전을 쓰는 페이지들
@@ -302,6 +302,24 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   check(/var COL_W = COLR \? COLR\.widths\(\) : null;/.test(mCode),
     'render 가 폭을 렌더 시점에 게터로 읽는다(코드 기준)');
   check(/onReset/.test(m) && /onReset/.test(colrCode), '초기화가 콜백으로 표를 다시 그린다');
+
+  // 즐겨찾기·최근 본 (2026-09-05 분리)
+  const saved = rd('merchants-saved.js');
+  const savedCode = saved.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  check(/window\.OnnuriSaved = \{/.test(saved), 'merchants-saved.js 가 OnnuriSaved 를 노출한다');
+  ['attach', 'isFav', 'toggleFav', 'recordRecent', 'updateCount', 'openModal', 'closeModal']
+    .forEach((k) => check(new RegExp('\\b' + k + ':').test(saved), `OnnuriSaved 가 ${k} 를 노출한다`));
+  // **지도를 몰라야 한다.** 팝업 보호 플래그·상세 팝업·지도 객체는 바깥 몫이다 —
+  // 모듈이 그것을 알기 시작하면 다음 사람이 마커까지 여기로 옮긴다.
+  check(!/\b(mapObj|KEEP_INFO_ONCE|openInfo|initMap|naver\.maps)\b/.test(savedCode),
+    '저장 모듈이 지도를 모른다(onOpenSpot 콜백만 쓴다)');
+  check(!/\b(state|SNAP|refresh)\b/.test(savedCode), '저장 모듈이 허브를 건드리지 않는다');
+  // 시도는 **게터**여야 한다. 값으로 붙잡으면 시도를 바꿔도 옛 지역이 스냅샷에 박힌다.
+  check(/getRegion\(\)/.test(savedCode) && !/state\.sido/.test(savedCode),
+    '저장 모듈이 시도를 게터로 받는다');
+  check(/onOpenSpot: goSpot/.test(mCode), 'merchants 가 지도 이동을 onOpenSpot 으로 넘긴다');
+  check(/getRegion: function \(\) \{ return state\.sido; \}/.test(mCode),
+    'merchants 가 시도를 게터로 주입한다');
   // 손잡이는 열 **안쪽**에 있어야 한다. `right:-5px` 로 경계에 걸치면 다음 열 th 가
   // (각 th 가 sticky 라 형제 스택 컨텍스트다) 오른쪽 절반을 덮어 **잡히지 않는다** —
   // 2026-09-05 실측: elementFromPoint 로 재면 왼쪽 4px 만 `.col-grip`, 5px 부터는 `TH`.
