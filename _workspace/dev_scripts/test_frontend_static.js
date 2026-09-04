@@ -239,6 +239,21 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   check(/id="streetNote" hidden/.test(m), '전용 줄의 기본값은 hidden 이다');
   check(/\.street-note\{/.test(css) && /\.street-note b\{/.test(css),
     'street-note 와 그 <b> 강조 규칙이 있다');
+  /* #mapNote 의 writer 는 **지도 자신에 관한 셋**만 남아야 한다 —
+     renderMap · viewportRender · navermap_authFailure.
+     거리뷰(전용 줄로 분리)와 위치 권한 오류(locNote 로 이관)가 여기 다시 나타나면
+     '누가 이 줄의 주인인가'가 도로 흐려진다. 코드에서만 세고 주석은 뺀다. */
+  const mCode = m.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
+                 .replace(/^\s*\/\/.*$/gm, '');
+  // 마크업 정의(`id="mapNote"`) 한 줄은 빼고 **참조**만 센다.
+  const mapNoteRefs = (mCode.match(/\bmapNote\b/g) || []).length
+                    - (mCode.match(/id="mapNote"/g) || []).length;
+  check(mapNoteRefs === 3, 'mapNote 를 참조하는 곳이 셋뿐이다(renderMap·viewportRender·인증실패)',
+    `${mapNoteRefs}곳`);
+  check(!/note\.textContent = "위치 정보를 가져오지 못해/.test(mCode),
+    '위치 권한 오류는 mapNote 가 아니라 locNote 로 간다');
+  check(/setLocNote\("위치 정보를 가져오지 못해/.test(mCode),
+    '정렬 실패 안내가 locNote 창구를 쓴다');
   // SDK URL 의 submodules=panorama 가 빠지면 이 파일은 로드되나 파노라마가 안 열린다.
   check(/submodules=panorama/.test(m), 'SDK URL 에 panorama 서브모듈이 있다');
 }

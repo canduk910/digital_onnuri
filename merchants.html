@@ -1844,7 +1844,12 @@
         getUserPos(function (ok) {
           if (!ok) {
             e.target.value = state.sort;
-            var note = el("mapNote"); if (note) note.textContent = "위치 정보를 가져오지 못해 가까운 순 정렬을 켤 수 없습니다 — 브라우저 위치 권한을 확인하세요.";
+            // 2026-09-04: 이 안내를 mapNote 에 쓰고 있었다. 그 줄은 renderMap·viewportRender 가
+            // 매 렌더 다시 쓰므로, 정렬을 되돌리는 이 경로가 곧바로 refresh 를 태우지 않더라도
+            // 다음 지도 조작 한 번이면 사라진다 — **실패를 알리는 유일한 문장이 조용히 지워진다.**
+            // 위치 권한 오류는 성격상 '내 위치'와 같은 종류라 그 전용 줄(setLocNote)이 맞다.
+            // 실패 안내는 자동으로 사라지지 않는다(사람이 다시 시도할 때까지 남는다).
+            setLocNote("위치 정보를 가져오지 못해 가까운 순 정렬을 켤 수 없습니다 — 브라우저 위치 권한을 확인하세요.", true);
             return;
           }
           state.sort = "dist"; state.page = 1; refresh("page");
