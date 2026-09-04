@@ -32,11 +32,18 @@ python3 _workspace/dev_scripts/test_canary_trend.py    #  27건 · 카나리아 
 # 프론트 (66건) — 브라우저 없이 계약만 본다
 node   _workspace/dev_scripts/test_frontend_static.js  # 캐시버스트·dataVersion·창구·죽은 링크
 
-# 프론트 렌더 (60건) — 브라우저 필요. **커밋 전에 부른다**
+# 프론트 렌더 (78건, 지도 포함) — 브라우저 필요. **커밋 전에 부른다**
 NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chrome \
   node _workspace/dev_scripts/test_frontend_render.js
-#   --only=smoke|online|merchants 로 부분 실행
+#   --only=smoke|online|merchants|map 로 부분 실행
 #   서버는 스크립트가 띄우고 스스로 죽인다. playwright 가 없으면 종료 코드 2로 건너뛴다.
+
+# ※ 오래된 오해 정정(2026-09-04 실측): "네이버 Client ID 가 도메인 제한이라 로컬에서는
+#   지도가 안 뜬다"는 **틀렸다.** 포트 8655 에서는 인증이 통과하고 클러스터 → 개별 마커 →
+#   인포윈도우 → 파노라마까지 전부 동작한다(다른 포트는 401 — 허용 도메인이 포트까지
+#   포함해 등록돼 있다). 앞서 "마커가 안 보인다"고 본 것은 `.cluster` 를 안 센 탓이다 —
+#   drawPins 는 MarkerClustering 에 넘기므로 초기 줌에서는 `.cluster` 만 있다.
+#   지도 검증을 배포 후로 미루지 마라.
 
 # index 빌드 산출물 (D-F1) — index.html 을 재생성했으면
 python3 _workspace/dev_scripts/verify_build.py

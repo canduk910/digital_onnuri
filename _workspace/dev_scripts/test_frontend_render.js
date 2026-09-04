@@ -19,16 +19,24 @@
  *
  * 종료 코드: 0 통과 · 1 실패 · 2 playwright 없어 건너뜀(index_nightly.js 와 같은 규약).
  *
- * **지도는 보지 않는다.** 네이버 Client ID 가 도메인 제한이라 localhost 에서는 401 이고
- * 러너에서도 마찬가지다. 지도 검사를 여기 섞으면 이 테스트가 통째로 못 돌게 된다 —
- * 지도는 배포 후 라이브에서 사람이 본다(--base 로 라이브를 겨눌 수 있게는 해 두었다).
+ * **지도도 본다 — 단, 포트 8655 에서만.**
+ * 이 저장소는 오랫동안 "네이버 Client ID 가 도메인 제한이라 로컬에서는 지도가 안 뜬다"고
+ * 알고 있었는데 **틀렸다**(2026-09-04 실측). 8655 에서는 인증이 통과하고 타일이 뜨며
+ * 클러스터 → 개별 마커 → 인포윈도우 → 파노라마까지 전부 동작한다. 다른 포트는 401 이다 —
+ * 허용 도메인이 포트까지 포함해 등록돼 있는 것으로 보인다. 그래서 PORT 를 바꾸지 마라.
+ *
+ * 앞서 "마커가 안 보인다"고 본 것은 `.cluster` 를 세지 않은 탓이었다. drawPins 는 마커를
+ * 지도에 직접 붙이지 않고 MarkerClustering 에 넘기므로, 초기 fit 줌에서는 `.cluster` 만
+ * 있고 `.pin` 은 0 이다. **클러스터를 한 번 클릭해야 개별 마커가 나온다.**
  */
 'use strict';
 const path = require('path');
 const { spawn } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const PORT = 8655;   // 백엔드 CORS 허용 오리진. 나중에 라이브 API 대조를 여기서 열 수 있다.
+// 8655 는 두 가지 이유로 고정이다 — 백엔드 CORS 허용 오리진이자, **네이버 지도 허용 도메인**.
+// 다른 포트로 바꾸면 지도 절이 통째로 401 이 된다(2026-09-04 실측).
+const PORT = 8655;
 const ARGS = process.argv.slice(2);
 const only = (ARGS.find((a) => a.startsWith('--only=')) || '').split('=')[1] || '';
 const BASE = (ARGS.find((a) => a.startsWith('--base=')) || '').split('=')[1] || `http://127.0.0.1:${PORT}`;
@@ -236,6 +244,92 @@ async function onlineCount(ctx, query) {
     // (팝업 자체는 지도가 필요해 여기서 열 수 없으므로, 원본 행이 넘어가는지를 본다.)
     const real = errs.filter((e) => !/naver|LatLng|authFail|401/i.test(e));
     check(real.length === 0, '가맹점 페이지 스크립트 오류 없음', real.join(' | '));
+    await p.close();
+    console.log();
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  if (!only || only === 'map') {
+    console.log('(e) 지도 — 클러스터에서 마커, 마커에서 팝업까지');
+    // 이 절이 C-4(2026-09-04 사용자 결정)의 계약을 지킨다:
+    //   "그룹 팝업에서는 개별 가맹점을 조회할 때만 최근 본에 등록."
+    // 그룹 팝업은 아무것도 기록하지 않고, 항목을 눌렀을 때만 그 한 곳이 남아야 한다.
+    const p = await ctx.newPage();
+    const errs = [];
+    p.on('pageerror', (e) => errs.push(String(e).slice(0, 120)));
+    // 개포동 — 동일좌표 그룹이 실제로 있는 지역(실측으로 고른 값이다).
+    const q = '?region=' + encodeURIComponent('서울')
+            + '&gu=' + encodeURIComponent('강남구') + '&dong=' + encodeURIComponent('개포동');
+    await p.goto(`${BASE}/merchants.html${q}`, { waitUntil: 'domcontentloaded' });
+    await p.waitForTimeout(9000);
+    await p.evaluate(() => localStorage.removeItem('onnuri_recent'));
+
+    const auth = await p.evaluate(() => !!window.__naverAuthFail);
+    check(auth === false, '네이버 지도 인증 통과(포트 8655)');
+    const c0 = await p.evaluate(() => ({
+      cluster: document.querySelectorAll('.cluster').length,
+      tiles: document.querySelectorAll('#map img').length }));
+    check(c0.cluster > 0 && c0.tiles > 0, '초기 화면에 클러스터와 타일이 있다', JSON.stringify(c0));
+
+    // 2026-08-12: 클러스터 → 개별 마커 전환이 비동기 응답 경합으로 깨진 적이 있다.
+    const cl = await p.$('.cluster');
+    if (cl) { await cl.click(); await p.waitForTimeout(4000); }
+    const c1 = await p.evaluate(() => ({
+      pin: document.querySelectorAll('.pin').length,
+      multi: document.querySelectorAll('.pin-multi').length,
+      cluster: document.querySelectorAll('.cluster').length }));
+    check(c1.pin + c1.multi > 0 && c1.cluster === 0, '클러스터를 누르면 개별 마커로 전환된다',
+      JSON.stringify(c1));
+    // 2026-08-12: 그룹 배지가 '건물 수'가 아니라 '가맹점 수'여야 한다.
+    check(c1.multi > 0, '동일좌표 그룹 마커가 존재한다(그룹 팝업 검사의 전제)', `${c1.multi}개`);
+
+    const gm = await p.$('.pin-multi');
+    if (gm) {
+      await gm.click(); await p.waitForTimeout(1500);
+      const g = await p.evaluate(() => ({
+        items: document.querySelectorAll('.iwg-item').length,
+        tap: document.querySelectorAll('.iwg-item.tap').length,
+        scope: !!document.querySelector('.iwg-scope'),
+        recent: JSON.parse(localStorage.getItem('onnuri_recent') || '[]').length }));
+      check(g.items > 0, '그룹 마커가 위치 목록 팝업을 연다', `${g.items}곳`);
+      eq(g.tap, g.items, '모든 항목이 누를 수 있다');
+      check(g.scope, "곳 수가 현재 필터 기준임을 밝힌다('현재 조건 기준')");
+      // ── C-4 의 핵심 계약 ──
+      eq(g.recent, 0, '그룹 팝업 자체는 최근 본에 아무것도 기록하지 않는다');
+
+      await p.click('.iwg-item.tap'); await p.waitForTimeout(1300);
+      const one = await p.evaluate(() => {
+        const rec = JSON.parse(localStorage.getItem('onnuri_recent') || '[]');
+        return { name: (document.querySelector('.iw-name') || {}).textContent || '',
+                 back: (document.querySelector('.iw-back') || {}).textContent || '',
+                 pay: (document.querySelector('.iw-pay') || {}).textContent || '',
+                 recent: rec.length, r0: rec[0] || null };
+      });
+      check(one.name.length > 0, '항목을 누르면 그 한 곳의 개별 팝업이 열린다', one.name);
+      eq(one.recent, 1, '그때 비로소 최근 본에 한 곳이 남는다');
+      // 2026-09-04: 합성 객체를 넘기면 id·card·qr 이 비어 결제를 거짓으로 그린다.
+      check(!!(one.r0 && one.r0.id), '기록에 id 가 있다(원본 행이 넘어갔다)',
+        one.r0 ? JSON.stringify(one.r0.id) : 'null');
+      check(!!(one.r0 && (one.r0.card === 'Y' || one.r0.card === 'N')),
+        '기록에 결제 수단이 있다(합성 객체가 아니다)', one.r0 ? one.r0.card : 'null');
+      check(/카드|QR|디지털 불가/.test(one.pay), '개별 팝업이 결제 수단을 말한다', one.pay);
+      check(/이 위치 목록/.test(one.back), '되돌아가는 줄이 있다', one.back);
+
+      await p.click('.iw-back'); await p.waitForTimeout(1300);
+      const backAgain = await p.evaluate(() => ({
+        items: document.querySelectorAll('.iwg-item').length,
+        recent: JSON.parse(localStorage.getItem('onnuri_recent') || '[]').length }));
+      eq(backAgain.items, g.items, '되돌아가면 목록이 그대로 복귀한다');
+      eq(backAgain.recent, 1, '되돌아가기는 기록을 만들지 않는다');
+
+      // 2026-08-24: 모바일에서 팝업이 지도를 밀면 재렌더가 팝업을 닫아버렸다.
+      // 그룹↔개별 전환은 팝업 크기가 바뀌므로 여기가 그 회귀의 시험대다.
+      await p.click('.iwg-item.tap'); await p.waitForTimeout(2500);
+      const alive = await p.evaluate(() => document.querySelectorAll('.iw').length);
+      check(alive > 0, '팝업 전환 2.5초 뒤에도 팝업이 살아 있다', `${alive}개`);
+    }
+    const real = errs.filter((e) => !/401/.test(e));
+    check(real.length === 0, '지도 경로 스크립트 오류 없음', real.join(' | '));
     await p.close();
     console.log();
   }
