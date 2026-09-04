@@ -44,6 +44,8 @@
   var REASON = {
     timeout: "응답 지연", "http-error": "응답 오류", busy: "잠시 후 다시",
     "rate-limited": "요청 한도", disabled: "기능 꺼짐",
+    // 리다이렉트를 따라갔더니 다른 몰이었다(점검 안내 등). 그 몰의 응답이 아니라 판정하지 않는다.
+    redirected: "다른 곳으로 연결됨",
     "parse-changed": "페이지 구조가 바뀐 듯",
     // 조회하지 않은 이유(ProbeTargets.exclusionReason). 사유를 대야 링크를 눌러 볼 근거가 된다.
     // 3종 전수(ADR-18) — 예전에는 2종만 적고 나머지를 no-static-search 로 흘려 화면이

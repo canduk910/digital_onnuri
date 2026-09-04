@@ -16,4 +16,6 @@ public record ProbeOutcome(String html, String reason) {
     public static final String BUSY         = "busy";          // 그 몰에 이미 요청이 진행 중
     public static final String RATE_LIMITED = "rate-limited";  // 몰 단위 한도 소진
     public static final String DISABLED     = "disabled";
+    /** 리다이렉트를 따라갔더니 **다른 몰**에 닿았다 — 그 몰의 응답이 아니므로 판정하지 않는다. */
+    public static final String REDIRECTED   = "redirected";
 }

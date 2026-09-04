@@ -143,6 +143,18 @@ public class ProbeFetcher {
                 log.warn("실시간 조회 HTTP {} — {} q={}", resp.statusCode(), t.platformId(), q.normalized());
                 return ProbeOutcome.fail(ProbeOutcome.HTTP_ERROR);
             }
+            /* 우리가 부른 그 몰에서 온 응답인가. 리다이렉트를 따라가므로(NORMAL) 200 이라고
+               그 몰의 검색 응답인 것은 아니다 — 2026-09-05 이지웰이 점검에 들어가며
+               다른 도메인의 안내 페이지로 보냈고, 상품도 없음-문구도 질의어도 없는 그
+               페이지가 `echoesQuery=false` 몰의 "질의어 0회 = 없음" 조건을 완벽히 만족해
+               **있는 질의를 '없음'으로** 판정했다(ADR-17 이 가장 위험하다고 적은 방향).
+               판정 규칙을 정교하게 만들어도 엉뚱한 페이지를 판정하면 소용이 없어 앞에서 막는다. */
+            if (!sameHost(req.uri(), resp.uri())) {
+                log.warn("실시간 조회가 다른 곳으로 넘어갔다 — {} 요청={} 도착={}",
+                        t.platformId(), req.uri().getHost(),
+                        resp.uri() == null ? "(모름)" : resp.uri().getHost());
+                return ProbeOutcome.fail(ProbeOutcome.REDIRECTED);
+            }
             return ProbeOutcome.ok(readCapped(resp.body(), t, maxBytes));
         } catch (java.net.http.HttpTimeoutException e) {
             return ProbeOutcome.fail(ProbeOutcome.TIMEOUT);
@@ -156,6 +168,24 @@ public class ProbeFetcher {
             if (gotGlobal) global.release();
             if (gotOne) one.release();
         }
+    }
+
+    /**
+     * 최종 응답이 **요청한 그 호스트**에서 온 것인가.
+     *
+     * 정확히 같은 호스트를 요구한다 — 2026-09-05 실측에서 조회 대상 18곳 중 17곳이
+     * 요청 호스트에 그대로 머물렀고 벗어난 곳은 점검 중이던 이지웰 하나뿐이었다.
+     * 어떤 몰이 나중에 www→m 처럼 정당하게 옮겨 가면 카나리아가 곧바로 알려 주고,
+     * 그때의 결과는 "확인하지 못했다"이지 "없다"가 아니라 안전한 방향으로 틀어진다.
+     *
+     * 한계: 같은 호스트 안의 점검 페이지는 이 가드로 잡히지 않는다. 그 경우는 여전히
+     * 없음-문구·상품명 패턴·응답 길이 가드에 기댄다.
+     */
+    static boolean sameHost(URI requested, URI actual) {
+        if (requested == null || actual == null) return true;   // 모르는 것을 근거로 실패를 만들지 않는다
+        String a = requested.getHost(), b = actual.getHost();
+        if (a == null || b == null) return true;
+        return a.equalsIgnoreCase(b);
     }
 
     /** 상한까지만 읽고 끊는다. 판정에 필요한 신호는 페이지 앞부분에 다 있다. */
