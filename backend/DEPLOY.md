@@ -77,6 +77,26 @@ curl -sG "$D/api/merchants" --data-urlencode region=서울 --data-urlencode gu=�
 curl -sG "$D/api/merchants" --data-urlencode region=경기 --data-urlencode si=수원시 --data-urlencode gu=팔달구 --data-urlencode size=1 | grep -o '"total":[0-9]*'      # 1241
 ```
 
+### 프론트 배포 직후 라이브 실측 (2026-09-05 신설)
+
+백엔드 회귀 대조와 별개로 **배달된 화면**을 잰다. 로컬에서 통과한 것과 라이브에 나간 것은
+다른 질문이다 — 캐시버스트를 빠뜨리거나 배포에서 파일이 빠지면 **한 조각만 옛것**이 나가고,
+`merchants.html` 은 여섯 조각(CSS·거리뷰·스플리터·리사이저·저장·브랜드팝업·상세팝업)으로
+나뉘어 있어 **하나가 404 여도 나머지는 멀쩡히 돈다**(조용히 반쪽이 된다).
+
+```bash
+export ONNURI_BASE=https://onnuri.koscomlabor.cloud   # 생략하면 로컬 http://localhost:8655
+node _workspace/dev_scripts/test_merchants_smoke.js     # 모듈 6종 로드·표·손잡이·핸들·마커
+node _workspace/dev_scripts/test_saved_live.js          # 즐겨찾기·최근 본·공유 15경로
+node _workspace/dev_scripts/test_brandmodal_live.js     # 브랜드 검색 팝업 14경로
+node _workspace/dev_scripts/test_infowindow_live.js     # 지도 상세 팝업 16경로
+```
+
+- **로컬로 돌릴 때 포트는 8655 고정**이다(`python3 -m http.server 8655`). 네이버 지도
+  Client ID 가 도메인+포트 허용 목록이라 다른 포트는 401 이고 지도가 아예 안 뜬다.
+- Playwright + Chrome 이 필요하다. `NODE_PATH` 로 playwright 위치를 알려 줘야 할 수 있다.
+- 실동작 조회 카나리아(단계 E)는 앱이 스스로 돈다 — 아래 「단계 E」 절 참조.
+
 ## 프론트 연결 (마지막 단계)
 
 `merchants.html`의 `API_BASE`는 **이미 `https://api.koscomlabor.cloud/api`로 설정**돼 있다(비-로컬 호스트에서 사용). 별도 수정 불필요.
