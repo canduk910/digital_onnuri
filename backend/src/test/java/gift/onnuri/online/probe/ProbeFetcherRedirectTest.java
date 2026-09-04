@@ -144,6 +144,29 @@ class ProbeFetcherRedirectTest {
      * `관측 실패: hyundai-ezwel-onnuri — IllegalStateException` 한 줄이 되어
      * 아침에 그 줄을 보는 사람에게 아무것도 알려 주지 못한다(2026-09-05 실제로 겪었다).
      */
+    /**
+     * **배선까지 본다.** 헬퍼만 직접 부르면 호출부를 `getClass().getSimpleName()` 로
+     * 되돌려도 테스트가 통과한다 — 실제로 그렇게 만들었다가 변조 실험에서 걸렸다.
+     * 조회를 실패시키는 수집기를 넣고 리포트에 사유가 실제로 실리는지 본다.
+     */
+    @Test
+    void 리포트에_실패_사유가_실제로_실린다() {
+        ProbeFetcher broken = new ProbeFetcher(
+                new RateLimiter(1000, 10000, java.time.Clock.systemUTC()), true, 3000, 8, 1_000_000) {
+            @Override public String fetchRobots(String host) {
+                throw new IllegalStateException("robots redirect to other host: withus.ezwel.com");
+            }
+        };
+        var checks = new SelfTestService(broken, true).robots();
+        assertFalse(checks.isEmpty(), "조회 대상이 하나도 없다");
+        checks.forEach(c -> {
+            assertNotNull(c.error(), c.platformId() + " 를 못 읽었는데 사유가 비었다");
+            assertTrue(c.error().contains("other host"),
+                    "리포트에 사유가 실리지 않았다(호출부가 클래스 이름만 쓰고 있다): " + c.error());
+            assertFalse(c.allowed(), "못 읽은 것을 허용으로 적었다");
+        });
+    }
+
     @Test
     void 관측_실패_사유가_무슨_일인지_말한다() {
         String d = SelfTestService.describe(

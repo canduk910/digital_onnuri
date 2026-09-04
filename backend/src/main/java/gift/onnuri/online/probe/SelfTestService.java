@@ -135,7 +135,7 @@ public class SelfTestService {
      *
      * 판정 결과로 조회를 끄지 않는다(ADR-17 이 기각한 '조용한 축소'). 리포트와 로그까지다.
      */
-    private List<RobotsCheck> robots() {
+    List<RobotsCheck> robots() {   // 시험에서 부른다(배선까지 보려면 여기를 지나야 한다)
         Map<String, RobotsRules> byHost = new HashMap<>();
         Map<String, String> errByHost = new HashMap<>();
         List<RobotsCheck> out = new ArrayList<>();
