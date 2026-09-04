@@ -1050,9 +1050,16 @@
 
   function probeRun(q) {
     var mount = el("probeArea"), P = window.OnnuriOnlineProbe;
-    // 스켈레톤 단계부터 링크를 노출한다 — 조회가 실패하든 성공하든 이용자는 갈 곳이 있다.
+    /* 스켈레톤 단계부터 링크를 노출한다 — 조회가 실패하든 성공하든 이용자는 갈 곳이 있다.
+       **`url` 도 링크다.** 2026-09-05 사용자 제보: 펜딩 화면에 온누리핫딜까지 16곳만 뜨고
+       롯데ON 이 없었다. 원인은 이 필터가 `search_url_template` 을 "링크가 있는가"의 기준으로
+       쓴 것 — 2026-09-03 에 롯데ON·공영쇼핑의 링크를 몰 전체 검색에서 **전용관 주소**로
+       바꾸며 그 필드를 의도적으로 비웠는데(검색 필터가 주소에 안 실려 온누리 범위 밖
+       상품을 보게 되므로), 조회는 하면서 펜딩에서만 사라졌다.
+       `linkFor()` 가 이미 `template → url` 순으로 고르므로 기준을 거기 맞춘다.
+       덤으로 펜딩과 결과의 행이 같아져 목록이 튀지 않는다. */
     var linkable = PLATFORMS.filter(function (p) {
-      return p.kind !== "delivery" && p.search_url_template;
+      return p.kind !== "delivery" && (p.search_url_template || p.url);
     });
     P.renderRunning(mount, q, linkable);
     P.search(q).then(function (data) {

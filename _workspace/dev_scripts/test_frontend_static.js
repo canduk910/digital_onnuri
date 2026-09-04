@@ -334,6 +334,16 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   check(/getRegion\(\)/.test(savedCode) && !/state\.sido/.test(savedCode),
     '저장 모듈이 시도를 게터로 받는다');
   check(/onOpenSpot: goSpot/.test(mCode), 'merchants 가 지도 이동을 onOpenSpot 으로 넘긴다');
+
+  /* 실시간 조회 펜딩 화면은 **링크가 있는 쇼핑몰 전부**를 보여야 한다.
+     2026-09-05 사용자 제보 — `search_url_template` 만 보다가 롯데ON·공영쇼핑이 빠졌다.
+     그 둘은 2026-09-03 에 링크를 전용관 주소로 바꾸며 템플릿을 의도적으로 비운 곳이라,
+     조회는 하면서 펜딩에서만 사라졌다. 기준은 `linkFor()` 와 같아야 한다. */
+  {
+    const o = HTML['online.html'].replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    check(/p\.kind !== "delivery" && \(p\.search_url_template \|\| p\.url\)/.test(o),
+      '펜딩 목록이 템플릿뿐 아니라 몰 주소도 링크로 친다');
+  }
   check(/getRegion: function \(\) \{ return state\.sido; \}/.test(mCode),
     'merchants 가 시도를 게터로 주입한다');
 
