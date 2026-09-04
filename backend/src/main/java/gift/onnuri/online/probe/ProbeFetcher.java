@@ -94,13 +94,7 @@ public class ProbeFetcher {
                     .header("User-Agent", UA)
                     .GET().build();
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (robotsMissing(resp.statusCode())) return "";
-            if (resp.statusCode() / 100 != 2) {
-                throw new IllegalStateException("HTTP " + resp.statusCode());
-            }
-            String body = resp.body();
-            // robots.txt 는 작은 파일이다. 비정상적으로 크면 그대로 파싱하지 않는다.
-            return body.length() > 200_000 ? body.substring(0, 200_000) : body;
+            return robotsBodyOrThrow(req.uri(), resp.statusCode(), resp.uri(), resp.body());
         } finally {
             if (got) global.release();
         }
@@ -168,6 +162,37 @@ public class ProbeFetcher {
             if (gotGlobal) global.release();
             if (gotOne) one.release();
         }
+    }
+
+    /**
+     * robots 응답을 어떻게 다룰지. **상태·출처·크기 규칙을 한 곳에 모아** 시험 가능하게 둔다.
+     * (`fetchRobots` 는 https 를 고정으로 만들어 로컬 서버로는 잴 수 없어, 판단만 떼어냈다.)
+     *
+     * 세 갈래다:
+     *   - 404·410 → 금지가 없다. 오류가 아니라 **빈 규칙**이다.
+     *   - 그 밖의 비-2xx → 관측 실패. 401·403 은 RFC 가 허용해도 **막는다는 신호**라
+     *     '파일 없음'으로 보지 않는다(ADR-21).
+     *   - 2xx 인데 **다른 호스트에서 왔다** → 그 몰의 robots.txt 가 아니다. 관측 실패.
+     *     2026-09-05 현대이지웰이 점검에 들어가며 `www.onnuri-sijang.com/robots.txt` 를
+     *     다른 도메인의 **HTML 안내 페이지**로 302 보냈고, 우리는 그것을 robots 로 파싱해
+     *     `allowed: true` 로 보고하고 있었다. 마침 실제 규칙과 결과가 같아 눈에 띄지
+     *     않았을 뿐, ADR-21 이 "감시 대상이 조용히 다른 사이트가 되는 것"이라 적은 바로
+     *     그 상태다 — **판정이 우연히 맞는 것은 맞는 것이 아니다.**
+     *
+     * 관측 실패는 '파일 없음'(빈 규칙)으로도 규칙으로도 쓰지 않는다. ADR-21 이 error 를
+     * 차단 집계와 분리해 두었으므로(모르는 것을 차단으로도 허용으로도 세지 않는다)
+     * 리포트에 사유가 그대로 남는다.
+     */
+    static String robotsBodyOrThrow(URI requested, int status, URI finalUri, String body) {
+        if (robotsMissing(status)) return "";
+        if (status / 100 != 2) throw new IllegalStateException("HTTP " + status);
+        if (!sameHost(requested, finalUri)) {
+            throw new IllegalStateException("robots redirect to other host: "
+                    + (finalUri == null ? "(unknown)" : finalUri.getHost()));
+        }
+        // robots.txt 는 작은 파일이다. 비정상적으로 크면 그대로 파싱하지 않는다.
+        if (body == null) return "";
+        return body.length() > 200_000 ? body.substring(0, 200_000) : body;
     }
 
     /**
