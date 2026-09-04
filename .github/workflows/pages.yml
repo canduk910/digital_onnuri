@@ -1,23 +1,88 @@
+# GitHub Pages 배포 (2026-09-05: 게이트 도입)
+#
+# ── 종전에는 게이트가 없었다 ────────────────────────────────────────────────
+# `push: branches:[main]` 하나로 **모든 커밋을 조건 없이 배포**했다. 그래서 tools-ci 가
+# 빨개져도 그 커밋은 이미 라이브였고, tools-ci 머리말이 스스로 "이것은 사후 알림"이라
+# 적고 있었다. 이제 프론트 정적 계약이 통과해야 배포한다.
+#
+# ── 무엇을 게이트로 두었나 ────────────────────────────────────────────────
+# `test_frontend_static.js`(91건) 하나다. **이 페이지들이 실제로 배달하는 것**의 계약을
+# 보기 때문이다 — 캐시버스트 드리프트, dataVersion 뒤처짐, 죽은 링크, 창구(normKind·
+# applyCat·applyBrand) 우회, 결제 표시 사본, 색인 상대 표기 등. 전부 **에러를 내지 않고
+# 조용히 틀리는** 종류라 사람 눈으로는 안 잡힌다.
+#
+# **배치 테스트(채록·색인·robots·카나리아)는 여기 넣지 않았다.** Pages 가 저장소 전체를
+# 올리므로 `backend/tools/*.py` 도 URL 로 서빙되기는 한다(실측: 200). 그러나 그 코드를
+# **실행하는 것은 00:30 서버 배치**이고 그 경로는 Actions 를 지나지 않는다. 여기 묶으면
+# 초록의 뜻이 거짓이 된다 — "배포된 것이 검사됐다"가 아니라 "관계없는 것도 검사했다"가 된다.
+# 그 레인은 tools-ci 가 사후 알림으로 지킨다(그 파일 머리말 참조).
+#
+# ── 외부 의존이 없다 ──────────────────────────────────────────────────────
+# 게이트 잡은 checkout + node 20 + `fs`·`path` 만 쓴다. PyPI·DB·브라우저를 타지 않아
+# 거짓 실패로 배포가 막힐 여지가 작다(psycopg 를 쓰는 배치 테스트를 뺀 이유이기도 하다).
+#
+# ── 급할 때 빠져나가는 길 ─────────────────────────────────────────────────
+# Actions → 이 워크플로 → Run workflow → `skip_checks` 체크.
+# 라이브가 틀린 정보를 말하고 있는데 게이트가 인프라 장애로 못 도는 상황을 위한 것이다.
+# **사유를 커밋이나 이슈에 남길 것** — 검사를 건너뛴 배포가 조용히 쌓이면 게이트가 이름뿐이 된다.
 name: Deploy to GitHub Pages
+
 on:
   push:
     branches: [main]
+    # **경로 조건을 붙이지 마라.** 붙이는 순간 '검사가 도는 커밋'과 '배포되는 커밋'이
+    # 갈라져 원래 문제로 돌아간다(문서만 고친 커밋도 배포는 나가야 한다).
   workflow_dispatch:
+    inputs:
+      skip_checks:
+        description: "검사를 건너뛰고 즉시 배포 (사고 대응 전용 — 사유를 남길 것)"
+        type: boolean
+        default: false
+
 permissions:
   contents: read
   pages: write
   id-token: write
+
 concurrency:
   group: pages
+  # 연속 푸시 때 옛 회차를 취소한다. 게이트가 붙어 런이 길어졌으므로 취소가 잦아질 수 있는데,
+  # 새 커밋을 위해 옛 배포를 접는 것은 Pages 에서 옳은 동작이다(마지막 커밋이 라이브가 된다).
   cancel-in-progress: true
+
 jobs:
+  checks:
+    name: 프론트 정적 계약
+    # push 에서는 inputs 가 null 이라 falsy → 항상 검사한다.
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_checks) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          # cache 를 켜지 마라 — package.json·lock 파일이 없어 액션이 실패한다.
+      # 건수를 잡·스텝 이름에 적지 않는다. tools-ci 가 '66건'이라 적어 두고 실제는 91건이 됐다.
+      - run: node _workspace/dev_scripts/test_frontend_static.js
+
   deploy:
+    needs: [checks]
+    # `needs` 만 쓰면 checks 가 skipped 일 때 deploy 도 함께 스킵된다 —
+    # 그러면 탈출구가 동작하지 않는다. 'success 또는 skipped' 를 명시해야 한다.
+    if: ${{ !cancelled() && (needs.checks.result == 'success' || needs.checks.result == 'skipped') }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Pages 는 저장소 트리를 통째로 올린다. 이용자에게 배달되지 않는 무거운 것은 빼서
+      # 아티팩트를 가볍게 한다. **`index.html.bak-20260806`(4.1MB)** 이 대표적이다 —
+      # 2026-09-05 에 재빌드·검증을 위해 저장소에 넣은 파일이고, 화면이 참조하지 않는다.
+      # (저장소가 공개라 GitHub 에서는 어차피 볼 수 있다. 여기서 빼는 것은 노출 차단이
+      #  아니라 **배포 아티팩트를 줄이는 것**이다.)
+      - name: 배포에 필요 없는 것 제외
+        run: rm -f index.html.bak-20260806
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
