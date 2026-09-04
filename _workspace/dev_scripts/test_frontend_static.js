@@ -45,7 +45,7 @@ console.log('(a) 캐시버스트 — 한 자산은 모든 페이지에서 같은
 {
   const ASSETS = ['shell.css', 'shell.js', 'chat-widget.css', 'chat-widget.js',
                   'config.js', 'online-source.js', 'online-probe.js',
-                  'merchants.css', 'merchants-pano.js', 'favicon.svg'];
+                  'merchants.css', 'merchants-pano.js', 'merchants-split.js', 'favicon.svg'];
   ASSETS.forEach((a) => {
     const seen = {};   // 버전 → 그 버전을 쓰는 페이지들
     PAGES.forEach((p) => {
@@ -261,6 +261,28 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
     '정렬 실패 안내가 locNote 창구를 쓴다');
   // SDK URL 의 submodules=panorama 가 빠지면 이 파일은 로드되나 파노라마가 안 열린다.
   check(/submodules=panorama/.test(m), 'SDK URL 에 panorama 서브모듈이 있다');
+
+  // 2026-09-05: 스플리터 99줄을 merchants-split.js 로 외부화했다(3단계 첫 걸음).
+  check(/<script src="merchants-split\.js\?v=\d+"><\/script>/.test(m), 'merchants-split.js 를 연결한다');
+  const iSplit = m.indexOf('merchants-split.js');
+  check(iSplit >= 0 && iSplit < iInline, 'merchants-split.js 가 인라인 스크립트보다 먼저 온다');
+  check(!/function initSplit\(/.test(m) && !/function notifyMapResize\(/.test(m),
+    '스플리터 함수가 merchants.html 에 남아 있지 않다(사본 방지)');
+  let split = '';
+  try { split = rd('merchants-split.js'); } catch (e) {}
+  check(/window\.OnnuriSplit = \{/.test(split), 'OnnuriSplit 계약을 노출한다');
+  const splitCode = split.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  // 지도는 게터로 — initMap 이 나중에 채우므로 값으로 붙잡으면 영영 null 이다(pano 와 같은 함정).
+  check(/getMap\(\)/.test(splitCode) && !/\bmapObj\b/.test(splitCode),
+    '스플리터가 지도를 게터로 받는다(코드 기준)');
+  // 허브를 건드리지 않는 것이 이 조각을 첫 걸음으로 고른 이유다. 들어오면 전제가 무너진다.
+  check(!/\b(state|SNAP|refresh)\b/.test(splitCode),
+    '스플리터가 state·SNAP·refresh 허브를 건드리지 않는다');
+  // pagewidthchange 청취자는 **init 안**에서 등록해야 한다 — 모듈 평가 시점에 걸면
+  // attach 보다 먼저 발화해 isMapReady 가 null 인 채 불린다.
+  const initBody = (splitCode.match(/init: function \(\) \{[\s\S]*?\n    \}/) || [''])[0];
+  check(/addEventListener\("pagewidthchange"/.test(initBody),
+    'pagewidthchange 청취자를 init 안에서 등록한다(attach 이후 보장)');
 }
 
 console.log();

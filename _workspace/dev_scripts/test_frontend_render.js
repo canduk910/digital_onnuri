@@ -500,8 +500,48 @@ async function onlineCount(ctx, query) {
       check((await hb()).mapW > h1.mapW, '더블클릭으로 초기화된다');
     }
 
+    /* ── 스플리터 (2026-09-05 merchants-split.js 외부화) ────────────────────
+       옮기기 전까지 **이 동작을 덮는 테스트가 하나도 없었다** — 드래그·localStorage·
+       키보드·더블클릭 초기화 어느 것도. 외부화하면서 함께 만든다.
+       `pagewidthchange` 청취자를 모듈 최상위에서 init 안으로 옮긴 것이 이 커밋의
+       유일한 동작 변경이라, 그것이 실제로 등록되는지도 본다. */
+    check(await p.evaluate(() => !!window.OnnuriSplit && typeof OnnuriSplit.init === 'function'),
+      'OnnuriSplit 이 로드되고 계약을 노출한다');
+    await p.evaluate(() => { localStorage.removeItem('onnuri_map_w'); });
+    const mw = () => p.evaluate(() => ({
+      w: Math.round(document.querySelector('.result-map').getBoundingClientRect().width),
+      v: getComputedStyle(document.documentElement).getPropertyValue('--map-w').trim(),
+      ls: localStorage.getItem('onnuri_map_w') }));
+    const sh = await p.$('.split-handle');
+    if (sh) {
+      const sb = await sh.boundingBox();
+      const sy = Math.round(sb.y + Math.min(sb.height, 860 - sb.y) * 0.5);
+      const s0 = await mw();
+      await p.mouse.move(sb.x + sb.width / 2, sy); await p.mouse.down();
+      await p.mouse.move(sb.x + sb.width / 2 - 120, sy, { steps: 10 }); await p.mouse.up();
+      await p.waitForTimeout(700);
+      const s1 = await mw();
+      check(s1.w < s0.w - 60, '스플리터 드래그로 지도 폭이 줄었다', `${s0.w} → ${s1.w}`);
+      check(s1.ls !== null, '폭이 localStorage 에 저장된다', String(s1.ls));
+      await p.focus('.split-handle'); await p.keyboard.press('ArrowRight'); await p.waitForTimeout(500);
+      check((await mw()).w !== s1.w, '←/→ 키로 조절된다');
+      await p.dblclick('.split-handle', { force: true }); await p.waitForTimeout(600);
+      const s2 = await mw();
+      check(s2.v === '' && s2.ls === null, '더블클릭이 변수와 저장을 함께 지운다',
+        JSON.stringify({ v: s2.v, ls: s2.ls }));
+    }
+    // 청취자가 init 안에서 등록됐는지 — 등록이 빠지면 폭 토글에 지도가 반응하지 않는데
+    // **에러가 나지 않는다**(가장 조용한 실패 모드).
+    const fired = await p.evaluate(() => new Promise((r) => {
+      let n = 0; const orig = naver.maps.Event.trigger;
+      naver.maps.Event.trigger = function () { n++; return orig.apply(this, arguments); };
+      window.dispatchEvent(new Event('pagewidthchange'));
+      setTimeout(() => { naver.maps.Event.trigger = orig; r(n); }, 400);
+    }));
+    check(fired >= 1, 'pagewidthchange 가 지도 resize 를 부른다', fired + '회');
+
     const real = errs.filter((e) => !/401/.test(e));
-    check(real.length === 0, '지도·거리뷰 경로 스크립트 오류 없음', real.join(' | '));
+    check(real.length === 0, '지도·거리뷰·스플리터 경로 스크립트 오류 없음', real.join(' | '));
     await p.close();
     console.log();
     }
