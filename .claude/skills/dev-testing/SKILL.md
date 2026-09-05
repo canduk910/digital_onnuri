@@ -19,25 +19,52 @@ description: "개발팀 TDD 워크플로와 검증 절차 — 백엔드 JUnit �
 
 ## 자동 테스트 — 무엇이 어디서 도는가
 
-`./gradlew test` 만으로는 절반이다. 이 저장소에는 자바 밖에 **380건**이 더 있고, 그중 프론트를
-지키는 것이 66건이다. 전부 외부 의존 0(네트워크·DB·브라우저 없음)이라 언제든 부를 수 있다.
+`./gradlew test` 만으로는 절반이다. 자바 밖에도 스위트가 있고, 아래 넷은 외부 의존이
+없어(네트워크·DB·브라우저 없음) 언제든 부를 수 있다.
+
+**건수를 여기에 적어 두지 않는다.** 적으면 낡고, 낡은 건수는 정상을 회귀로 읽게 만든다.
+지금 값이 궁금하면 돌려서 본다 — 각 스위트가 마지막 줄에 스스로 건수를 적는다.
+(2026-09-05 실측: 채록 184 · 색인 58 · robots 75 · 카나리아 27 · 프론트 정적 163)
 
 ```bash
-# 배치·채록 (314건) — 야간 배치와 채록 규칙을 지킨다
-node   _workspace/dev_scripts/test_survey_probe.js     # 158건 · 채록 판정 + 코드↔데이터 사본 일치
-node   _workspace/dev_scripts/test_index_nightly.js    #  58건 · 색인 크롤러
-python3 _workspace/dev_scripts/test_robots_watch.py    #  71건 · robots 감시(urlopen 을 가로챈다)
-python3 _workspace/dev_scripts/test_canary_trend.py    #  27건 · 카나리아 재시도 추세
+# 배치·채록 — 야간 배치와 채록 규칙을 지킨다
+node   _workspace/dev_scripts/test_survey_probe.js     # 채록 판정 + 코드↔데이터 사본 일치
+node   _workspace/dev_scripts/test_index_nightly.js    # 색인 크롤러
+python3 _workspace/dev_scripts/test_robots_watch.py    # robots 감시(urlopen 을 가로챈다)
+python3 _workspace/dev_scripts/test_canary_trend.py    # 카나리아 재시도 추세
 
-# 프론트 (66건) — 브라우저 없이 계약만 본다
+# 프론트 — 브라우저 없이 계약만 본다
 node   _workspace/dev_scripts/test_frontend_static.js  # 캐시버스트·dataVersion·창구·죽은 링크
 
-# 프론트 렌더 (78건, 지도 포함) — 브라우저 필요. **커밋 전에 부른다**
+# 프론트 렌더 (지도 포함) — 브라우저 필요. **커밋 전에 부른다**
 NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chrome \
   node _workspace/dev_scripts/test_frontend_render.js
 #   --only=smoke|online|merchants|map 로 부분 실행
-#   서버는 스크립트가 띄우고 스스로 죽인다. playwright 가 없으면 종료 코드 2로 건너뛴다.
+#   서버는 스크립트가 띄우고 스스로 죽인다.
 
+# merchants 여섯 조각이 다 실린 채로 뜨는가 — 모듈 하나가 404 여도 나머지가 돌기 때문에 본다
+NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chrome \
+  node _workspace/dev_scripts/test_merchants_smoke.js
+#   ONNURI_BASE=https://... 를 주면 배달된 것을 잰다(기본은 로컬 8655 고정)
+```
+
+### 브라우저 스위트는 실패하지 않고 **건너뛴다** — 종료 코드로 판정한다
+
+`NODE_PATH` 를 빼고 부르면 `require('playwright')` 가 실패하고, 렌더와 스모크는
+`playwright 가 없어 … 건너뜁니다` 를 출력한 뒤 **종료 코드 2** 로 끝난다. 실패가 아니다.
+출력에 `FAIL` 이 없으므로 문자열만 보는 판정은 이것을 **통과로 읽는다**.
+
+```bash
+node _workspace/dev_scripts/test_frontend_render.js >/dev/null 2>&1; echo "EXIT=$?"
+#  0 = 통과   1 = 실패   2 = 실행되지 않음(= 확인 안 됨)
+```
+
+`EXIT=2` 는 "이번에 그 층을 확인하지 못했다"는 뜻이다. 통과로 적지 말고, 왜 못 돌렸는지와
+함께 남긴다. 자율 모드(사람이 지켜보지 않는 긴 호흡)에서는 이 구분이 유일한 안전장치다 —
+CI 의 브라우저 잡은 `ONNURI_SKIP_MAP=1` 로 돌기 때문에 **지도 절을 보는 곳은 로컬뿐**이고,
+로컬이 조용히 건너뛰면 지도 회귀는 어디에서도 검사되지 않은 채 라이브로 나간다.
+
+```bash
 # ※ 오래된 오해 정정(2026-09-04 실측): "네이버 Client ID 가 도메인 제한이라 로컬에서는
 #   지도가 안 뜬다"는 **틀렸다.** 포트 8655 에서는 인증이 통과하고 클러스터 → 개별 마커 →
 #   인포윈도우 → 파노라마까지 전부 동작한다(다른 포트는 401 — 허용 도메인이 포트까지
