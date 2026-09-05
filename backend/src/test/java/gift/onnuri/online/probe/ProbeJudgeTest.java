@@ -260,6 +260,36 @@ class ProbeJudgeTest {
                 "실측 없음 응답까지 못 읽게 되면 조인 것이 아니라 부순 것이다");
     }
 
+    /**
+     * **조임의 영향 범위를 숫자로 고정한다.**
+     *
+     * 2026-09-05 에 이 조임을 넣으면서 대상을 "6곳"이라 적었는데 **실제로는 8곳**이었다
+     * (꾹AI·온누리쇼핑을 빠뜨렸다). 그 틀린 숫자가 커밋 메시지·CLAUDE.md·ADR-22·실행 기록
+     * 네 곳에 복제됐다. 명단은 카나리아가 `unclear` 를 울렸을 때 **사람이 어디를 볼지**를
+     * 정하는 값이라, 틀리면 담당자가 '문구 변경'이 아니라 다른 원인을 먼저 판다.
+     *
+     * 손으로 세지 말고 코드가 세게 한다 — 타깃이 늘거나 어느 몰의 문구 사전이 바뀌면
+     * 이 테스트가 먼저 깨져서 문서를 함께 고치게 된다.
+     */
+    @Test
+    void 조임_대상은_문구가_있고_에코하지_않는_몰이다() {
+        List<String> tight = ProbeTargets.ALL.stream()
+                .filter(t -> !t.echoesQuery())
+                .filter(t -> !t.noneMarkersBound().isEmpty() || !t.noneMarkersPlain().isEmpty())
+                .map(ProbeTarget::platformId).toList();
+        List<String> gradeC = ProbeTargets.ALL.stream()
+                .filter(t -> !t.echoesQuery())
+                .filter(t -> t.noneMarkersBound().isEmpty() && t.noneMarkersPlain().isEmpty())
+                .map(ProbeTarget::platformId).toList();
+
+        assertEquals(List.of("onnuri-hotdeal", "epost-mall", "kkuk-ai-onnuri-mall",
+                        "hyundai-ezwel-onnuri", "onnuri-shopping", "genius-mall",
+                        "onnuri-goodday", "inthemarket-onnuri"), tight,
+                "조임 대상이 바뀌었다 — CLAUDE.md·ADR-22·23_backlog 의 명단도 함께 고칠 것");
+        assertEquals(List.of("onnuri-market"), gradeC,
+                "토큰 0 이 유일한 확정 수단인 몰이 바뀌었다 — 그 몰만 조임에서 빠진다");
+    }
+
     @Test
     void 토큰0이_유일한_확정수단인_몰은_그대로_없음을_말한다() {
         // 온누리마켓은 등급 C(문구 사전 없음) + 에코 안 함 — 토큰 0 이 유일한 근거다.

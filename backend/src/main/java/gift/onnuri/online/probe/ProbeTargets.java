@@ -96,8 +96,10 @@ public final class ProbeTargets {
             // echoesQuery=false 로 정정(2026-09-03) — 1단계에 true 로 둔 것은 이 몰이
             // 질의를 되뿌린다고 본 것인데, 그 에코는 전부 **에코 블록 안**(제목·검색창)이라
             // 판정이 보는 본문(stripEcho)에는 남지 않는다. 카나리아 기준을 규칙과 맞추자 드러났다.
-            // 등급 A 문구가 먼저 확정하므로 판정은 그대로이고, 문구가 깨졌을 때만
-            // 토큰 0 판정이 unclear 대신 none(medium) 을 낸다 — 안전한 방향이다.
+            // 등급 A 문구가 먼저 확정하므로 판정은 그대로다.
+            // ⚠ 2026-09-05 정정: 종전 주석은 "문구가 깨졌을 때만 토큰 0 판정이 unclear 대신
+            //   none(medium) 을 낸다"고 적었으나 **그 폴백은 조임(ADR-22)으로 없어졌다.**
+            //   이 몰은 문구 사전을 가지므로 문구가 깨지면 unclear 가 되고 카나리아가 알린다.
             new ProbeTarget("onnuri-hotdeal",
                     "https://onnurideal.com/search?q={q}",
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
@@ -130,6 +132,8 @@ public final class ProbeTargets {
             //   "적립금은 현금으로 환급될 수 없습니다", "고의ㆍ과실이 없음을 입증한 경우"
             //   페이지 전체에 문자열 매칭하면 항상 '없음'이 된다 → 등급 C 로 비운다.
             // 대신 이 몰은 질의를 에코하지 않아(echoesQuery=false) 토큰 0 판정을 쓸 수 있다.
+            // **이 문장은 2026-09-05 조임 뒤에도 참인 유일한 자리다** — 조임은 "문구 사전을
+            // 가진 몰"만 막고, 이 몰은 등급 C(사전 없음)라 토큰 0 이 유일한 확정 수단으로 남는다.
             new ProbeTarget("onnuri-market",
                     "https://nurimarket.co.kr/shop/search_product.php?sq={q}",
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
@@ -184,7 +188,9 @@ public final class ProbeTargets {
                     List.of("등록된 상품이 없습니다"),
                     // echoesQuery=false — 검색어가 href·input value 에는 박히지만 **화면 텍스트로는
                     // 되뿌리지 않는다**(카나리아가 선언 true 와 실측 false 의 차이를 잡아 정정).
-                    // 덕분에 토큰 0 판정을 쓸 수 있어 '없다'를 확정할 수단이 하나 더 있다.
+                    // ⚠ 2026-09-05 정정: 종전 주석은 "덕분에 토큰 0 판정을 쓸 수 있어 '없다'를
+                    //   확정할 수단이 하나 더 있다"고 적었으나 **조임(ADR-22)으로 없어졌다.**
+                    //   이 몰은 문구 사전을 가지므로 문구가 깨지면 unclear 가 된다.
                     false, 5, T_KKUK, 0, "김치", 0, MEASURED, LocalDate.of(2026, 9, 1)),
 
             // ── 2026-09-02 추가: 화면에서 결과가 만들어지던 몰의 **내부 검색 API** 를 쓴다 ──
@@ -196,7 +202,9 @@ public final class ProbeTargets {
             // robots.txt: `User-agent: Yeti / Allow: /` 만 있고 `*` 그룹이 없다 = 제약 없음
             // ⚠ searchTerm 은 **두 번 인코딩**해야 한다({qq}) — 한 번만 하면 0건이 온다.
             // 없음 실측: `"resultDocuments":[]` (있는 질의에는 나오지 않음을 대조 확인) → 등급 B
-            // echoesQuery=false — 없는 질의 응답(316자)에 질의어가 전혀 없다. 토큰 0 판정도 쓸 수 있다.
+            // echoesQuery=false — 없는 질의 응답(316자)에 질의어가 전혀 없다.
+            // ⚠ 2026-09-05 정정: 종전 주석은 "토큰 0 판정도 쓸 수 있다"고 적었으나 **조임으로
+            //   없어졌다**(ADR-22 — 이 몰의 점검 페이지 오판이 그 조임을 유발했다).
             // 실측: 김치 totalSize 891 · 로봇청소기 28 · 없는 말 0
             new ProbeTarget("hyundai-ezwel-onnuri",
                     "https://www.onnuri-sijang.com/onnuri/main/searchList"
@@ -232,7 +240,8 @@ public final class ProbeTargets {
                     List.of("검색된 상품이 없습니다"),
                     // echoesQuery=false — 검색어가 <input value> 와 JS 변수에만 있어 stripEcho 후
                     // 텍스트에는 남지 않는다(카나리아가 선언 true 와 실측 false 의 차이를 잡았다).
-                    // 덕분에 토큰 0 판정도 함께 쓸 수 있다.
+                    // ⚠ 2026-09-05 정정: 종전 주석은 "덕분에 토큰 0 판정도 함께 쓸 수 있다"고
+                    //   적었으나 **조임(ADR-22)으로 없어졌다.** 문구가 깨지면 unclear 가 된다.
                     false, 5, T_SHOPPING, 0, "김치", 0, MEASURED, LocalDate.of(2026, 9, 2)),
 
             // 지니어스몰 — 2026-09-02 승격. 앞서 "검색 기능 자체가 없다"고 본 것이 **틀렸다.**
@@ -248,7 +257,9 @@ public final class ProbeTargets {
             //   대고 하므로 사전에는 그 형태(`총 0 개…`)로 적는다. 질의 비의존형 → 등급 B.
             //   **있음 응답에는 이 문구가 없다**(대조 확인 — 건수가 12로 찍힌다).
             // echoesQuery=false — 없는 질의가 원문에 1회 있으나 검색창 <input value> 라
-            //   stripEcho 후 토큰 0이다. 문구가 깨져도 토큰 0 판정이 '없다'를 받쳐 준다.
+            //   stripEcho 후 토큰 0이다.
+            // ⚠ 2026-09-05 정정: 종전 주석은 "문구가 깨져도 토큰 0 판정이 '없다'를 받쳐 준다"고
+            //   적었으나 **그 받침은 조임(ADR-22)으로 없어졌다.** 문구가 깨지면 unclear 가 된다.
             // 가전 전문몰이라 카나리아 present 질의는 김치가 아니라 로봇청소기다(김치 0건).
             new ProbeTarget("genius-mall",
                     "https://luxurysystem.co.kr/product/product.html?search={q}",
