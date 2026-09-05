@@ -50,6 +50,13 @@ NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chro
   node _workspace/dev_scripts/test_merchants_smoke.js
 kill %1
 #   ONNURI_BASE=https://... 를 주면 배달된 것을 잰다(그때는 로컬 서버가 필요 없다)
+
+# 지도 범위 모드 — **서버 연결 모드에서만 존재하는 기능**이라 따로 잰다
+NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chrome \
+  node _workspace/dev_scripts/test_boundsmode_live.js
+#   로컬에서는 config.js 를 가로채 라이브 API 를 가리키게 한다(로컬 기본값은 localhost:8080 이라
+#   프로브가 실패하고 JSON 폴백이 되며, 그러면 boundsBtn 이 숨어 이 경로에 닿지 못한다).
+#   외부 의존이 있으므로 test_frontend_render.js 에 넣지 않았다 — 그쪽은 의존 0 이 계약이다.
 ```
 
 ### 브라우저 스위트는 실패하지 않고 **건너뛴다** — 종료 코드로 판정한다

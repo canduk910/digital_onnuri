@@ -561,7 +561,13 @@
   // API 4콜을 apiQuery/jsonQuery 공통 정규화 형태로 래핑.
   function apiQuery(scope) {
     // "facet" = 리스트+집계만. 지도는 같은 idle 에서 viewportRender 가 이미 그리므로 다시 받지 않고,
-    // 지역 총계(regionTotal)는 지역 축이 안 바뀌었으니 유지한다 — 지도 이동마다 4콜을 다 쏘지 않기 위함.
+    // 지역 총계(regionTotal)도 다시 받지 않는다 — 지도 이동마다 4콜을 다 쏘지 않기 위함.
+    // ⚠ 2026-09-06 정정: 종전 주석은 "지역 축이 안 바뀌었으니 유지한다"였는데 그 전제가 깨졌다.
+    //   "facet" 의 유일한 호출자(:1015)가 `LIST_BY_MAP && MODE === "api"` 이고, 2026-09-05 에
+    //   bounds 가 지역을 **대체**하게 바뀌었으므로 그 경로는 정확히 지역 축이 바뀌는 경우다.
+    //   그래서 regionTotal 은 이 모드에서 낡은 값으로 남는다. 요청을 늘리는 대신 **그 값을 쓰지
+    //   않는 쪽**으로 풀었다 — renderCounts 가 지도 범위 모드에서 "N곳 중"을 아예 쓰지 않는다.
+    //   이 조건을 되살리려면(예: 지도 이동마다 지역 총계도 받기) renderCounts 도 함께 고쳐야 한다.
     var wantFacets = (scope === "all" || scope === "facet");
     var wantMap = (scope !== "page" && scope !== "facet");
     var wantRegionTotal = (scope === "all");
@@ -876,7 +882,14 @@
     el("mScope").textContent = LIST_BY_MAP
       ? "지도 범위 · 전 지역 " + nf(SNAP.total || 0) + "곳"
       : state.sido + " " + nf(SNAP.sidoTotal || 0) + "곳";
-    el("countText").textContent = nf(SNAP.regionTotal) + "곳 중 " + nf(SNAP.total) + "곳 표시";
+    /* 지도 범위 모드에서는 "N곳 중"을 쓰지 않는다. 그 N(regionTotal)은 **선택한 시도**의 총계인데
+       2026-09-05 에 bounds 가 지역을 대체하게 되면서 지역 선택 자체가 무시되므로, N 이 가리킬
+       대상이 없어졌다. 게다가 지도 이동은 refresh("facet") 이라 regionTotal 을 갱신하지 않아
+       (apiQuery 의 wantRegionTotal), 좁혀 본 뒤 축소하면 **M 이 N 을 넘어** `95곳 중 2,163곳 표시`
+       처럼 스스로 모순된 문장이 나갔다. 이용자는 그것을 필터 고장으로 읽는다. */
+    el("countText").textContent = LIST_BY_MAP
+      ? "지도 범위에서 " + nf(SNAP.total) + "곳"
+      : nf(SNAP.regionTotal) + "곳 중 " + nf(SNAP.total) + "곳 표시";
 
     var area = el("resultArea");
     if (SNAP.total === 0) { area.innerHTML = emptyHTML(); wireEmpty(); return; }
