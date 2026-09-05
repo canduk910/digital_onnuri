@@ -155,6 +155,16 @@ console.log('(h) 브랜드는 사전에 있는 것만 — 카테고리 메뉴를
   check(br.includes('삼성전자'), '사전에 있는 브랜드는 들어간다', JSON.stringify(br));
   check(!br.includes('전체보기'), '사전에 없는 것은 제외된다', JSON.stringify(br));
   check(/제외 1/.test(r.out), '제외 건수를 밝힌다');
+
+  /* 로그의 숫자는 **실제로 늘어난 수**여야 한다. 후보 수를 적으면 이미 갖고 있던 것까지
+     세어 "+20"이라 말하고 실제로는 7개만 늘어난다 — 그 숫자가 회차 리포트로 흘러간다. */
+  const c2 = baseCatalog();
+  c2.items.find((i) => i.id === 'mall-a').brands = ['삼성전자'];
+  const r2 = run(c2, delta([
+    { id: 'mall-a', label: 'mall-a', ok: true, newBrands: ['삼성전자', 'LG전자'], newCats: [] },
+  ]));
+  check(/브랜드 \+1\(후보 2/.test(r2.out),
+    '이미 갖고 있던 브랜드는 늘어난 수에 안 센다', r2.out.split('\n').find((l) => /mall-a/.test(l)));
 }
 
 console.log('(i) 날짜는 실행 당일이 아니라 실제 관측일로 찍는다');
@@ -172,6 +182,28 @@ console.log('(i) 날짜는 실행 당일이 아니라 실제 관측일로 찍는
     '다이제스트는 마지막 관측일을 쓴다', r2.item('mall-a').surveyed_on);
 }
 
+console.log('(i-2) 날짜는 앞으로만 간다 — 옛 회차가 더 최근의 확인을 취소하지 못한다');
+{
+  // 2026-09-06 첫 실전 실행에서 15회차를 모아 반영하려다 10곳의 날짜가 뒤로 가는 것을 봤다.
+  const c = baseCatalog();
+  c.items.find((i) => i.id === 'mall-a').surveyed_on = '2026-09-05';
+  const r = run(c, delta([
+    { id: 'mall-a', label: 'mall-a', ok: true, newBrands: [], newCats: ['appliance-home'] },
+  ], undefined));   // 회차 date = 2026-09-03 (기본값), 카탈로그는 09-05
+  check(r.item('mall-a').surveyed_on === '2026-09-05',
+    '더 오래된 관측일은 날짜를 낮추지 않는다', r.item('mall-a').surveyed_on);
+  check(r.item('mall-a').cats.includes('appliance-home'),
+    '날짜는 그대로여도 관측한 값은 반영된다', JSON.stringify(r.item('mall-a').cats));
+
+  /* 사람이 **명령줄 인자**로 날짜를 명시하면 그 판단을 따른다 — 되돌리는 경로를 막지 않는다.
+     리포트 안의 date 와 다른 자리다(그쪽은 관측일이라 앞으로만 간다). */
+  const r3 = run(c, delta([
+    { id: 'mall-a', label: 'mall-a', ok: true, newBrands: [], newCats: ['appliance-season'] },
+  ]), ['2026-08-01']);
+  check(r3.item('mall-a').surveyed_on === '2026-08-01',
+    '인자로 준 날짜는 낮추는 방향이어도 따른다', r3.item('mall-a').surveyed_on);
+}
+
 console.log('(j) meta.collected_on 은 가장 오래된 확인일이다');
 {
   const r = run(baseCatalog(), delta([
@@ -187,6 +219,29 @@ console.log('(k) 바뀐 것이 있으면 dataVersion 을 올린다 — 파일명
     { id: 'mall-a', label: 'mall-a', ok: true, newBrands: [], newCats: ['appliance-home'] },
   ], '2026-09-03'));
   check(/dataVersion:\s*"2026-09-03"/.test(r.cfg), 'dataVersion 이 올라간다', r.cfg.replace(/\s+/g, ' ').slice(0, 80));
+}
+
+console.log('(k-2) 같은 날 두 번째면 dataVersion 접미를 올린다 — 내리지 않는다');
+{
+  /* 2026-09-06 첫 실전 실행에서 `2026-09-06.2` 가 `2026-09-06` 으로 내려갔다.
+     값이 달라져 캐시는 깨지지만 버전이 뒤로 가는 것은 다음 사람에게 사고로 보인다. */
+  const dir = tmpdir('ver');
+  const catPath = path.join(dir, 'c.json'), cfgPath = path.join(dir, 'g.js'), docPath = path.join(dir, 'd.json');
+  const bump = (start) => {
+    fs.writeFileSync(catPath, JSON.stringify(baseCatalog(), null, 1) + '\n');
+    fs.writeFileSync(cfgPath, `window.ONNURI_CONFIG = {\n  dataVersion: "${start}",\n};\n`);
+    fs.writeFileSync(docPath, JSON.stringify(delta([
+      { id: 'mall-a', label: 'mall-a', ok: true, newBrands: [], newCats: ['appliance-home'] },
+    ], '2026-09-06')));
+    try {
+      execFileSync('node', [TOOL, docPath], { encoding: 'utf-8',
+        env: Object.assign({}, process.env, { ONNURI_CATALOG: catPath, ONNURI_CONFIG: cfgPath }) });
+    } catch (e) { /* 값만 본다 */ }
+    return (fs.readFileSync(cfgPath, 'utf-8').match(/dataVersion:\s*"([^"]+)"/) || [])[1];
+  };
+  check(bump('2026-09-01') === '2026-09-06', '다른 날짜면 그 날짜로', bump('2026-09-01'));
+  check(bump('2026-09-06') === '2026-09-06.2', '같은 날이면 .2 로', bump('2026-09-06'));
+  check(bump('2026-09-06.2') === '2026-09-06.3', '.2 다음은 .3', bump('2026-09-06.2'));
 }
 
 console.log('(l) 바뀐 것이 없으면 파일을 쓰지 않는다');

@@ -139,16 +139,26 @@ for (const r of obs.rows) {
   const brandsBefore = (p.brands || []).length, catsBefore = has.size;
   if (nb.length) p.brands = [...new Set([...(p.brands || []), ...nb])].sort((a, b) => a.localeCompare(b, 'ko'));
   if (nc.length || removed.length) p.cats = [...next].sort();
+  /* 로그에는 **실제로 늘어난 수**를 적는다. 후보 수(nb.length)를 적으면 이미 갖고 있던 것까지
+     세어 "+20"이라 말하고 실제로는 7개만 늘어난다 — 그 숫자가 회차 리포트로 흘러간다. */
+  const addedBrands = (p.brands || []).length - brandsBefore;
 
-  // ⑥ 실제 관측일. 실행 당일이 아니다 — 지난 회차를 나중에 반영하는 것이 이 도구의 용도다.
-  const on = dateArg || r.seenOn || p.surveyed_on;
+  /* ⑥ 실제 관측일. 실행 당일이 아니다 — 지난 회차를 나중에 반영하는 것이 이 도구의 용도다.
+     **날짜는 앞으로만 간다.** `surveyed_on` 은 "이 몰을 마지막으로 확인한 날"이라는 뜻이고,
+     더 오래된 관측이 더 최근의 확인을 취소하지 못한다. 2026-09-06 첫 실전 실행에서
+     15회차를 모아 반영하려다 **10곳의 날짜가 뒤로 가는 것**을 봤다(예: 온누리핫딜
+     2026-09-05 → 2026-09-04). 화면이 실제보다 낡은 날짜를 말하게 되고, 가장 오래된
+     항목이 잡는 `meta.collected_on` 이 함께 내려가 챗봇 코퍼스 스탬프까지 흘러간다.
+     `dateArg` 로 사람이 명시한 날짜는 그 사람의 판단이므로 그대로 따른다. */
+  const seen = dateArg || r.seenOn;
+  const on = (dateArg || (seen && (!p.surveyed_on || seen > p.surveyed_on))) ? seen : p.surveyed_on;
   const dateMoved = on && on !== p.surveyed_on;
   if (on) p.surveyed_on = on;
 
   const touched = (p.brands || []).length !== brandsBefore || (p.cats || []).length !== catsBefore || removed.length || dateMoved;
   if (touched) changed++;
   log.push([r.label,
-    `브랜드 +${nb.length}(제외 ${dropped.length}) 카테고리 +${nc.length}` +
+    `브랜드 +${addedBrands}(후보 ${nb.length} · 제외 ${dropped.length}) 카테고리 +${nc.length}` +
     (removed.length ? ` 부모 -${removed.length}(${removed.join(',')})` : '') +
     ` · 확인일 ${p.surveyed_on}`]);
 }
@@ -184,10 +194,21 @@ if (stamp) {
   const m = cfg.match(/dataVersion:\s*"([^"]+)"/);
   if (!m) {
     console.log('⚠ config.js 에서 dataVersion 을 찾지 못했습니다 — 손으로 올리세요.');
-  } else if (m[1] === stamp) {
-    console.log(`dataVersion 이미 ${stamp}`);
   } else {
-    fs.writeFileSync(CFG, cfg.replace(/dataVersion:\s*"[^"]+"/, `dataVersion: "${stamp}"`), 'utf-8');
-    console.log(`dataVersion ${m[1]} → ${stamp}`);
+    /* 같은 날 두 번째 변경이면 접미를 올린다 — 날짜만으로는 캐시가 안 깨지고(2026-09-01 선례),
+       그냥 덮어쓰면 `2026-09-06.2` 가 `2026-09-06` 으로 **내려간다.** 값이 달라지긴 하므로
+       캐시는 깨지지만, 버전이 뒤로 가는 것은 다음 사람이 읽을 때 사고로 보인다. */
+    const cur = m[1];
+    let next = stamp;
+    if (cur === stamp || cur.startsWith(stamp + '.')) {
+      const n = cur === stamp ? 1 : parseInt(cur.slice(stamp.length + 1), 10) || 1;
+      next = `${stamp}.${n + 1}`;
+    }
+    if (next === cur) {
+      console.log(`dataVersion 이미 ${cur}`);
+    } else {
+      fs.writeFileSync(CFG, cfg.replace(/dataVersion:\s*"[^"]+"/, `dataVersion: "${next}"`), 'utf-8');
+      console.log(`dataVersion ${cur} → ${next}`);
+    }
   }
 }
