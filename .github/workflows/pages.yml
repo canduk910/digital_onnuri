@@ -6,7 +6,10 @@
 # 적고 있었다. 이제 프론트 정적 계약이 통과해야 배포한다.
 #
 # ── 무엇을 게이트로 두었나 ────────────────────────────────────────────────
-# `test_frontend_static.js` 하나다. **이 페이지들이 실제로 배달하는 것**의 계약을
+# 2026-09-05(C3) 부터 **둘**이다 — 정적 계약 + 브라우저(렌더·스모크).
+# 아래 설명은 정적 계약에 관한 것이고, 브라우저 잡의 근거는 그 잡 위 주석에 있다.
+#
+# `test_frontend_static.js`. **이 페이지들이 실제로 배달하는 것**의 계약을
 # 보기 때문이다 — 캐시버스트 드리프트, dataVersion 뒤처짐, 죽은 링크, 창구(normKind·
 # applyCat·applyBrand) 우회, 결제 표시 사본, 색인 상대 표기 등. 전부 **에러를 내지 않고
 # 조용히 틀리는** 종류라 사람 눈으로는 안 잡힌다.
@@ -65,11 +68,56 @@ jobs:
       # 건수를 잡·스텝 이름에 적지 않는다. tools-ci 가 '66건'이라 적어 두고 실제는 91건이 됐다.
       - run: node _workspace/dev_scripts/test_frontend_static.js
 
+  # 브라우저가 필요한 층 — 렌더 + 스모크 (2026-09-05, C3 사용자 결정으로 게이트에 편입)
+  #
+  # 정적 계약이 못 보는 것을 본다: 실제로 그려지는가, 모듈 여섯이 다 실렸는가,
+  # 손잡이가 잡히는가, 콘솔 오류가 없는가. 정적 검사는 "파일에 그렇게 적혀 있다"까지다.
+  #
+  # **지도 절은 끈다**(`ONNURI_SKIP_MAP=1`). 그 절은 네이버 지도 SDK 를 외부 망에서 받아야
+  # 도는데, 러너에서 느리거나 막히면 **제품과 무관한 이유로 배포가 막힌다** —
+  # 게이트의 초록이 "배달되는 것이 멀쩡하다"가 아니라 "오늘 네이버가 잘 응답했다"가 되는 것이
+  # 더 나쁘다. 지도는 사람이 커밋 전에 로컬(8655)에서 부르고, 라이브는 눈으로 본다.
+  browser:
+    name: 프론트 렌더·스모크
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_checks) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+      # playwright 는 브라우저까지 받아야 한다(40~70초). 이 잡이 느린 이유이고,
+      # 그래서 정적 계약과 **다른 잡**으로 둔다 — 빠른 검사가 느린 것에 묶이지 않게.
+      - name: playwright + chromium 설치
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i --no-audit --no-fund playwright@1.49.1
+          npx playwright install --with-deps chromium
+      # 렌더 테스트는 자기가 포트 8655 로 서버를 띄운다(그 포트는 고정이다 —
+      # 네이버 지도 Client ID 의 허용 도메인이자 백엔드 CORS 오리진).
+      - name: 프론트 렌더 (지도 절 제외)
+        env:
+          ONNURI_SKIP_MAP: "1"
+          PLAYWRIGHT_CHANNEL: chromium
+        run: node _workspace/dev_scripts/test_frontend_render.js
+      - name: merchants 스모크
+        if: '!cancelled()'
+        env:
+          PLAYWRIGHT_CHANNEL: chromium
+        run: |
+          python3 -m http.server 8655 --bind 127.0.0.1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8655/merchants.html -o /dev/null && break; sleep 1; done
+          node _workspace/dev_scripts/test_merchants_smoke.js
+
   deploy:
-    needs: [checks]
+    needs: [checks, browser]
     # `needs` 만 쓰면 checks 가 skipped 일 때 deploy 도 함께 스킵된다 —
     # 그러면 탈출구가 동작하지 않는다. 'success 또는 skipped' 를 명시해야 한다.
-    if: ${{ !cancelled() && (needs.checks.result == 'success' || needs.checks.result == 'skipped') }}
+    # 두 검사 잡 모두 'success 또는 skipped' 여야 한다. `needs` 만 쓰면 skipped 일 때
+    # deploy 도 함께 스킵돼 탈출구가 동작하지 않는다.
+    if: ${{ !cancelled()
+      && (needs.checks.result == 'success' || needs.checks.result == 'skipped')
+      && (needs.browser.result == 'success' || needs.browser.result == 'skipped') }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

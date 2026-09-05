@@ -41,6 +41,12 @@ const ARGS = process.argv.slice(2);
 const only = (ARGS.find((a) => a.startsWith('--only=')) || '').split('=')[1] || '';
 const BASE = (ARGS.find((a) => a.startsWith('--base=')) || '').split('=')[1] || `http://127.0.0.1:${PORT}`;
 const LOCAL = BASE.indexOf('127.0.0.1') >= 0 || BASE.indexOf('localhost') >= 0;
+/* 지도 절만 따로 끄는 스위치(2026-09-05, C3 — 이 테스트를 배포 게이트에 넣으면서).
+   지도 절은 네이버 지도 SDK 를 **외부 망에서** 받아 와야 돌아간다. CI 러너에서 그것이
+   느리거나 막히면 **제품과 무관한 이유로 배포가 막힌다** — 게이트의 초록이 "배달되는 것이
+   멀쩡하다"가 아니라 "오늘 네이버가 잘 응답했다"가 되는 것이 더 나쁘다.
+   그래서 게이트에서는 끄고, 사람이 커밋 전에 부를 때는 켠 채로 둔다(기본값 = 켬). */
+const SKIP_MAP = process.env.ONNURI_SKIP_MAP === '1';
 
 let chromium;
 try { ({ chromium } = require('playwright')); }
@@ -257,8 +263,10 @@ async function onlineCount(ctx, query) {
        제품이 깨졌다는 증거는 아니고 하네스가 라이브 레이아웃에서 마커에 닿지 못하는 것인데,
        **그 구분이 안 되는 검사를 통과로 적으면 거짓 신호**가 되므로 아예 건너뛰고 밝힌다.
        라이브 지도 동작은 사람이 브라우저에서 확인한다. */
-    if (!LOCAL) {
-      console.log('  [SKIP] 원격 base 에서는 마커 클릭이 SDK 오버레이에 막혀 수행하지 않습니다.');
+    if (!LOCAL || SKIP_MAP) {
+      console.log(SKIP_MAP
+        ? '  [SKIP] ONNURI_SKIP_MAP=1 — 지도 절을 건너뜁니다(외부 SDK 의존을 게이트에 넣지 않습니다).'
+        : '  [SKIP] 원격 base 에서는 마커 클릭이 SDK 오버레이에 막혀 수행하지 않습니다.');
       console.log('         지도 검사는 로컬(포트 8655)에서 돌리고, 라이브는 사람이 눈으로 확인하세요.');
       console.log();
     } else {
