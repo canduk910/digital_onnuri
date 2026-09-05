@@ -58,11 +58,22 @@
 - 근거: index가 이미 외부 리소스를 참조하므로 기술 제약 없음. 인라인 대안(현행)은 드리프트 반복. 대가: 셸 파일 캐시 갱신 시 ?v= 관리.
 - 결과·롤백: 페이지별 전용 스타일은 각 페이지에 잔류. 롤백 = 파일 내용 재인라인.
 
-## ADR-10: merchants.html 대분리는 유예 — 스트랭글러 (2026-08-10) — **재평가 시점 도래(2026-09-04)**
-> 이 ADR 은 "다음 지도/데이터 기능 작업 시 재방문"을 스스로 조건으로 걸었다. 그 뒤 거리뷰·즐겨찾기·
-> 가까운 순 정렬·지도 범위·클러스터가 모두 이 파일에 들어와 1,509줄 → 2,500줄대가 됐다.
-> 2026-09-04 감사에서 이 파일과 online.html 에 **자동 테스트가 하나도 없다**는 것이 함께 드러났다.
-> 유예를 계속할지 판단이 필요하다(아침 검토 항목).
+## ADR-10: merchants.html 대분리는 유예 — 스트랭글러 (2026-08-10) — **유예 종료(2026-09-05)**
+> **재평가 결과: 유예를 끝내고 분리했다.** 이 ADR 은 "다음 지도/데이터 기능 작업 시 재방문"을
+> 스스로 조건으로 걸었고, 그 뒤 거리뷰·즐겨찾기·가까운 순 정렬·지도 범위·클러스터가 모두 이 파일에
+> 들어와 1,509 → 2,638줄이 됐다. 2026-09-04 감사에서 이 파일과 online.html 에 **자동 테스트가
+> 하나도 없다**는 것도 함께 드러났다.
+>
+> 2026-09-04·05 에 **일곱 조각**을 뗐다 — CSS 412 · 거리뷰 328 · 스플리터 99 · 컬럼 리사이저 55 ·
+> 즐겨찾기 76 · 브랜드 팝업 112 · 상세 팝업 148줄. **2,638 → 1,552줄(−41%).**
+> 스트랭글러의 전제였던 "테스트 스냅샷이 두꺼워지는 시점"이 먼저 왔다 — 정적 계약과 렌더 테스트를
+> 세우고(2026-09-04) 스타일 전수 대조 도구를 만든 뒤에야 손댔고, 매 단계 1,737개 요소 대조에서
+> 차이 0 을 확인했다.
+>
+> **남은 1,552줄은 허브다**(`state`·`SNAP`·`refresh`·render·renderChips·boot·bindControls·지도 렌더
+> 루프). 그것을 푸는 것은 순수 이동이 아니라 **상태 저장소 + 구독**으로 바꾸는 설계 변경이라
+> 이 ADR 이 아니라 새 결정이 필요하다 — 후보별 결합도 실측표는 `22_structural_run.md`,
+> 조사는 `_workspace/24_hub_survey.md`(2026-09-05 착수).
 - 맥락: merchants 1,509줄(JS 1,042). 분리 욕구 vs 순수 이동의 회귀 위험.
 - 결정: 지금은 셸 추출(ADR-9)로 1차 감량만. 데이터 레이어/지도 모듈 분리는 해당 영역에 다음 기능 요구가 올 때 그 모듈만 파일로 분리(스트랭글러).
 - 근거: 동작 불변 순수 이동은 이득(가독성)보다 위험(이중소스·지도 이벤트 회귀)이 큼. 테스트 스냅샷이 두꺼워지는 시점에 재평가.
@@ -79,7 +90,7 @@
 
 ## ADR-12: 챗봇 — RAG(pgvector) + 서버 도구 루프 + 플로팅 위젯 (2026-08-11)
 - 맥락: 정책·사용처 질문을 대화로 해결하는 챗봇 요구. (1) RAG vs 파인튜닝 (2) 페이지 이동·검색 실행 툴킷 (3) 모노톤+오렌지 대화 UI(마크다운·mermaid).
-- 결정: ①RAG — pgvector(HNSW)·text-embedding-3-small, 코퍼스=검증된 내부 자산+공식 채록(onnuri.gift FAQ 69건·voucher·공지, semas 4페이지). 파인튜닝 기각(날짜 종속 정보·재학습 비용·출처 인용 불가). ②서버(Spring gift.onnuri.chat)가 gpt-5.6-luna 도구 루프 소유(최대 3왕복): search_policy/search_online(RAG), search_merchants(기존 MerchantService 재사용), navigate(SSE action→위젯 확인 카드, 임의 이동 금지). 도구 결과는 대화 재주입("결과 재-RAG"). ③POST /api/chat SSE, stateless(이력은 프론트 sessionStorage→요청 동봉). 위젯=chat-widget.js/css, marked+DOMPurify+mermaid 첫 오픈 시 CDN 지연 로드, mermaid base 테마+오렌지 themeVariables. 최종 답변은 서버가 비스트리밍 수신 후 청크 SSE(OpenAI 스트림 파싱 복잡도 회피 — 응답 짧아 지연 허용).
+- 결정: ①RAG — pgvector(HNSW)·text-embedding-3-small, 코퍼스=검증된 내부 자산+공식 채록(onnuri.gift FAQ 69건·voucher·공지, semas 4페이지). 파인튜닝 기각(날짜 종속 정보·재학습 비용·출처 인용 불가). ②서버(Spring gift.onnuri.chat)가 gpt-5.6-luna 도구 루프 소유(최대 3왕복): search_policy/search_online(RAG), search_merchants(기존 MerchantService 재사용), navigate(SSE action→위젯 확인 카드, 임의 이동 금지). 도구 결과는 대화 재주입("결과 재-RAG"). ③POST /api/chat SSE, stateless(이력은 프론트 sessionStorage→요청 동봉). 위젯=chat-widget.js/css, marked+DOMPurify+mermaid 첫 오픈 시 CDN 지연 로드, mermaid base 테마+오렌지 themeVariables. 최종 답변은 처음에 **비스트리밍 수신 후 청크 SSE** 로 냈다(OpenAI 스트림 파싱 복잡도 회피 — 응답이 짧아 지연 허용). **2026-08-11 에 실스트리밍으로 바꿨다**(`OpenAiClient.chatStream` — OpenAI stream 델타를 SSE 로 실시간 중계, 도구 `tool_calls` 델타는 index 로 조립). 사용자 요청 3종 중 하나였고, 같은 커밋에서 말풍선 내부 스크롤 제거와 지도 바로 이동 토글이 함께 들어갔다.
 - 근거: 키 보호(서버만)·폴백 대칭 원칙 유지. 비용 통제는 IP rate limit(분10·일200, 인메모리 — 단일 인스턴스 ADR-5). LLM 출력은 DOMPurify 필수(신뢰 불가 입력). 숫자는 도구 실시간 조회만(데이터 신선도 원칙).
 - 결과·롤백: config.js chatEnabled=false로 위젯 즉시 제거 가능. db 이미지 pgvector/pgvector:pg16(pgdata 유지). 적재는 build_rag_corpus.py(멱등 전체 교체). OPENAI_API_KEY 미설정 시 챗만 비활성(다른 API 무영향). 갱신: 코퍼스 재수집 후 스크립트 재실행.
 
