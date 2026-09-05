@@ -279,9 +279,18 @@ def load_online_catalog():
     # 몰별 청크는 '그 몰이 무엇을 파는가'에 답하고, 이쪽은 '이 품목을 파는 몰이 어디인가'에 답한다.
     terms = _cat_terms()
     by_cat = {}
+    cat_dates = {}
     for it in d["items"]:
         for c in it.get("cats", []):
             by_cat.setdefault(c, []).append(plat_names.get(it["id"], it["id"]))
+            # 이 청크의 확인일 = 나열한 몰들 중 **가장 오래된** 것.
+            # 2026-09-05 적발: 종전에는 44개 청크가 전부 meta.collected_on(그날) 을 달았는데,
+            # 그 목록에는 확인일이 2026-08-21 인 딥링크 8곳과 2026-08-10 인 1곳이 섞여 있다.
+            # "이 품목을 취급하는 몰 N곳" 이라는 주장은 **가장 오래 안 본 몰만큼만** 신선하다.
+            # 챗봇이 이 스탬프를 인용하므로 낙관적으로 적으면 없는 정확도를 말하게 된다.
+            so = it.get("surveyed_on") or co
+            if c not in cat_dates or so < cat_dates[c]:
+                cat_dates[c] = so
     for cat, malls in sorted(by_cat.items()):
         label = names.get(cat, cat)
         ex = terms.get(cat, [])
@@ -291,7 +300,8 @@ def load_online_catalog():
         body += (f". 이 품목을 취급하는 것으로 확인된 온라인몰 {len(malls)}곳: "
                  f"{', '.join(sorted(malls))}.")
         chunks.append({"source": "online_catalog", "section": f"온라인 물품종류 > {label}",
-                       "content": body, "url": None, "collected_on": co})
+                       "content": body, "url": None,
+                       "collected_on": cat_dates.get(cat, co)})
     return chunks
 
 

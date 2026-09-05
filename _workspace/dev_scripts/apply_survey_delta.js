@@ -53,6 +53,11 @@ for(const r of rep){
   p.surveyed_on=TODAY;   // 확인했고 반영했다(변화가 없어도 확인일은 올린다)
   log.push([r.label,`브랜드 +${nb.length}(제외 ${dropped.length}) 카테고리 +${nc.length}`]);
 }
-cat.meta=cat.meta||{}; cat.meta.collected_on=TODAY;
+/* meta.collected_on 은 "이 카탈로그 전체가 최소 이 날짜만큼은 확인됐다" 는 뜻이다 —
+   그래서 **가장 오래된 항목의 확인일**로 둔다. 종전에는 조건 없이 오늘로 올렸는데,
+   보류한 딥링크 8곳(2026-08-21)과 partial 1곳(2026-08-10)이 그대로인 채 파일 전체가
+   오늘로 보이게 된다. 이 값은 챗봇 코퍼스의 스탬프로 흘러가 없는 정확도를 말하게 한다. */
+cat.meta=cat.meta||{};
+cat.meta.collected_on = cat.items.map(p=>p.surveyed_on).filter(Boolean).sort()[0] || TODAY;
 fs.writeFileSync(CAT, JSON.stringify(cat,null,1)+'\n','utf-8');
 for(const [a,b] of log) console.log(`  ${a.padEnd(24)} ${b}`);
