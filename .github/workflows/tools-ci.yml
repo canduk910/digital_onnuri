@@ -98,31 +98,33 @@ jobs:
       # 네 개를 별도 step 으로 두고 뒤 셋에 `!cancelled()` 를 건다 —
       # 앞이 실패해도 나머지가 돌아 **한 회차에 모든 실패가 보인다**.
       # 합계가 1초 미만이라 fail-fast 로 아낄 것이 없다.
-      - name: 채록 프로브 (158건)
+      - name: 채록 프로브
         run: node _workspace/dev_scripts/test_survey_probe.js
-      - name: 색인 크롤러 (58건)
+      - name: 색인 크롤러
         if: '!cancelled()'
         run: node _workspace/dev_scripts/test_index_nightly.js
-      - name: robots 감시 (71건)
+      - name: robots 감시
         if: '!cancelled()'
         run: python3 _workspace/dev_scripts/test_robots_watch.py
-      - name: 카나리아 추세 (27건)
+      - name: 카나리아 추세
         if: '!cancelled()'
         run: python3 _workspace/dev_scripts/test_canary_trend.py
-      # 프론트 **정적** 계약만 여기서 돈다 — 브라우저가 필요 없어 준비물이 0이다.
-      # 렌더 층(test_frontend_render.js)은 playwright 설치가 필요해 넣지 않았다:
-      # 그 설치가 40~70초라 1초짜리 잡의 성격이 통째로 바뀌고, 무엇보다
-      # **pages.yml 이 조건 없이 배포하므로 어차피 게이트가 아니다** — 배포를 막지 못할
-      # 검사에 매 커밋 1분을 쓰는 대신, 사람이 커밋 전에 부르는 쪽이 맞다(README 참조).
+      # 렌더 층(test_frontend_render.js)은 playwright 설치가 필요해 여기 없다 —
+      # 그 설치가 40~70초라 1초짜리 잡의 성격이 통째로 바뀐다.
+      #
+      # 2026-09-05 정정: 종전 주석은 "pages.yml 이 조건 없이 배포하므로 어차피 게이트가
+      # 아니다"를 근거로 들었는데, **그날 pages.yml 에 게이트가 붙어 그 전제가 깨졌다.**
+      # 렌더 층을 어디에 둘지는 다시 열린 질문이다(23_backlog C3) — 지도 절은 원격에서
+      # 어차피 스킵되므로 '지도 제외 렌더 + 스모크'만 게이트에 넣는 절충이 가능하다.
       # ── D-F1: index.html 이 build_index.py 산출물인지 (2026-09-05 편입) ──
       # 종전에는 못 돌았다 — verify_build.py 도 build_index.py 도 `index.html.bak-20260806`
       # (원본 번들)을 읽는데 그 파일이 gitignore 되어 있었다. 원본을 저장소에 넣어 해소했다.
-      - name: index 빌드 검증 D-F1 (92건)
+      - name: index 빌드 검증 D-F1
         if: '!cancelled()'
         run: python3 _workspace/dev_scripts/verify_build.py
-      # **92건 토큰 검사만으로는 부족하다.** 그것은 "목록에 적어 둔 토큰이 있나 없나"를 볼 뿐이라,
+      # **토큰 검사만으로는 부족하다.** 그것은 "목록에 적어 둔 토큰이 있나 없나"를 볼 뿐이라,
       # 아무도 적지 않은 자리에서 소스와 산출물이 갈리면 조용히 통과한다(조사 실측: 빌더 문구
-      # 수정 후 재빌드 누락 · 데이터 내용 변경 셋 다 92건 전부 통과했고 재빌드 비교만 잡았다).
+      # 수정 후 재빌드 누락 · 데이터 내용 변경 둘 다 D-F1 을 통과했고 재빌드 비교만 잡았다).
       # 그래서 실제로 다시 만들어 보고 **바이트가 같은지** 본다.
       - name: index 재빌드 후 커밋본과 동일한지
         if: '!cancelled()'
@@ -131,6 +133,6 @@ jobs:
           git diff --exit-code -- index.html \
             || { echo "::error::index.html 이 build_index.py 산출물과 다릅니다 — 소스를 고치고 재빌드를 잊었는지 확인하세요"; exit 1; }
 
-# 여전히 넣지 않은 것: 프론트 **렌더** 테스트(test_frontend_render.js, 101건).
+# 여전히 넣지 않은 것: 프론트 **렌더** 테스트(test_frontend_render.js).
 #   playwright 설치가 40~70초라 1초짜리 잡의 성격이 바뀌고, 지도 절은 로컬 전용이다
 #   (원격 base 에서는 마커 클릭이 네이버 SDK 오버레이에 막힌다). 사람이 커밋 전에 부른다.
