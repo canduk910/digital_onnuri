@@ -1,8 +1,9 @@
 # 배치·채록 도구 CI (2026-09-04 신설)
 #
-# `_workspace/dev_scripts` 의 검사 5종을 돌린다(건수는 스텝 이름에만 적는다 —
-# 합계를 잡 이름에 적었더니 실제와 갈라졌다).
-# 네트워크·DB·브라우저를 타지 않는다(4종 전부 실측 확인 — robots 감시는 urlopen 을
+# `_workspace/dev_scripts` 의 검사들을 돌린다. **종 수도 건수도 여기 적지 않는다** —
+# 적으면 낡고, 낡은 숫자는 다음 사람이 "이 목록이 전부"라고 믿게 만든다(2026-09-06:
+# 검사를 하나 늘리며 이 줄이 5종에 멈춰 있던 것을 발견했다).
+# 네트워크·DB·브라우저를 타지 않는다(전부 실측 확인 — robots 감시는 urlopen 을
 # 가로채고, 색인 테스트는 playwright 를 지연 require 하는 코드만 부른다).
 #
 # ── 이것이 무엇을 막고 무엇을 못 막는지 (2026-09-05 갱신) ──────────────────
@@ -42,9 +43,9 @@ on:
   push:
     branches: [main]
     paths:
-      - "_workspace/dev_scripts/**"        # survey_probe.js·dump_*.js·테스트 5종
+      - "_workspace/dev_scripts/**"        # survey_probe.js·dump_*.js·테스트 스크립트
       - "backend/tools/**"                 # nightly_update.py·index_nightly.js·survey_nightly.js
-      # 4종이 실제로 읽는 데이터만 적는다(파일 참조를 전수 확인해 역산).
+      # 검사들이 실제로 읽는 데이터만 적는다(파일 참조를 전수 확인해 역산).
       # `data/**` 로 두면 야간 배치가 매일 다시 쓰는 data/merchants/*.json 에도 걸리고,
       # 이 테스트들이 읽지도 않는 offline_categories.json 변경에 초록이 떠 '검사됐다'는
       # 잘못된 신호가 된다.
@@ -112,6 +113,12 @@ jobs:
       - name: 카나리아 추세
         if: '!cancelled()'
         run: python3 _workspace/dev_scripts/test_canary_trend.py
+      # 채록 반영 도구와 주간 다이제스트. 둘 다 경계에서만 드러나는 코드다 —
+      # 반영 도구는 데이터 파일을 덮어쓰는데 판단이 틀려도 JSON 은 멀쩡히 파싱되고,
+      # 다이제스트는 발화 조건이 틀리면 일주일이 지나야 알 수 있으며 에러가 안 난다.
+      - name: 채록 반영 도구
+        if: '!cancelled()'
+        run: node _workspace/dev_scripts/test_apply_delta.js
       # 렌더 층(test_frontend_render.js)은 playwright 설치가 필요해 여기 없다 —
       # 그 설치가 40~70초라 1초짜리 잡의 성격이 통째로 바뀐다.
       #

@@ -99,7 +99,51 @@ function scopeOf(item) {
   return 'unknown';
 }
 
-(async () => {
+function weeklyDigest(outDir) {
+  let files;
+  try {
+    files = fs.readdirSync(outDir).filter((f) => /^survey-delta-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
+  } catch (e) { return null; }
+  if (files.length < 7) return null;
+
+  // 마지막 다이제스트 이후 회차만 센다. 없으면 최근 7회차.
+  let lastDigest = '';
+  try {
+    const ds = fs.readdirSync(outDir).filter((f) => /^survey-digest-/.test(f)).sort();
+    if (ds.length) lastDigest = (ds[ds.length - 1].match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
+  } catch (e) { /* 없으면 첫 다이제스트 */ }
+  const fresh = files.filter((f) => f.slice('survey-delta-'.length, -5) > lastDigest);
+  if (fresh.length < 7) return null;
+
+  const byMall = new Map();
+  let thinSkipped = 0;
+  for (const f of fresh) {
+    let doc;
+    try { doc = JSON.parse(fs.readFileSync(path.join(outDir, f), 'utf-8')); } catch (e) { continue; }
+    for (const r of (doc.report || [])) {
+      /* 실패·얇음 회차는 아예 세지 않는다. 다이제스트는 사람이 보고 그대로 반영 도구에
+         먹이는 물건이라(2026-09-06), 여기서 걸러 두지 않으면 그 회차의 관측이 보호 없이
+         통과한다 — 반영 도구는 다이제스트에서 ok·thin 을 다시 볼 수 없다. */
+      if (!r.ok || r.thin) { thinSkipped += (r.thin ? 1 : 0); continue; }
+      const cur = byMall.get(r.label) || { id: r.id, brands: new Set(), cats: new Set(), chrome: new Set(), deepLink: false, dates: [] };
+      (r.newBrands || []).forEach((x) => cur.brands.add(x));
+      (r.newCats || []).forEach((x) => cur.cats.add(x));
+      (r.newBrandsChrome || []).forEach((x) => cur.chrome.add(x));
+      if (r.deepLink) cur.deepLink = true;
+      cur.dates.push(doc.date);
+      byMall.set(r.label, cur);
+    }
+  }
+  const rows = [...byMall.entries()]
+    .map(([label, v]) => ({ label, id: v.id, deepLink: v.deepLink,
+      brands: [...v.brands], cats: [...v.cats], chrome: [...v.chrome], seenOn: v.dates }))
+    .filter((r) => r.brands.length || r.cats.length)
+    .sort((a, b) => (b.brands.length + b.cats.length) - (a.brands.length + a.cats.length));
+  return { since: fresh[0].slice('survey-delta-'.length, -5), until: fresh[fresh.length - 1].slice('survey-delta-'.length, -5),
+           rounds: fresh.length, malls: byMall.size, thinSkipped, rows };
+}
+
+async function main() {
   let chromium;
   try {
     ({ chromium } = require('playwright'));
@@ -197,46 +241,6 @@ function scopeOf(item) {
      그래서 **일주일에 한 번, 지난 7회차를 합쳐 한 화면에 적는다.** 요일은 고정하지
      않는다 — 배치가 하루 걸러도 리듬이 밀리지 않게 "지난 다이제스트 이후 7회차가
      쌓였으면" 을 기준으로 한다. 여전히 **자동 반영은 하지 않는다**(ADR-16). */
-  function weeklyDigest(outDir) {
-    let files;
-    try {
-      files = fs.readdirSync(outDir).filter((f) => /^survey-delta-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
-    } catch (e) { return null; }
-    if (files.length < 7) return null;
-
-    // 마지막 다이제스트 이후 회차만 센다. 없으면 최근 7회차.
-    let lastDigest = '';
-    try {
-      const ds = fs.readdirSync(outDir).filter((f) => /^survey-digest-/.test(f)).sort();
-      if (ds.length) lastDigest = (ds[ds.length - 1].match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
-    } catch (e) { /* 없으면 첫 다이제스트 */ }
-    const fresh = files.filter((f) => f.slice('survey-delta-'.length, -5) > lastDigest);
-    if (fresh.length < 7) return null;
-
-    const byMall = new Map();
-    for (const f of fresh) {
-      let doc;
-      try { doc = JSON.parse(fs.readFileSync(path.join(outDir, f), 'utf-8')); } catch (e) { continue; }
-      for (const r of (doc.report || [])) {
-        if (!r.ok) continue;
-        const cur = byMall.get(r.label) || { id: r.id, brands: new Set(), cats: new Set(), chrome: new Set(), deepLink: false, dates: [] };
-        (r.newBrands || []).forEach((x) => cur.brands.add(x));
-        (r.newCats || []).forEach((x) => cur.cats.add(x));
-        (r.newBrandsChrome || []).forEach((x) => cur.chrome.add(x));
-        if (r.deepLink) cur.deepLink = true;
-        cur.dates.push(doc.date);
-        byMall.set(r.label, cur);
-      }
-    }
-    const rows = [...byMall.entries()]
-      .map(([label, v]) => ({ label, id: v.id, deepLink: v.deepLink,
-        brands: [...v.brands], cats: [...v.cats], chrome: [...v.chrome], seenOn: v.dates }))
-      .filter((r) => r.brands.length || r.cats.length)
-      .sort((a, b) => (b.brands.length + b.cats.length) - (a.brands.length + a.cats.length));
-    return { since: fresh[0].slice('survey-delta-'.length, -5), until: fresh[fresh.length - 1].slice('survey-delta-'.length, -5),
-             rounds: fresh.length, malls: byMall.size, rows };
-  }
-
   if (OUT_DIR) {
     try {
       fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -271,7 +275,15 @@ function scopeOf(item) {
     }
   }
   process.exit(0);
-})().catch((e) => {
-  console.error('[survey] 예기치 못한 오류: ' + (e && e.stack || e));
-  process.exit(0);   // fail-open — 배치 전체를 실패로 만들지 않는다
-});
+}
+
+/* 이 파일은 배치가 스크립트로 부른다. 테스트가 weeklyDigest 를 require 해서 직접 시험할 수
+   있도록 실행은 require.main 일 때만 한다 — 안 그러면 require 하는 순간 배치가 돈다. */
+if (require.main === module) {
+  main().catch((e) => {
+    console.error('[survey] 예기치 못한 오류: ' + (e && e.stack || e));
+    process.exit(0);   // fail-open — 배치 전체를 실패로 만들지 않는다
+  });
+} else {
+  module.exports = { weeklyDigest, scopeOf };
+}

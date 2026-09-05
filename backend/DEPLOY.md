@@ -325,8 +325,20 @@ curl -s https://api.koscomlabor.cloud/api/meta    # staleSince 가 null 로 돌�
 ```
 
 - 파일로도 남는다: `$SURVEY_OUT_DIR/survey-digest-YYYY-MM-DD.json`
-- **여전히 자동 반영은 없다**(ADR-16). 반영하면 `data/online_catalog.json` 과
-  `_workspace/15_online_catalog_report.md` 를 함께 고치고 `config.js` 의 `dataVersion` 을 올린다.
+- **여전히 자동 반영은 없다**(ADR-16). 사람이 다이제스트를 보고 반영하기로 정하면
+  **도구로 반영한다** — 판단 규칙이 코드에 있어 다음번에 처음부터 다시 정하지 않아도 된다.
+
+  ```bash
+  # 다이제스트를 그대로 먹여도 되고, 회차 파일 하나를 줘도 된다.
+  node _workspace/dev_scripts/apply_survey_delta.js \
+       $SURVEY_OUT_DIR/survey-digest-YYYY-MM-DD.json --dry   # 먼저 무엇을 할지 본다
+  node _workspace/dev_scripts/apply_survey_delta.js \
+       $SURVEY_OUT_DIR/survey-digest-YYYY-MM-DD.json         # 반영
+  ```
+
+  도구가 `data/online_catalog.json` 과 `config.js` 의 `dataVersion` 을 **함께** 고친다
+  (캐시 태그를 빼먹으면 재방문자가 옛 목록을 계속 본다 — 2026-08-21 에 겪은 사고다).
+  `_workspace/15_online_catalog_report.md` 갱신은 여전히 사람 몫이다.
 - **화면 부속은 갈라 놓는다.** 2026-09-05 실측에서 우체국쇼핑의 "새 브랜드" 13개가 전부
   `TOP`·`Previous`·`↓`·`축소/확대 버튼` 같은 내비게이션 텍스트였다. 섞여 있으면 사람이
   목록을 통째로 무시하게 되고 감시가 이름만 남는다. **자동 제외가 아니라 표시**다 —
