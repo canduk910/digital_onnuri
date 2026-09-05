@@ -347,6 +347,16 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   check(/id="regionOff"/.test(m) && /off\.hidden = !LIST_BY_MAP/.test(mCode),
     '지역 선택이 무시되고 있음을 그 컨트롤 옆에서 말한다');
 
+  /* 검증 스크립트가 **개발자 기계의 절대경로**를 require 하면 CI 에서 즉사한다.
+     2026-09-05 에 네 개가 그랬고, 배포 게이트에 넣자마자 MODULE_NOT_FOUND 로 막혔다 —
+     내 기계에서만 도는 테스트였던 것이다. 다시 들어오지 못하게 고정한다. */
+  {
+    const dir = path.join(ROOT, '_workspace', 'dev_scripts');
+    const bad = fs.readdirSync(dir).filter((f) => f.endsWith('.js'))
+      .filter((f) => /require\((['"])\/(Users|home)\//.test(rd(path.join('_workspace/dev_scripts', f))));
+    check(bad.length === 0, '검증 스크립트가 절대경로로 모듈을 부르지 않는다', bad.join(',') || '없음');
+  }
+
   /* 실시간 조회 펜딩 화면은 **링크가 있는 쇼핑몰 전부**를 보여야 한다.
      2026-09-05 사용자 제보 — `search_url_template` 만 보다가 롯데ON·공영쇼핑이 빠졌다.
      그 둘은 2026-09-03 에 링크를 전용관 주소로 바꾸며 템플릿을 의도적으로 비운 곳이라,

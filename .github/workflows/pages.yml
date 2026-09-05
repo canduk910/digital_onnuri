@@ -100,6 +100,8 @@ jobs:
           ONNURI_SKIP_MAP: "1"
           PLAYWRIGHT_CHANNEL: chromium
         run: node _workspace/dev_scripts/test_frontend_render.js
+      # 스모크는 서버를 스스로 띄우지 않는다(렌더 테스트와 다르다) — 여기서 띄워 준다.
+      # 포트 8655 고정: 네이버 지도 Client ID 의 허용 도메인이자 백엔드 CORS 오리진.
       - name: merchants 스모크
         if: '!cancelled()'
         env:

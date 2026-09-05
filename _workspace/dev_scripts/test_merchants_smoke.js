@@ -7,7 +7,17 @@
    기본은 로컬, 배포 뒤에는 기준 주소를 바꿔 **배달된 것**을 잰다:
      ONNURI_BASE=https://onnuri.koscomlabor.cloud node _workspace/dev_scripts/test_merchants_smoke.js
    로컬은 포트 8655 고정 — 네이버 지도 Client ID 가 도메인+포트 허용 목록이라 다른 포트는 401. */
-const { chromium } = require('/Users/koscom/Projects/auto_stock/node_modules/playwright');
+/* playwright 는 **경로를 박지 않는다.** 2026-09-05 에 이 네 스크립트가 개발자 기계의
+   절대경로(`/Users/.../auto_stock/node_modules/playwright`)를 require 하고 있어, CI 에
+   넣자마자 `MODULE_NOT_FOUND` 로 죽었다 — 내 기계에서만 도는 테스트였던 것이다.
+   test_frontend_render.js 와 같은 규약을 쓴다: 보통 방식으로 찾고, 없으면 종료 코드 2. */
+let chromium;
+try { ({ chromium } = require('playwright')); }
+catch (e) {
+  console.log('playwright 가 없어 건너뜁니다.');
+  console.log('  NODE_PATH=<playwright 설치 경로> 를 주거나 `npm i --no-save playwright` 하세요.');
+  process.exit(2);
+}
 const BASE = process.env.ONNURI_BASE || 'http://localhost:8655';
 const U = BASE + '/merchants.html?region=%EC%84%9C%EC%9A%B8';
 let fail=0; const ck=(o,t,d)=>{console.log(`  [${o?'PASS':'FAIL'}] ${t}${d?' — '+d:''}`);if(!o)fail++;};
