@@ -53,7 +53,7 @@ docker compose -f docker-compose.prod.yml logs -f app   # "Started OnnuriApplica
 
 ### 데이터 적재 (최초 1회, 스키마 생성 후)
 
-Flyway가 빈 테이블만 만든다. 66,211건 적재가 필요하다.
+Flyway가 빈 테이블만 만든다. 데이터 적재가 필요하다(2026-09-05 기준 **79,800건** — 매일 바뀐다).
 
 `bootstrap.sh`를 쓰면 아래가 자동 수행된다. 수동으로 할 경우:
 
@@ -73,8 +73,19 @@ DB_DSN="host=127.0.0.1 port=5432 dbname=onnuri user=onnuri password=<DB_PASSWORD
 ```bash
 D=https://api.koscomlabor.cloud
 curl -s "$D/actuator/health"                                            # {"status":"UP"}
-curl -sG "$D/api/merchants" --data-urlencode region=서울 --data-urlencode gu=강남구 --data-urlencode dong=개포동 --data-urlencode size=1 | grep -o '"total":[0-9]*'  # 145
-curl -sG "$D/api/merchants" --data-urlencode region=경기 --data-urlencode si=수원시 --data-urlencode gu=팔달구 --data-urlencode size=1 | grep -o '"total":[0-9]*'      # 1241
+curl -sG "$D/api/merchants" --data-urlencode region=서울 --data-urlencode gu=강남구 --data-urlencode dong=개포동 --data-urlencode size=1 | grep -o '"total":[0-9]*'  # 144~146
+curl -sG "$D/api/merchants" --data-urlencode region=경기 --data-urlencode si=수원시 --data-urlencode gu=팔달구 --data-urlencode size=1 | grep -o '"total":[0-9]*'      # 1250~1270
+```
+
+> **이 값들은 고정 상수가 아니다.** 가맹점은 야간 배치가 매일 새로 수집하므로 조금씩 움직인다
+> (2026-08-10 적재 당시 145·1241 → 2026-09-05 실측 145·**1259**). 그래서 **범위**로 적는다 —
+> "정확히 1241 이 아니면 실패"로 읽으면 정상인데 실패로 판정하거나, 몇 번 겪은 뒤 아예 안 보게 된다.
+>
+> 진짜로 보아야 할 것은 **자릿수가 맞는가**와 **0 이 아닌가**다. 크게 어긋나면(예: 절반)
+> 적재가 덜 됐거나 필터가 깨진 것이다. 정확한 회귀 대조는 이 값이 아니라 배치 자신의
+> ±20% 가드(단계 A3)와 카나리아(단계 E)가 한다.
+
+```bash
 ```
 
 ### 프론트 배포 직후 라이브 실측 (2026-09-05 신설)
@@ -187,20 +198,55 @@ cat > ~/onnuri_batch/run.sh <<'SH'
 set -euo pipefail
 REPO=~/onnuri_batch/repo
 LOG=~/onnuri_batch/logs/$(date +\%Y\%m\%d).log
-# db 컨테이너는 127.0.0.1:5432로 퍼블리시됨(.env의 값으로 치환)
-export DB_DSN="host=127.0.0.1 port=5432 dbname=<DB_NAME> user=<DB_USER> password=<DB_PASSWORD>"
-# RAG까지 돌리려면(선택): export OPENAI_API_KEY=$(grep ^OPENAI_API_KEY ~/digital_onnuri/backend/deploy/.env | cut -d= -f2)
+ENV=~/digital_onnuri/backend/deploy/.env
+# 비밀값은 서버 .env에서 런타임에 읽는다(이 파일에 하드코딩 금지)
+DB_NAME=$(grep ^DB_NAME "$ENV" | cut -d= -f2)
+DB_USER=$(grep ^DB_USER "$ENV" | cut -d= -f2)
+DB_PASSWORD=$(grep ^DB_PASSWORD "$ENV" | cut -d= -f2)
+export DB_DSN="host=127.0.0.1 port=5432 dbname=$DB_NAME user=$DB_USER password=$DB_PASSWORD"
+export DB_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5432/$DB_NAME"
+# 단계 C(RAG 코퍼스 재적재)용
+export OPENAI_API_KEY=$(grep ^OPENAI_API_KEY "$ENV" | cut -d= -f2)
+# 단계 D(채록)용 Node 20 — 시스템 node 는 v12 라 playwright 가 안 돈다.
+# 다른 서비스(koscomlabor-*)가 시스템 node 를 쓸 수 있어 교체하지 않고 배치에서만 앞세운다.
+export PATH=/opt/node20/bin:$PATH
+export SURVEY_OUT_DIR=~/onnuri_batch/survey
+# 단계 E(실시간 조회 카나리아)용. app 은 포트를 호스트에 노출하지 않는다(XFF 스푸핑 방지)
+# — 그래서 Caddy 를 거쳐 자기 도메인으로 부른다. 하루 1회라 비용은 무시할 만하다.
+# `|| true` 필수: set -euo 라 키가 없으면 grep 이 1 을 반환해 **배치 전체가 죽는다.**
+# 단계 E 는 fail-open 이어야 하므로 빈 값이면 E 만 스킵되게 둔다.
+export APP_BASE_URL=https://api.koscomlabor.cloud
+export APP_ADMIN_KEY=$(grep ^APP_ADMIN_KEY "$ENV" | cut -d= -f2- || true)
 cd "$REPO"
-git pull --ff-only origin main
+# 배치가 만든 산출물(data/merchants·후보 CSV)은 버리고 당긴다. set -e + --ff-only 라
+# 산출물이 남아 있으면 pull 이 실패해 배치 전체가 죽는다 — 2026-09-01 실제로 그랬다
+# (저장소의 data/merchants 를 갱신한 순간 서버 로컬과 충돌).
+git checkout -- data/merchants _workspace/13_brand_candidates.csv 2>/dev/null || true
+git pull --ff-only origin main >>"$LOG" 2>&1
 # flock: 앞 배치가 안 끝났으면 이번 회차는 건너뛴다
 flock -n /tmp/onnuri_nightly.lock \
-  python3 backend/tools/nightly_update.py --skip-rag >>"$LOG" 2>&1
+  python3 backend/tools/nightly_update.py >>"$LOG" 2>&1
 SH
 chmod +x ~/onnuri_batch/run.sh
 ```
 
-- 비밀값은 스크립트에 하드코딩하지 말고 `.env`에서 읽거나 별도 관리. 위 `<…>`는 서버 `.env` 값으로 치환.
-- RAG까지 자동화하려면 `--skip-rag`를 빼고 `OPENAI_API_KEY`를 export.
+> **이 블록은 2026-09-05 에 서버의 실제 `run.sh` 와 대조해 맞춘 정본이다.**
+> 종전 블록은 2026-08-22 상태에 멈춰 있어 **그대로 복사하면 여섯 단계 중 셋이 조용히
+> 안 돌고, 산출물 충돌이 나는 순간 배치 전체가 죽었다.** 빠져 있던 것과 그 결과:
+>
+> | 없던 줄 | 없으면 |
+> |---|---|
+> | `export PATH=/opt/node20/bin:$PATH` | 시스템 node v12 를 집어 **단계 D 스킵** |
+> | `export APP_BASE_URL`·`APP_ADMIN_KEY` | **단계 E(카나리아) 스킵** |
+> | `export OPENAI_API_KEY` (옛 블록은 대신 `--skip-rag`) | **단계 C 스킵** |
+> | `export SURVEY_OUT_DIR` | 리포트가 기본 위치로 흩어진다 |
+> | `git checkout -- data/merchants …` | `pull` 실패 → `set -e` 로 **배치 전체 사망** |
+>
+> **여기를 고칠 때는 서버의 실제 파일도 같이 고칠 것.** 이 문서와 서버가 갈라지면
+> 다음 사고 때 이 블록이 아니라 서버를 믿어야 하는데, 그 사실을 아는 사람이 없어진다.
+
+- 비밀값은 스크립트에 하드코딩하지 않는다 — 위 블록처럼 `.env`에서 런타임에 읽는다.
+- 서버에 `/opt/node20` 이 없으면 단계 D 가 스킵된다(설치는 아래 「단계 D」 절).
 
 ### 단계 D — 온라인 취급품목·브랜드 변화 탐지 (2026-08-22, ADR-16)
 
@@ -801,6 +847,6 @@ python3 backend/tools/nightly_update.py --skip-merchants --skip-online --skip-ra
 - [ ] Docker/Compose 설치, 소스 clone
 - [ ] `.env` 작성(DB 비밀번호·도메인·이메일)
 - [ ] `bootstrap.sh` 실행 (또는 `up -d --build` + 데이터 적재)
-- [ ] `app` 헬스 UP + 66,211건 적재 검증
-- [ ] `https://api.koscomlabor.cloud` 회귀 검증(145·1241 일치)
+- [ ] `app` 헬스 UP + 가맹점 적재 검증(2026-09-05 기준 79,800건대 — 자릿수와 0 여부를 본다)
+- [ ] `https://api.koscomlabor.cloud` 회귀 검증(개포동 144~146 · 팔달구 1250~1270)
 - [ ] 백엔드 검증 후 `API_BASE` 반영분을 main에 머지 → 라이브 전환
