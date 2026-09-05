@@ -134,13 +134,26 @@ function weeklyDigest(outDir) {
       byMall.set(r.label, cur);
     }
   }
-  const rows = [...byMall.entries()]
+  const all = [...byMall.entries()]
     .map(([label, v]) => ({ label, id: v.id, deepLink: v.deepLink,
-      brands: [...v.brands], cats: [...v.cats], chrome: [...v.chrome], seenOn: v.dates }))
+      brands: [...v.brands], cats: [...v.cats], chrome: [...v.chrome], seenOn: v.dates }));
+
+  const rows = all
     .filter((r) => r.brands.length || r.cats.length)
     .sort((a, b) => (b.brands.length + b.cats.length) - (a.brands.length + a.cats.length));
+
+  /* **변화 없이 확인된 몰**도 함께 싣는다(2026-09-06, F19). 사람이 읽는 것은 `rows` 뿐이지만,
+     "정상 채록됐고 달라진 것이 없었다"는 것도 사실이고 확인일을 올릴 근거가 된다.
+     이것이 없으면 그런 몰은 다이제스트에서 통째로 빠져 **확인일이 영영 안 오른다** —
+     인어교주해적단이 2026-08-27·09-03 에 정상 채록됐는데도 08-21 에 머물러 있었다.
+     화면 부속(chrome)만 잡힌 회차도 여기 든다. 그것은 브랜드가 아니므로 변화가 아니다. */
+  const confirmed = all
+    .filter((r) => !r.brands.length && !r.cats.length)
+    .map((r) => ({ label: r.label, id: r.id, seenOn: r.seenOn }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'ko'));
+
   return { since: fresh[0].slice('survey-delta-'.length, -5), until: fresh[fresh.length - 1].slice('survey-delta-'.length, -5),
-           rounds: fresh.length, malls: byMall.size, thinSkipped, rows };
+           rounds: fresh.length, malls: byMall.size, thinSkipped, rows, confirmed };
 }
 
 async function main() {
@@ -255,6 +268,9 @@ async function main() {
         fs.writeFileSync(dfile, JSON.stringify(dg, null, 1), 'utf-8');
         console.log('');
         log(`━━ 주간 다이제스트 ${dg.since} ~ ${dg.until} (${dg.rounds}회차 · ${dg.malls}곳) ━━`);
+        if (dg.confirmed.length) {
+          log(`  변화 없이 확인된 곳 ${dg.confirmed.length}: ${dg.confirmed.map((c) => c.label).join(', ')}`);
+        }
         if (!dg.rows.length) {
           log('  반영 대기 중인 변화 없음');
         } else {

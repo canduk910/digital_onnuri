@@ -288,6 +288,46 @@ console.log('(p) 수집 실패·본문 얇음 회차는 건드리지 않는다')
   check(!r.item('mall-a').cats.includes('food-kimchi'), '실패 회차는 반영 안 함');
 }
 
+console.log('(r) 변화 없이 확인된 몰도 확인일이 오른다 (F19)');
+{
+  /* 다이제스트가 변화 있는 몰만 실으면, 정상 채록됐지만 달라진 게 없는 몰은 통째로 빠져
+     확인일이 영영 안 오른다. 인어교주해적단이 2026-08-27·09-03 에 정상 채록됐는데도
+     08-21 에 머물러 있던 것이 그 예다. */
+  const c = baseCatalog();
+  const doc = digest([]);
+  doc.confirmed = [{ id: 'mall-a', label: 'mall-a', seenOn: ['2026-08-30', '2026-09-02'] }];
+  const r = run(c, doc);
+  check(r.item('mall-a').surveyed_on === '2026-09-02',
+    '변화가 없어도 확인일이 오른다', r.item('mall-a').surveyed_on);
+  check(/변화 없이 확인/.test(r.out), '로그가 변화 있는 것과 구분해 적는다');
+  check(r.item('mall-a').cats.join(',') === 'appliance',
+    '값은 하나도 안 바뀐다', JSON.stringify(r.item('mall-a').cats));
+
+  // 보류 규칙은 그대로 적용된다 — 확인일만 올린다고 예외가 되지 않는다.
+  const doc2 = digest([]);
+  doc2.confirmed = [
+    { id: 'sect-b', label: 'sect-b', seenOn: ['2026-09-02'] },
+    { id: 'partial-d', label: 'partial-d', seenOn: ['2026-09-02'] },
+  ];
+  const r2 = run(baseCatalog(), doc2);
+  check(r2.item('sect-b').surveyed_on === '2026-08-01', 'section 은 확인일도 안 오른다');
+  check(r2.item('partial-d').surveyed_on === '2026-07-01', 'partial 도 확인일이 안 오른다');
+
+  // 뒤로 가지 않는다.
+  const c3 = baseCatalog();
+  c3.items.find((i) => i.id === 'mall-a').surveyed_on = '2026-09-05';
+  const doc3 = digest([]);
+  doc3.confirmed = [{ id: 'mall-a', label: 'mall-a', seenOn: ['2026-09-02'] }];
+  const r3 = run(c3, doc3);
+  check(r3.item('mall-a').surveyed_on === '2026-09-05', '더 오래된 확인은 날짜를 낮추지 않는다');
+
+  // 옛 다이제스트에는 이 필드가 없다 — 없으면 없는 대로 돈다.
+  const r4 = run(baseCatalog(), digest([
+    { id: 'mall-a', label: 'mall-a', brands: [], cats: ['appliance-home'], seenOn: ['2026-09-02'] },
+  ]));
+  check(r4.code === 0, 'confirmed 없는 옛 다이제스트도 그대로 동작한다', r4.code);
+}
+
 console.log('(q) 주간 다이제스트 — 발화 조건과 thin 제외');
 {
   const dir = tmpdir('digest');
@@ -311,6 +351,20 @@ console.log('(q) 주간 다이제스트 — 발화 조건과 thin 제외');
   const dg2 = weeklyDigest(dir2);
   check(dg2 && !dg2.rows[0].brands.includes('b3'), 'thin 회차의 관측은 빠진다', dg2 && JSON.stringify(dg2.rows[0].brands));
   check(dg2 && dg2.thinSkipped === 1, '몇 건을 걸렀는지 밝힌다', dg2 && dg2.thinSkipped);
+
+  // 변화 없이 확인된 몰이 confirmed 로 나오는가 (F19)
+  const dir3 = tmpdir('digest3');
+  days.forEach((d) => fs.writeFileSync(path.join(dir3, `survey-delta-${d}.json`), JSON.stringify({ date: d, report: [
+    { id: 'chg', label: 'chg', ok: true, newBrands: ['b'], newCats: [] },
+    { id: 'same', label: 'same', ok: true, newBrands: [], newCats: [] },
+    { id: 'noise', label: 'noise', ok: true, newBrands: [], newCats: [], newBrandsChrome: ['TOP'] },
+  ] })));
+  const dg3 = weeklyDigest(dir3);
+  check(dg3 && dg3.rows.length === 1 && dg3.rows[0].id === 'chg',
+    '변화 있는 몰만 rows 에 든다', dg3 && dg3.rows.map((r) => r.id).join(','));
+  const ids = dg3 ? dg3.confirmed.map((c) => c.id).sort().join(',') : '';
+  check(ids === 'noise,same', '변화 없는 몰은 confirmed 로 나온다', ids);
+  check(dg3 && dg3.confirmed[0].seenOn.length === 7, '관측한 날짜를 전부 싣는다', dg3 && dg3.confirmed[0].seenOn.length);
 }
 
 console.log('');

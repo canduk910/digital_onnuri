@@ -65,15 +65,18 @@ function readObservations(file) {
     };
   }
   if (Array.isArray(doc.rows)) {
+    const pick = (r) => ({
+      // 다이제스트는 이미 실패·얇음 회차를 걸러 모은 것이다(survey_nightly.js weeklyDigest).
+      id: r.id, label: r.label || r.id, ok: true, thin: false,
+      brands: r.brands || [], cats: r.cats || [],
+      seenOn: (r.seenOn || []).filter(Boolean).sort().slice(-1)[0] || '',
+    });
+    /* `confirmed` 는 **변화 없이 확인된 몰**이다(2026-09-06, F19). 값은 안 바뀌지만 확인일은
+       오른다. 옛 다이제스트에는 이 필드가 없으므로 없으면 그냥 없는 대로 돈다. */
     return {
       kind: `다이제스트(${doc.rounds || '?'}회차)`,
       span: [doc.since, doc.until].filter(Boolean).join(' ~ '),
-      rows: doc.rows.map((r) => ({
-        // 다이제스트는 이미 실패·얇음 회차를 걸러 모은 것이다(survey_nightly.js weeklyDigest).
-        id: r.id, label: r.label || r.id, ok: true, thin: false,
-        brands: r.brands || [], cats: r.cats || [],
-        seenOn: (r.seenOn || []).filter(Boolean).sort().slice(-1)[0] || '',
-      })),
+      rows: doc.rows.map(pick).concat((doc.confirmed || []).map((r) => Object.assign(pick(r), { noChange: true }))),
     };
   }
   console.error('알 수 없는 형식입니다 — report(회차) 도 rows(다이제스트) 도 없습니다:', file);
@@ -158,7 +161,9 @@ for (const r of obs.rows) {
   const touched = (p.brands || []).length !== brandsBefore || (p.cats || []).length !== catsBefore || removed.length || dateMoved;
   if (touched) changed++;
   log.push([r.label,
-    `브랜드 +${addedBrands}(후보 ${nb.length} · 제외 ${dropped.length}) 카테고리 +${nc.length}` +
+    (r.noChange
+      ? '변화 없이 확인'
+      : `브랜드 +${addedBrands}(후보 ${nb.length} · 제외 ${dropped.length}) 카테고리 +${nc.length}`) +
     (removed.length ? ` 부모 -${removed.length}(${removed.join(',')})` : '') +
     ` · 확인일 ${p.surveyed_on}`]);
 }
