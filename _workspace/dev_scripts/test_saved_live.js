@@ -12,6 +12,10 @@
    절대경로(`/Users/.../auto_stock/node_modules/playwright`)를 require 하고 있어, CI 에
    넣자마자 `MODULE_NOT_FOUND` 로 죽었다 — 내 기계에서만 도는 테스트였던 것이다.
    test_frontend_render.js 와 같은 규약을 쓴다: 보통 방식으로 찾고, 없으면 종료 코드 2. */
+/* 브라우저 채널을 **박지 않는다.** 종전에는 `channel:'chrome'` 을 박아 두었는데,
+   CI 러너에 구글 크롬이 마침 깔려 있어 우연히 돌았다(playwright 는 chromium 을 받는다).
+   러너 이미지가 바뀌면 조용히 죽는다. 로컬에서는 PLAYWRIGHT_CHANNEL=chrome 을 주면 된다. */
+const LAUNCH = process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {};
 let chromium;
 try { ({ chromium } = require('playwright')); }
 catch (e) {
@@ -30,8 +34,11 @@ let fail=0;
 const WATCHDOG=setTimeout(()=>{console.log('\nFAIL 시간 초과(150초)');process.exit(1);},150000);
 WATCHDOG.unref&&WATCHDOG.unref(); const ck=(o,t,d)=>{console.log(`  [${o?'PASS':'FAIL'}] ${t}${d?' — '+d:''}`); if(!o)fail++;};
 (async()=>{
-const b=await chromium.launch({channel:'chrome'});
-const p=await b.newPage({viewport:{width:1440,height:900}});
+const b=await chromium.launch(LAUNCH);
+/* 클립보드 권한을 **명시로 준다.** 안 주면 번들 chromium 에서 `navigator.clipboard.writeText`
+   가 거부되고 코드가 `prompt()` 폴백으로 떨어져 페이지가 멈춘다(구글 크롬에서는 우연히 통과).
+   테스트가 브라우저 채널에 흔들리면 그 초록은 제품이 아니라 환경을 말하는 것이다. */
+const p=await b.newPage({viewport:{width:1440,height:900}, permissions:['clipboard-write']});
 const errs=[]; p.on('pageerror',e=>errs.push(String(e)));
 await p.goto(U,{waitUntil:'domcontentloaded'});
 await p.evaluate(()=>{localStorage.removeItem('onnuri_favs');localStorage.removeItem('onnuri_recent');

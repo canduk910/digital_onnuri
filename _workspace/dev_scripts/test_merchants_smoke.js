@@ -11,6 +11,10 @@
    절대경로(`/Users/.../auto_stock/node_modules/playwright`)를 require 하고 있어, CI 에
    넣자마자 `MODULE_NOT_FOUND` 로 죽었다 — 내 기계에서만 도는 테스트였던 것이다.
    test_frontend_render.js 와 같은 규약을 쓴다: 보통 방식으로 찾고, 없으면 종료 코드 2. */
+/* 브라우저 채널을 **박지 않는다.** 종전에는 `channel:'chrome'` 을 박아 두었는데,
+   CI 러너에 구글 크롬이 마침 깔려 있어 우연히 돌았다(playwright 는 chromium 을 받는다).
+   러너 이미지가 바뀌면 조용히 죽는다. 로컬에서는 PLAYWRIGHT_CHANNEL=chrome 을 주면 된다. */
+const LAUNCH = process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {};
 let chromium;
 try { ({ chromium } = require('playwright')); }
 catch (e) {
@@ -22,7 +26,7 @@ const BASE = process.env.ONNURI_BASE || 'http://localhost:8655';
 const U = BASE + '/merchants.html?region=%EC%84%9C%EC%9A%B8';
 let fail=0; const ck=(o,t,d)=>{console.log(`  [${o?'PASS':'FAIL'}] ${t}${d?' — '+d:''}`);if(!o)fail++;};
 const WD=setTimeout(()=>{console.log('\nFAIL 시간 초과');process.exit(1);},170000); WD.unref&&WD.unref();
-(async()=>{const b=await chromium.launch({channel:'chrome'});const p=await b.newPage({viewport:{width:1440,height:900}});
+(async()=>{const b=await chromium.launch(LAUNCH);const p=await b.newPage({viewport:{width:1440,height:900}});
 const errs=[];p.on('pageerror',e=>errs.push(String(e).slice(0,110)));
 await p.goto(U,{waitUntil:'domcontentloaded'});
 await p.evaluate(()=>{localStorage.clear();sessionStorage.setItem('onnuri_chat_closed','1');});
