@@ -140,7 +140,9 @@ COMPUTE = (
     "    if (this.OFFLINE_META.collected_on) stampDates.push(this.OFFLINE_META.collected_on);\n"
     "    const baseStamp = stampDates.slice().sort()[0] || \"\";\n"
     "    const baseMonth = baseStamp.slice(0, 7);\n"
-    "    const regionApps = this.ONLINE.filter(r => r.rl === true).map(r => r.n).join(\", \");\n"
+    # 2026-09-05: `regionApps` 정의를 지운다. 이 값이 들어가던 각주는 2026-08-11(7g)에
+    # terms.html 로 이관됐고 index 에는 남지 않는다 — terms.html 이 자기 몫을 따로 갖고 있다.
+    # 지우고 재빌드해 **index.html 이 바이트 동일**함을 확인했다(죽은 값이었다는 증거).
     # 2026-09-04: 인트로가 목록 전체를 meta.collected_on(2026-08-06) 하나로 말하고 있었다.
     # 이후 확인분이 섞이면(권율로 2026-09-03) "그날 수집한 31곳 전체"라는 두 겹의 거짓이 된다.
     # 날짜는 항목의 실제 수집일에서 뽑고, 추가분이 있으면 "전체"라 말하지 않는다.
@@ -171,7 +173,7 @@ tpl = replace_once(
     "      mflowOpen: st.mflowOpen, toggleMFlow: this.toggleMFlow,\n"
     "      mflowArrow: st.mflowOpen ? \"▼\" : \"▶\",\n"
     "      baseMonth, onTotal, onShopping, onDelivery, onTabText,\n"
-    "      collectedOn, pagesChecked, regionApps, onIntroMid, onIntroTail,\n    };",
+    "      collectedOn, pagesChecked, onIntroMid, onIntroTail,\n    };",
     "renderVals.return",
 )
 

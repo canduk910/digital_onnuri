@@ -111,7 +111,10 @@ if tpl:
 
     # (f) renderVals computed 정의 존재
     print("(f) renderVals computed 정의")
-    for tok in ["const onTabText =", "const baseMonth =", "const regionApps =",
+    # 2026-09-05: `const regionApps =` 를 뺐다. 그 값이 들어가던 각주가 terms.html 로
+    # 이관돼(7g) index 에는 렌더되지 않으므로 정의만 남아 있었다 — (i) 이관 무결성이
+    # terms.html 쪽 실물을 계속 지킨다. 지운 뒤 재빌드에서 index.html 바이트 동일 확인.
+    for tok in ["const onTabText =", "const baseMonth =",
                 "const onIntroTail =", "no: i + 1", "ONLINE_META =", "OFFLINE_META ="]:
         check(tok in tpl, f"'{tok}' 정의됨")
 
