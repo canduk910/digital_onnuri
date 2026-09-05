@@ -347,6 +347,13 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
   check(/id="regionOff"/.test(m) && /off\.hidden = !LIST_BY_MAP/.test(mCode),
     '지역 선택이 무시되고 있음을 그 컨트롤 옆에서 말한다');
 
+  /* 착지(챗봇·URL)는 지도 범위 모드를 먼저 꺼야 한다. C2 로 bounds 가 지역을 **대체**하게
+     되면서, 켜진 채 착지하면 지역이 통째로 버려져 "강남구"라 말하고 수원을 보여 준다
+     (2026-09-05 실측 재현). 2026-09-02 F-1 과 같은 유형이다. */
+  check(/function clearMapScopeForLanding\(\)/.test(mCode)
+     && (mCode.match(/clearMapScopeForLanding\(\);/g) || []).length >= 2,
+    '착지 두 창구가 지도 범위 모드를 먼저 끈다');
+
   /* 검증 스크립트가 **개발자 기계의 절대경로**를 require 하면 CI 에서 즉사한다.
      2026-09-05 에 네 개가 그랬고, 배포 게이트에 넣자마자 MODULE_NOT_FOUND 로 막혔다 —
      내 기계에서만 도는 테스트였던 것이다. 다시 들어오지 못하게 고정한다. */

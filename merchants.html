@@ -1414,7 +1414,21 @@
       return Object.keys(o).length ? o : null;
     } catch (e) { return null; }
   })();
+  /* 착지(챗봇·URL 파라미터)는 **지도 범위 모드를 먼저 끈다.**
+     2026-09-05 C2 로 bounds 가 지역 축을 **대체**하게 되면서, 이 모드가 켜진 채 착지하면
+     `regionParams()` 가 region·gu·dong 을 통째로 버린다 — 챗봇이 "강남구 N곳"이라 말한 뒤
+     화면은 지금 보고 있는 지도(예: 수원)를 보여 준다. 실측 재현: 셀렉트는 `강남구` 인데
+     결과 50행이 전부 `경기도 수원시 팔달구`.
+
+     2026-09-02 F-1 과 같은 유형이다 — 그때는 '전국 이용 가능만' 체크를 착지가 되돌리지 않아
+     "배달앱 8곳"이라 말한 뒤 3곳 화면에 착지시켰다. `resetAll` 은 이미 같은 처방을 갖고 있고
+     (1505행), 착지만 빠져 있었다. **착지는 자기가 지목한 곳을 보여 준다는 약속**이다. */
+  function clearMapScopeForLanding() {
+    if (LIST_BY_MAP) { LIST_BY_MAP = false; updateBoundsBtn(); }
+  }
+
   function applyNavFilter(pIn) {
+    clearMapScopeForLanding();
     var p = pIn || NAV_FILTER; if (!p) return;
     MAP_FIT_NEXT = true;   // 챗 이동 카드·URL 착지 = 대상 지역으로 지도 맞춤
     var chain = Promise.resolve();
@@ -1430,6 +1444,7 @@
   // 챗 위젯 '자동모드'(ON, 옛 이름 '지도 바로 이동') 훅 — 페이지 이동 없이 현재 화면의 필터·지도를 즉시 이동한다.
   // 지역(시도)이 다르면 selectSido로 갈아탄 뒤 나머지 필터를 적용한다.
   window.onnuriApplyChatFilter = function (p) {
+    clearMapScopeForLanding();   // 시도 변경 경로가 selectSido 를 먼저 타므로 여기서도 끈다
     p = p || {};
     if (p.region && p.region !== state.sido && SIDO.some(function (s) { return s.key === p.region; })) {
       var pr = selectSido(p.region);
