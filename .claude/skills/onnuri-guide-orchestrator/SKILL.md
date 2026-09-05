@@ -135,7 +135,7 @@ ToolSearch("select:SendMessage,TaskCreate,TaskUpdate,TaskGet,TaskList")
 - 루트 `*.html`·`config.js`·`data/**`: 정적 계약 + 렌더 + merchants 스모크, 셋 다 `EXIT=0`
 - CSS·레이아웃: `verify_styles.js guard HEAD` — **커밋 전에** 돌린다. 커밋 뒤에 부르면 HEAD 가 이미 그 변경을 담고 있어 차이가 항상 0이고, 통과하지만 아무것도 보지 않는다
 - `index.html` 재생성: D-F1
-- `backend/**`: `./gradlew test`
+- `backend/**`: `./gradlew cleanTest test` — **`cleanTest` 를 빼면 안 된다.** 그냥 `test` 는 입력이 그대로일 때 한 건도 안 돌고 `BUILD SUCCESSFUL` 과 종료 코드 0을 낸다(dev-testing 스킬)
 - `_workspace/**`·`.claude/**` 문서만 고쳤다: 비밀값 스캔만. **건너뛴 사실과 변경 파일 목록을 런 기록에 남긴다** — 판단이 기록에 남지 않으면 다음번엔 페이지를 고친 커밋에서도 건너뛴다
 
 ### 푸시하지 않고 승인을 받는 것

@@ -75,6 +75,9 @@ CI 의 브라우저 잡은 `ONNURI_SKIP_MAP=1` 로 돌기 때문에 **지도 절
 #   포함해 등록돼 있다). 앞서 "마커가 안 보인다"고 본 것은 `.cluster` 를 안 센 탓이다 —
 #   drawPins 는 MarkerClustering 에 넘기므로 초기 줌에서는 `.cluster` 만 있다.
 #   지도 검증을 배포 후로 미루지 마라.
+#   다만 **'이 지도 범위로 목록 보기'는 로컬에서 못 본다.** updateBoundsBtn 이
+#   `b.hidden = (MODE !== "api")` 로 감추므로(merchants.html:969) 백엔드 없이는 그 버튼
+#   자체가 없다. 지도는 되지만 지도 범위 목록은 안 된다 — 둘을 같은 것으로 보지 마라.
 
 # index 빌드 산출물 (D-F1) — index.html 을 재생성했으면
 python3 _workspace/dev_scripts/verify_build.py
@@ -108,12 +111,27 @@ NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chro
 ## 백엔드 테스트 실행
 
 ```bash
-cd backend && JAVA_HOME=$(/usr/libexec/java_home -v 21 2>/dev/null || echo /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home) ./gradlew test
+cd backend && JAVA_HOME=$(/usr/libexec/java_home -v 21 2>/dev/null || echo /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home) ./gradlew cleanTest test
 ```
 
 - 단위 테스트(스프링 컨텍스트 불필요)를 우선한다 — 빠르고 DB 없이 돈다.
 - 통합 테스트는 로컬 Docker Postgres(backend/docker-compose.yml) 기동을 전제. DB가 없으면 `@SpringBootTest` 테스트는 건너뛰게 태그하고, 리포트에 "통합 미실행"을 명시한다.
-- 완료 조건: `./gradlew test` 녹색. 실패 상태로 커밋·인계 금지.
+- 완료 조건: `./gradlew cleanTest test` 녹색. 실패 상태로 커밋·인계 금지.
+
+### `./gradlew test` 는 테스트를 **안 돌리고도** 통과한다
+
+그냥 부르면 입력이 그대로일 때 `Task :test UP-TO-DATE` 로 건너뛰고 `BUILD SUCCESSFUL` 을 낸다.
+종료 코드도 0이다. 2026-09-05 실측: 그냥 부르면 **632ms · 테스트 0건**, `cleanTest` 를 앞에
+붙이면 **3초 · 214건**(실패 0 · 건너뜀 1). 자바를 안 만진 커밋에서 이 명령을 형식적으로 돌리면
+"백엔드 통과"라 적게 되는데 실제로는 아무것도 확인하지 않은 것이다.
+
+```bash
+cd backend && ./gradlew cleanTest test        # 이것을 쓴다. 테스트만 다시 돈다
+```
+
+`--rerun-tasks` 도 되지만 전체를 다시 빌드해 느리다. 실제로 몇 건이 돌았는지는 결과 파일에서
+센다 — `build/test-results/test/*.xml` 의 `tests=` 합계다. 앞선 실행이 **실패**한 상태였다면
+gradle 이 알아서 다시 돌리므로, 이 함정은 빨강을 감추지는 않고 **초록을 부풀린다**.
 
 ## 프론트 검증 (Playwright)
 

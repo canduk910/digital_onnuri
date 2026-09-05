@@ -28,7 +28,9 @@ done
 for t in test_robots_watch.py test_canary_trend.py verify_build.py; do
   python3 _workspace/dev_scripts/$t >/dev/null 2>&1; echo "$t EXIT=$?"
 done
-(cd backend && ./gradlew test)                            # JAVA_HOME 지정은 dev-testing 참조
+# 백엔드 — `./gradlew test` 를 그냥 부르면 UP-TO-DATE 로 **한 건도 안 돌고** 종료 코드 0이 난다
+(cd backend && ./gradlew cleanTest test); echo "backend EXIT=$?"   # JAVA_HOME 은 dev-testing 참조
+#   실제로 몇 건이 돌았는지는 build/test-results/test/*.xml 의 tests= 합계로 센다
 
 # 브라우저가 필요한 것 — NODE_PATH 를 빼면 실패가 아니라 종료 코드 2로 '건너뜀'이 된다.
 # NODE_PATH 값의 정본은 dev-testing 스킬의 「자동 테스트」 절이다. 그 값을 그대로 쓴다.
