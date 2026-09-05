@@ -335,6 +335,18 @@ console.log('(g) merchants — 외부화한 자산이 실제로 연결돼 있다
     '저장 모듈이 시도를 게터로 받는다');
   check(/onOpenSpot: goSpot/.test(mCode), 'merchants 가 지도 이동을 onOpenSpot 으로 넘긴다');
 
+  /* 지도 범위 모드는 **지역을 대체한다**(2026-09-05 C2 — "보이는 곳을 검색한다").
+     bounds 를 지역에 AND 로 더하면 서울 탭인 채 경기를 보면 0곳이 나온다 — 그 상태가
+     2026-08-12~09-05 사이에 있었고, ADR-7 의 결정과 24일 동안 갈라져 있었다.
+     되돌아가면 화면이 다시 "여긴 가맹점이 없다"로 읽힌다. */
+  check(/if \(LIST_BY_MAP && MODE === "api"\) \{\s*var b = currentBounds\(\);\s*if \(b\) return assign\(\{\}, b\);/.test(mCode),
+    '지도 범위 모드에서 bounds 가 지역 축을 대체한다(AND 가 아니다)');
+  check(/"지도 범위 · 전 지역 "/.test(mCode),
+    '지도 범위 표시가 전 지역임을 밝힌다(시도 이름을 적으면 거짓이 된다)');
+  // 활성으로 보이는 컨트롤이 결과에 영향을 주지 않으면 "필터가 고장 났다"로 읽힌다.
+  check(/id="regionOff"/.test(m) && /off\.hidden = !LIST_BY_MAP/.test(mCode),
+    '지역 선택이 무시되고 있음을 그 컨트롤 옆에서 말한다');
+
   /* 실시간 조회 펜딩 화면은 **링크가 있는 쇼핑몰 전부**를 보여야 한다.
      2026-09-05 사용자 제보 — `search_url_template` 만 보다가 롯데ON·공영쇼핑이 빠졌다.
      그 둘은 2026-09-03 에 링크를 전용관 주소로 바꾸며 템플릿을 의도적으로 비운 곳이라,

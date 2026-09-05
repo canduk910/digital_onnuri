@@ -7,7 +7,7 @@
 <link rel="icon" href="favicon.svg?v=1" type="image/svg+xml">
 <link rel="stylesheet" href="shell.css?v=8">
 <link rel="stylesheet" href="chat-widget.css?v=12">
-<link rel="stylesheet" href="merchants.css?v=5">
+<link rel="stylesheet" href="merchants.css?v=6">
 </head>
 <body>
   <!-- 모바일 상단바 -->
@@ -66,7 +66,11 @@
     <div class="sido-tabs" id="sidoTabs" role="tablist" aria-label="지역 선택"></div>
 
     <!-- 지역 계층(구/동) 드롭다운 -->
-    <div class="region-row" id="regionRow"><span class="rr-label">지역</span><span id="regionSelects"></span></div>
+    <div class="region-row" id="regionRow"><span class="rr-label">지역</span><span id="regionSelects"></span>
+      <!-- 지도 범위 모드에서 지역 선택이 **무시되고 있음**을 그 자리에서 말한다.
+           2026-09-05: bounds 가 지역을 대체하게 바뀌어(C2) 시도·구·동이 활성으로 보이면서
+           결과에 걸리지 않는다. 그 사실을 컨트롤 옆에 두지 않으면 "필터가 고장 났다"로 읽힌다. -->
+      <span class="region-off" id="regionOff" hidden>지도 범위로 보는 중 — 지역 선택은 잠시 적용되지 않습니다</span></div>
 
     <!-- 업종 칩 (주 필터) -->
     <div class="chip-row" id="catChips" aria-label="업종 선택"></div>
@@ -101,7 +105,7 @@
       <div class="result-map">
         <div class="map-wrap">
           <div id="map"></div>
-          <button id="boundsBtn" class="bounds-btn" type="button" title="선택한 시도 안에서 지금 지도에 보이는 범위로 목록을 좁힙니다(시도를 벗어난 곳은 포함되지 않습니다)" hidden>이 지도 범위로 목록 보기</button>
+          <button id="boundsBtn" class="bounds-btn" type="button" title="지금 지도에 보이는 범위로 목록을 좁힙니다. 이때 시도·구·동 선택은 잠시 무시되고 서울·인천·경기·부산 전체에서 찾습니다(업종·브랜드 필터는 그대로 걸립니다)." hidden>이 지도 범위로 목록 보기</button>
           <button id="streetBtn" class="street-btn" type="button" aria-label="거리뷰 모드 켜기/끄기" aria-pressed="false">거리뷰</button>
           <button id="locBtn" class="loc-btn" type="button" aria-label="현재 위치를 지도에 표시">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3a8.994 8.994 0 00-7.94-7.94V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19a7 7 0 110-14 7 7 0 010 14z"/></svg>
@@ -330,13 +334,26 @@
   };
   // 지역 스코프(구/동, digital 제외) — regionFiltered와 동일 규칙. "동 미상"은 서버가 IS NULL로 해석.
   function regionParams() {
+    /* 지도 범위로 목록 보기(LIST_BY_MAP) — **bounds 가 지역 계층을 대체한다.**
+       2026-09-05 사용자 결정: "보이는 곳을 검색한다"는 멘탈 모델에 맞춘다.
+
+       종전에는 bounds 를 지역에 AND 로 더했다(2026-08-12 뷰포트 자동 지도 때 바뀐 것).
+       그러면 서울 탭인 채 지도를 경기로 옮기면 **0곳**이 나오고, 화면은 그 이유를
+       "서울 기준"이라 밝히긴 했지만 이용자가 원한 답은 "지금 보이는 곳"이었다.
+       ADR-7 이 원래 그렇게 정했던 것이고(그 결정문은 그대로 살아 있었다),
+       2026-08-12 변경이 ADR 을 갱신하지 않아 문서와 코드가 24일 동안 갈라져 있었다.
+
+       지역 축(region·si·gu·dong)만 빼고 업종·브랜드·시장유형·검색어는 그대로 건다 —
+       그것들은 위치가 아니라 "무엇을 찾는가"다. API 모드만 지원한다(JSON 폴백은 시도
+       파일 단위라 전 지역 합본을 매번 들고 있기 어렵다 — updateBoundsBtn 이 버튼을 숨긴다). */
+    if (LIST_BY_MAP && MODE === "api") {
+      var b = currentBounds();
+      if (b) return assign({}, b);
+    }
     var p = { region: state.sido };
     if (isGG() && state.si !== "전체") p.si = state.si;
     if (state.gu !== "전체") p.gu = state.gu;
     if (state.dong !== "전체") p.dong = state.dong;
-    // 지도 범위로 목록 보기(LIST_BY_MAP) — 현재 지도 화면 bounds를 지역 필터에 AND로 더한다.
-    // 서버 MerchantSpecs는 4개 좌표가 모두 있을 때만 bounds를 적용한다(추가 AND). API 모드만 지원.
-    if (LIST_BY_MAP && MODE === "api") { var b = currentBounds(); if (b) p = assign(p, b); }
     return p;
   }
   // 현재 지도 화면의 좌표 범위(bounds). 지도 미준비면 null.
@@ -852,12 +869,12 @@
   }
 
   function render() {
-    // 2026-09-04: 종전에는 "지도 범위 N곳" 이었다 — **그 N 은 화면 안 전부가 아니라
-    // '선택한 시도 안에서' 화면에 들어온 수**다(regionParams 가 region 을 늘 얹고 bounds 를
-    // AND 로 더한다). 서울 탭인 채 지도를 경기로 옮기면 0곳이 나오는데 화면은 "지도 범위"라고만
-    // 말해 "여긴 가맹점이 없다"로 읽힌다. 어느 시도 기준인지 함께 적는다.
+    /* 2026-09-04 에는 "지도 범위 · 서울 N곳" 이라 적었다 — 그때는 bounds 가 시도에 AND 로
+       걸려서 어느 시도 기준인지 밝혀야 했다. 2026-09-05 에 bounds 가 지역을 **대체**하게
+       바뀌었으므로(regionParams 주석) 이제 시도 이름을 적으면 거짓이 된다.
+       대신 **전 지역이 대상임을 밝힌다** — 시도 탭이 활성인 채로 무시되고 있기 때문이다. */
     el("mScope").textContent = LIST_BY_MAP
-      ? "지도 범위 · " + state.sido + " " + nf(SNAP.total || 0) + "곳"
+      ? "지도 범위 · 전 지역 " + nf(SNAP.total || 0) + "곳"
       : state.sido + " " + nf(SNAP.sidoTotal || 0) + "곳";
     el("countText").textContent = nf(SNAP.regionTotal) + "곳 중 " + nf(SNAP.total) + "곳 표시";
 
@@ -952,6 +969,12 @@
     b.hidden = (MODE !== "api");   // bounds 리스트는 API 모드만 지원(JSON 폴백은 지역 기준)
     b.className = "bounds-btn" + (LIST_BY_MAP ? " on" : "");
     b.textContent = LIST_BY_MAP ? "지도 범위로 보는 중 · 해제" : "이 지도 범위로 목록 보기";
+    /* 지역 선택이 무시되고 있음을 그 컨트롤 옆에서 말한다(2026-09-05 C2).
+       버튼 라벨만으로는 "지도 범위로 본다"까지만 알 수 있고, **시도·구·동이 안 걸린다**는
+       것은 알 수 없다 — 활성으로 보이는 컨트롤이 결과에 영향을 주지 않는 상태다. */
+    var off = el("regionOff"), row = el("regionRow");
+    if (off) off.hidden = !LIST_BY_MAP;
+    if (row) row.className = "region-row" + (LIST_BY_MAP ? " off" : "");
   }
   // fit(결과 전체로 지도 맞춤)은 시도 버튼·챗 이동 착지에서만 — 업종·브랜드 등 필터 변경은
   // 사용자가 잡은 뷰를 유지하고 현재 화면 기준으로만 다시 그린다(2026-08-12).

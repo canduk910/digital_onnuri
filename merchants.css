@@ -42,6 +42,10 @@
 
   /* ===== 지역 계층 드롭다운 ===== */
   .region-row { display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  /* 지도 범위 모드에서 지역 선택이 무시되고 있다는 표시(2026-09-05). 경고가 아니라
+     상태 설명이라 오렌지를 쓰지 않는다 — 이 페이지에서 오렌지는 포인트 하나뿐이다. */
+  .region-off { font-size:12px; color:var(--text-sub); }
+  .region-row.off #regionSelects { opacity:.45; }
   .rr-label { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); }
   select.sel { font-family:inherit; font-size:13px; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm); padding:9px 12px; outline:none; cursor:pointer; min-width:120px; transition:.15s ease; }
   select.sel:hover { border-color:var(--border-2); }
