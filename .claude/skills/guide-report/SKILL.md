@@ -13,16 +13,20 @@ description: "작업 회차를 결정권자가 읽을 리포트로 옮기는 절
 
 ```bash
 # 1. 이번 회차에 무엇을 했나 — 커밋 목록·본문·범위
-git log --since='YYYY-MM-DD 00:00' --format='%ad|%s' --date=short
-git log --since='YYYY-MM-DD 00:00' --format='===%n%s%n---%n%b'   # 본문에 원인·실측·검증이 있다
-git log --since='YYYY-MM-DD 00:00' --format='%ad' --date=short | sort | uniq -c
-git show --stat <해시>                                            # 그 커밋이 실제로 만진 파일
+# 시작·끝 커밋을 알면 **커밋 범위**로 잡는다. 긴 호흡은 자정을 넘기는 일이 흔해
+# (2026-09-06 회차는 17:49 에 시작해 04:08 에 끝났다) --since 로는 범위가 어긋난다.
+git log <시작>..<끝> --format='%ad %h %s' --date=format:'%m-%d %H:%M'
+git log <시작>..<끝> --format='===%n%s%n---%n%b'   # 본문에 원인·실측·검증이 있다
+git show --stat <해시>                              # 그 커밋이 실제로 만진 파일
+
+# 시작 커밋을 모를 때만 날짜로 잡는다(대장의 마지막 행을 먼저 보라 — 거기 끝 커밋이 있다)
+git log --since='YYYY-MM-DD 00:00' --format='%ad %h %s' --date=short
 ```
 
 ```bash
 # 2. 지금 초록인가 — 문서를 믿지 말고 직접 돌린다 (명령의 정본은 dev-testing 스킬)
 #    ※ 출력에 FAIL 이 없다고 통과가 아니다. 반드시 종료 코드를 함께 본다.
-for t in test_frontend_static.js test_survey_probe.js test_index_nightly.js; do
+for t in test_frontend_static.js test_survey_probe.js test_index_nightly.js test_apply_delta.js; do
   node _workspace/dev_scripts/$t >/dev/null 2>&1; echo "$t EXIT=$?"
 done
 for t in test_robots_watch.py test_canary_trend.py verify_build.py; do
@@ -37,8 +41,17 @@ done
 NODE_PATH=<dev-testing 참조> PLAYWRIGHT_CHANNEL=chrome \
   node _workspace/dev_scripts/test_frontend_render.js; echo "render EXIT=$?"
 NODE_PATH=<dev-testing 참조> PLAYWRIGHT_CHANNEL=chrome \
+  node _workspace/dev_scripts/test_boundsmode_live.js;  echo "bounds EXIT=$?"
+
+# 스모크는 렌더와 달리 **서버를 스스로 띄우지 않는다.** 안 띄우면 연결 거부로 EXIT=1 이다.
+python3 -m http.server 8655 --bind 127.0.0.1 >/dev/null 2>&1 &
+NODE_PATH=<dev-testing 참조> PLAYWRIGHT_CHANNEL=chrome \
   node _workspace/dev_scripts/test_merchants_smoke.js;  echo "smoke  EXIT=$?"
+kill %1
 ```
+
+**이 목록이 전부인지 매번 확인한다.** 정본은 dev-testing 스킬의 「자동 테스트」 절이고
+스위트는 늘어난다 — 여기만 보고 돌리면 새로 생긴 것을 빼먹고도 "전부 돌렸다"고 적게 된다.
 
 `EXIT=0` 만 통과다. `EXIT=2` 는 **실행되지 않았다**는 뜻이므로 5절에 `확인: 미확인` 으로 적고,
 3절에 "그 층의 회귀는 이번 회차에 확인되지 않았다"를 남긴다. 통과 건수만 옮겨 적으면
