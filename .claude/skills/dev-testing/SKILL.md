@@ -43,9 +43,13 @@ NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chro
 #   서버는 스크립트가 띄우고 스스로 죽인다.
 
 # merchants 여섯 조각이 다 실린 채로 뜨는가 — 모듈 하나가 404 여도 나머지가 돌기 때문에 본다
+#   ※ 렌더와 달리 **서버를 스스로 띄우지 않는다.** 먼저 8655 를 올려 두어야 한다.
+#      안 올리면 연결 거부로 실패한다(건너뜀이 아니라 실패라 눈에는 띈다).
+python3 -m http.server 8655 --bind 127.0.0.1 >/dev/null 2>&1 &
 NODE_PATH=/Users/koscom/Projects/auto_stock/node_modules PLAYWRIGHT_CHANNEL=chrome \
   node _workspace/dev_scripts/test_merchants_smoke.js
-#   ONNURI_BASE=https://... 를 주면 배달된 것을 잰다(기본은 로컬 8655 고정)
+kill %1
+#   ONNURI_BASE=https://... 를 주면 배달된 것을 잰다(그때는 로컬 서버가 필요 없다)
 ```
 
 ### 브라우저 스위트는 실패하지 않고 **건너뛴다** — 종료 코드로 판정한다
