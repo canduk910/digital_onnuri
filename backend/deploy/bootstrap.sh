@@ -2,12 +2,16 @@
 # NCP Server(Ubuntu 22.04)에서 백엔드를 한 번에 세우는 부트스트랩.
 # 전제: 서버 생성 + ACG(80/443/22) + Cloud DB 생성 + 서브도메인 A레코드가 이미 되어 있어야 함.
 # 사용:
-#   curl -fsSL https://raw.githubusercontent.com/canduk910/digital_onnuri/feat/backend-scaffold/backend/deploy/bootstrap.sh -o bootstrap.sh
+#   curl -fsSL https://raw.githubusercontent.com/canduk910/digital_onnuri/main/backend/deploy/bootstrap.sh -o bootstrap.sh
 #   bash bootstrap.sh
 set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/canduk910/digital_onnuri.git}"
-BRANCH="${BRANCH:-feat/backend-scaffold}"
+# 2026-09-05: `feat/backend-scaffold` 는 **2026-08-12 단일 브랜치 통합 때 폐기**됐다
+# (ADR-4). 그 뒤로도 이 파일이 옛 브랜치를 가리키고 있어 새 서버를 세우면 clone 이
+# 즉사했다. 재해 복구·서버 이전 때만 쓰는 파일이라 평소에는 아무도 실행하지 않고,
+# **정확히 필요한 순간에** 실패한다.
+BRANCH="${BRANCH:-main}"
 WORKDIR="${WORKDIR:-$HOME/digital_onnuri}"
 
 echo "==[1/6] Docker/Compose 설치 확인=="
