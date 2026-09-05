@@ -35,7 +35,11 @@ const log=[];
 for(const r of rep){
   const p=by[r.id]; if(!p) continue;
   if(!r.ok || r.thin){ log.push([r.label,'건드리지 않음(수집 실패·본문 얇음)']); continue; }
-  if(r.deepLink){ log.push([r.label,'판단 보류(기획전 딥링크 — 호스트 GNB 섞임)']); continue; }
+  /* scope 는 카탈로그가 적은 값이다(2026-09-06). 옛 회차 리포트에는 그 필드가 없으므로
+     deepLink 로 폴백한다 — 이 도구의 용도가 서버에 쌓인 지난 회차를 나중에 반영하는 것이다. */
+  const scope = r.scope || (r.deepLink ? 'section' : 'mall');
+  if(scope==='section'){ log.push([r.label,'판단 보류(남의 몰 안의 구획 — 호스트 메뉴 섞임)']); continue; }
+  if(scope!=='mall'){ log.push([r.label,'판단 보류(survey_scope 미기재 — 카탈로그에 적어야 반영된다)']); continue; }
 
   // ① 브랜드: 사전에 있는 것만. brandDirectory 스크랩이 카테고리 메뉴를 물어 오는 몰이 있다.
   const nb=(r.newBrands||[]).filter(b=>DICT.has(b));

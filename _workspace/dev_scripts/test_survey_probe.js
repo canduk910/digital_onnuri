@@ -368,6 +368,36 @@ console.log('(o) 스포츠 축 분리 — 입는 것은 패션, 용품·활동�
   check(!mapCats(['캠핑/낚시']).includes('fashion-sports'), '캠핑은 패션으로 잡히지 않는다');
 }
 
+console.log('(q) 데이터 계약 — 채록 대상은 survey_scope 를 반드시 적는다');
+{
+  /* 2026-09-06: 종전에는 주소 모양으로 "남의 기획전인가"를 추측했고, 그 휴리스틱이
+     인어교주해적단·온누리팔도시장을 잘못 잡아 두 몰이 틀린 사유로 15일 넘게 갱신에서
+     빠져 있었다. 이제 카탈로그가 적는다. 값이 없으면 반영 도구가 보류하므로,
+     새 몰을 넣고 이 칸을 비우면 그 몰은 조용히 영영 갱신되지 않는다 —
+     **그래서 여기서 먼저 깨뜨린다.** */
+  const root = path.join(__dirname, '..', '..');
+  const cat = JSON.parse(fs.readFileSync(path.join(root, 'data', 'online_catalog.json'), 'utf-8'));
+  const targets = cat.items.filter((i) => i.survey_url);
+  const missing = targets.filter((i) => !i.survey_scope).map((i) => i.id);
+  check(missing.length === 0, '채록 대상 전부가 survey_scope 를 갖는다', JSON.stringify(missing));
+
+  const bad = targets.filter((i) => !['mall', 'section'].includes(i.survey_scope))
+    .map((i) => i.id + '=' + i.survey_scope);
+  check(bad.length === 0, 'survey_scope 는 mall 또는 section 뿐이다', JSON.stringify(bad));
+
+  // 두 값이 다 쓰이는지 본다 — 한쪽이 0이면 구분이 이름만 남고 실제로는 안 쓰이는 것이다.
+  const mall = targets.filter((i) => i.survey_scope === 'mall').length;
+  const sect = targets.filter((i) => i.survey_scope === 'section').length;
+  check(mall > 0 && sect > 0, '두 값이 실제로 쓰인다 (mall ' + mall + ' · section ' + sect + ')');
+
+  // 오분류로 15일 묶여 있던 두 곳을 이름으로 고정한다. 다시 section 이 되면 여기서 깨진다.
+  for (const id of ['tpirates', 'onnuri-paldo-sijang']) {
+    const it = targets.find((i) => i.id === id);
+    check(it && it.survey_scope === 'mall',
+      id + ' 는 그 몰 자신의 온누리 화면이다(mall)', it && it.survey_scope);
+  }
+}
+
 console.log('(p) 데이터 계약 — CAT_RULES 의 소분류 id 는 부모 접두를 지킨다');
 {
   const ids = CAT_RULES.map(([id]) => id);

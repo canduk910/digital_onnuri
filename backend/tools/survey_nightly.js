@@ -85,14 +85,18 @@ for (const it of items) byId[it.id] = it;
  * 범위 밖일 수 있으므로 리포트에서 따로 표시해 사람이 범위를 확인하게 한다.
  * (2026-08-21 실측: 롯데ON 이 그랬고, 재검증에서 사이소도 같은 양상이었다.)
  */
-function isDeepLink(url) {
-  try {
-    const u = new URL(url);
-    const depth = u.pathname.split('/').filter(Boolean).length;
-    return depth >= 2 || !!u.search;
-  } catch (e) {
-    return false;
-  }
+/* 2026-09-06: 주소 모양으로 **추측하던 것을 걷어냈다.** 경로 깊이만 보는 휴리스틱이
+ * `tpirates(/store/onnuri)` 와 `onnuri-paldo-sijang(/Extmall/Onnuri.aspx)` 을 남의 기획전으로
+ * 잘못 잡았고, 그 두 몰은 **틀린 사유로** 갱신에서 빠져 15일 넘게 옛 채록에 묶여 있었다.
+ * 채록 주소는 원래 사람이 골라 넣은 값이므로, 그 주소가 몰 전체인지 남의 몰 안의 한 구획인지도
+ * 고른 사람이 카탈로그에 적는다(`survey_scope`: "mall" | "section").
+ *
+ * 값이 없으면 추측하지 않고 **보류하되 그 사실을 사유로 남긴다.** 조용히 몰로 취급하면
+ * 호스트 메뉴가 섞인 채 반영되고, 조용히 구획으로 취급하면 새 몰이 영영 갱신되지 않는다. */
+function scopeOf(item) {
+  const v = item.survey_scope;
+  if (v === 'mall' || v === 'section') return v;
+  return 'unknown';
 }
 
 (async () => {
@@ -137,7 +141,9 @@ function isDeepLink(url) {
       const raw = typeof rawJson === 'string' ? JSON.parse(rawJson) : rawJson;
       const a = analyze(raw);
       const d = computeDelta(it, a, mapCats);
-      report.push({ id, label, ok: true, ...d, url: it.survey_url, deepLink: isDeepLink(it.survey_url) });
+      const scope = scopeOf(it);
+      // deepLink 는 옛 리포트 파일과의 호환을 위해 계속 싣는다(반영 도구가 지난 회차를 읽는다).
+      report.push({ id, label, ok: true, ...d, url: it.survey_url, scope, deepLink: scope !== 'mall' });
 
       const flags = [];
       if (d.thin) flags.push('본문 얇음(수집 실패 의심)');
@@ -161,14 +167,14 @@ function isDeepLink(url) {
   console.log('');
   log(`요약 — 확인 ${report.length}곳 · 변화 ${changed.length}곳 · 수집실패 ${failed.length}곳 · 본문얇음 ${thin.length}곳`);
   for (const r of changed) {
-    console.log(`  [변화] ${r.label}${r.deepLink ? '  ※ 기획전 딥링크' : ''}`);
+    console.log(`  [변화] ${r.label}${r.scope === 'section' ? '  ※ 남의 몰 안의 구획' : r.scope === 'unknown' ? '  ※ survey_scope 미기재' : ''}`);
     if (r.newBrands.length) console.log(`     새 브랜드: ${r.newBrands.join(', ')}`);
     // 화면 부속(내비·배너 텍스트)은 갈라서 뒤에 적는다 — 섞으면 사람이 목록을 통째로 무시한다.
     if (r.newBrandsChrome && r.newBrandsChrome.length) {
       console.log(`     (화면 부속으로 보임 — 브랜드 아닐 가능성: ${r.newBrandsChrome.join(', ')})`);
     }
     if (r.newCats.length) console.log(`     새 카테고리: ${r.newCats.join(', ')}`);
-    if (r.deepLink && r.newCats.length) {
+    if (r.scope !== 'mall' && r.newCats.length) {
       console.log('     └ 이 몰은 기획전/전용관 링크다. 위 카테고리에 호스트 몰 전체 GNB 가');
       console.log('       섞였을 수 있으니 온누리 결제 범위인지 확인하고 반영할 것.');
     }
@@ -249,7 +255,7 @@ function isDeepLink(url) {
           log('  반영 대기 중인 변화 없음');
         } else {
           for (const r of dg.rows) {
-            console.log(`  ${r.label}${r.deepLink ? '  ※ 기획전 딥링크(호스트 GNB 섞임 주의)' : ''}`);
+            console.log(`  ${r.label}${r.deepLink ? '  ※ 몰 전체가 아님 — 반영 보류' : ''}`);
             if (r.brands.length) console.log(`     새 브랜드 ${r.brands.length}: ${r.brands.join(', ')}`);
             if (r.cats.length) console.log(`     새 카테고리 ${r.cats.length}: ${r.cats.join(', ')}`);
             if (r.chrome.length) console.log(`     (화면 부속 ${r.chrome.length}건은 제외하고 셌다)`);
