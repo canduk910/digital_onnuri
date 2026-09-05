@@ -7,7 +7,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, localDate, localStamp, mapCats, normalizeBrand, normalizeBrands, BRAND_ALIASES, CAT_RULES, COLLECT_SNIPPET, BRAND_DICT } = require('./survey_probe.js');
+const { matchBrands, extractListSegment, analyze, computeDelta, looksLikeChrome, todaysSlice, localDate, localStamp, mapCats, normalizeBrand, normalizeBrands, BRAND_ALIASES, CAT_RULES, COLLECT_SNIPPET, BRAND_DICT } = require('./survey_probe.js');
 
 let pass = 0, fail = 0;
 function check(cond, label, detail) {
@@ -170,6 +170,30 @@ console.log('(h-2) 로컬 날짜 표기 — UTC 로 찍어 전날이 되지 않�
   check(new Date(2026, 7, 23, 0, 30).toISOString().slice(0, 10) !== localDate(d) ||
         new Date().getTimezoneOffset() === 0,
         'UTC 표기와 다르다(양수 오프셋 지역에서) — 이 차이가 결함의 원인이었다');
+}
+
+console.log('(i-2) 화면 부속은 빼지 않고 갈라 놓는다 (2026-09-05)');
+{
+  /* 2026-09-05 우체국쇼핑 델타 실측 — "새 브랜드" 13개가 전부 화면 부속이었다.
+     이런 것이 섞이면 사람이 리포트를 통째로 무시하게 되고, 그러면 감시가 이름만 남는다.
+     **자동 제외가 아니라 표시**다(2026-08-21 규칙 — 자동 제외했더니 LG전자까지 사라졌다). */
+  const NOISE = ['TOP', 'Previous', '↓', '축소/확대 버튼', '최근 본 상품',
+    '쿠폰등록 법인다량상담 기부하기', '전통시장 MD 추천', '팔도명물만 찾았다!',
+    '인기 상품', '전체 상품', 'MD 추천', '온누리상품권 소개'];
+  NOISE.forEach((n) => check(looksLikeChrome(n), `화면 부속으로 본다: ${n}`));
+
+  // 반대편이 더 중요하다 — 실제 브랜드를 하나라도 부속으로 보면 그 몰의 델타가 조용히 준다.
+  const REAL = ['삼성전자', 'LG전자', 'CJ제일제당', '아디다스골프', '매일유업', 'DJI',
+    'ECOVACS', '삼천리 자전거', '내셔널지오그래픽', '로보락', '뉴트리원', '청정원'];
+  REAL.forEach((b) => check(!looksLikeChrome(b), `브랜드를 부속으로 보지 않는다: ${b}`));
+
+  const d = computeDelta(
+    { brands: [], cats: [] },
+    { confirmed: [], brandDirectory: ['다이슨', 'TOP', '최근 본 상품'], cats: [], textLen: 9000 },
+    () => []);
+  check(d.newBrands.join(',') === '다이슨', '깨끗한 것만 newBrands 에 남는다', d.newBrands.join(','));
+  check(d.newBrandsChrome.length === 2, '부속은 버리지 않고 newBrandsChrome 에 담는다',
+    d.newBrandsChrome.join(','));
 }
 
 console.log('(i) computeDelta — 추가만 보고한다');

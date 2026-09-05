@@ -333,6 +333,35 @@ function localStamp(d = new Date()) {
  * @param {{confirmed?:string[], brandDirectory?:string[], cats?:string[]}} analyzed
  * @param {(cats:string[])=>string[]} mapCats  사이트 카테고리 → taxonomy id 매핑
  */
+/**
+ * 이 이름이 **브랜드가 아니라 화면 부속(UI 텍스트)** 으로 보이는가.
+ *
+ * 2026-09-05 실측: 우체국쇼핑 델타의 "새 브랜드" 13개가 전부 화면 부속이었다 —
+ * `TOP` · `Previous` · `↓` · `축소/확대 버튼` · `최근 본 상품` · `전통시장 MD 추천` ·
+ * `팔도명물만 찾았다!` · `온누리상품권 소개`. `brandDirectory` 가 '브랜드관' 근처의
+ * 링크 텍스트를 걷는데 그 안에 내비게이션이 섞인 것이다.
+ *
+ * **자동으로 빼지 않는다 — 표시만 한다.** 이 저장소가 2026-08-21 에 세운 규칙이다
+ * (경계 깨진 매칭을 자동 제외했더니 LG전자·삼양식품·롯데칠성·아디다스골프까지 사라졌다).
+ * 목적은 사람이 델타를 읽을 때 **눈이 갈 곳을 줄이는 것**이지 판단을 대신하는 게 아니다.
+ *
+ * 실제 브랜드가 걸리지 않게 보수적으로 잡는다 — 사전 133종 중 공백이 있는 것은
+ * `삼천리 자전거` 하나뿐이고 가장 긴 것이 8자다.
+ */
+function looksLikeChrome(name) {
+  const t = String(name || '').trim();
+  if (!t) return true;
+  if (/^(TOP|PREV|PREVIOUS|NEXT|MORE|HOME|BACK)$/i.test(t)) return true;   // 내비 낱말
+  if (!/[0-9A-Za-z가-힣]/.test(t)) return true;                             // ↓ ← · 같은 기호만
+  if (/[!?]/.test(t)) return true;                                          // "팔도명물만 찾았다!"
+  if (/\s/.test(t)) {
+    // 공백이 있으면서 화면 부속 어미로 끝나면 부속이다.
+    if (/(버튼|보기|상품|추천|소개|안내|서비스|목록|바로가기|더보기)$/.test(t)) return true;
+    if (t.length >= 10) return true;      // 브랜드는 이만큼 길지 않다(사전 최장 8자)
+  }
+  return false;
+}
+
 function computeDelta(current, analyzed, mapCats) {
   // 양쪽 다 표준 표기로 맞춘 뒤 비교한다. 안 그러면 'ECOVACS' 가 '에코백스' 와
   // 다른 값으로 잡혀 매 회차 "새 브랜드"로 올라온다(2026-08-23 실제로 그랬다).
@@ -340,8 +369,11 @@ function computeDelta(current, analyzed, mapCats) {
   const curC = new Set(current.cats || []);
   const seenB = normalizeBrands([...(analyzed.confirmed || []), ...(analyzed.brandDirectory || [])]);
   const seenC = mapCats ? mapCats(analyzed.cats || []) : [];
+  const fresh = seenB.filter((b) => !curB.has(b));
   return {
-    newBrands: seenB.filter((b) => !curB.has(b)),
+    // 화면 부속으로 보이는 것은 빼지 않고 **갈라 놓는다**(looksLikeChrome 주석 참조).
+    newBrands: fresh.filter((b) => !looksLikeChrome(b)),
+    newBrandsChrome: fresh.filter(looksLikeChrome),
     newCats: seenC.filter((c) => !curC.has(c)),
     seenBrandCount: seenB.length,
     seenCatCount: seenC.length,
@@ -373,5 +405,5 @@ const BRAND_DICT = [
 
 // 브라우저(Playwright evaluate)와 Node(test) 양쪽에서 쓸 수 있게 내보낸다.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { matchBrands, extractListSegment, analyze, computeDelta, todaysSlice, localDate, localStamp, mapCats, normalizeBrand, normalizeBrands, BRAND_ALIASES, CAT_RULES, COLLECT_SNIPPET, BRAND_DICT, WORDISH };
+  module.exports = { matchBrands, extractListSegment, analyze, computeDelta, looksLikeChrome, todaysSlice, localDate, localStamp, mapCats, normalizeBrand, normalizeBrands, BRAND_ALIASES, CAT_RULES, COLLECT_SNIPPET, BRAND_DICT, WORDISH };
 }

@@ -163,6 +163,10 @@ function isDeepLink(url) {
   for (const r of changed) {
     console.log(`  [변화] ${r.label}${r.deepLink ? '  ※ 기획전 딥링크' : ''}`);
     if (r.newBrands.length) console.log(`     새 브랜드: ${r.newBrands.join(', ')}`);
+    // 화면 부속(내비·배너 텍스트)은 갈라서 뒤에 적는다 — 섞으면 사람이 목록을 통째로 무시한다.
+    if (r.newBrandsChrome && r.newBrandsChrome.length) {
+      console.log(`     (화면 부속으로 보임 — 브랜드 아닐 가능성: ${r.newBrandsChrome.join(', ')})`);
+    }
     if (r.newCats.length) console.log(`     새 카테고리: ${r.newCats.join(', ')}`);
     if (r.deepLink && r.newCats.length) {
       console.log('     └ 이 몰은 기획전/전용관 링크다. 위 카테고리에 호스트 몰 전체 GNB 가');
@@ -178,6 +182,55 @@ function isDeepLink(url) {
     console.log('    data/online_catalog.json 을 고치고 _workspace/15_online_catalog_report.md 에 근거를 남길 것.');
   }
 
+  /* ── 주간 다이제스트 (2026-09-05, C4 사용자 결정 "채록 델타 리듬") ──────────
+     회차 리포트는 하루 3~4곳만 담아서, 22곳을 한 바퀴 도는 일주일을 통째로 봐야
+     "무엇을 반영할지"가 보인다. 그런데 리포트가 날짜별 JSON 으로만 쌓여 아무도 열지
+     않았다 — 2026-08-23~09-05 14회차에 **새 브랜드 209 · 카테고리 123** 이 반영 없이
+     서버에만 있었다(2026-09-05 집계).
+
+     그래서 **일주일에 한 번, 지난 7회차를 합쳐 한 화면에 적는다.** 요일은 고정하지
+     않는다 — 배치가 하루 걸러도 리듬이 밀리지 않게 "지난 다이제스트 이후 7회차가
+     쌓였으면" 을 기준으로 한다. 여전히 **자동 반영은 하지 않는다**(ADR-16). */
+  function weeklyDigest(outDir) {
+    let files;
+    try {
+      files = fs.readdirSync(outDir).filter((f) => /^survey-delta-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
+    } catch (e) { return null; }
+    if (files.length < 7) return null;
+
+    // 마지막 다이제스트 이후 회차만 센다. 없으면 최근 7회차.
+    let lastDigest = '';
+    try {
+      const ds = fs.readdirSync(outDir).filter((f) => /^survey-digest-/.test(f)).sort();
+      if (ds.length) lastDigest = (ds[ds.length - 1].match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
+    } catch (e) { /* 없으면 첫 다이제스트 */ }
+    const fresh = files.filter((f) => f.slice('survey-delta-'.length, -5) > lastDigest);
+    if (fresh.length < 7) return null;
+
+    const byMall = new Map();
+    for (const f of fresh) {
+      let doc;
+      try { doc = JSON.parse(fs.readFileSync(path.join(outDir, f), 'utf-8')); } catch (e) { continue; }
+      for (const r of (doc.report || [])) {
+        if (!r.ok) continue;
+        const cur = byMall.get(r.label) || { id: r.id, brands: new Set(), cats: new Set(), chrome: new Set(), deepLink: false, dates: [] };
+        (r.newBrands || []).forEach((x) => cur.brands.add(x));
+        (r.newCats || []).forEach((x) => cur.cats.add(x));
+        (r.newBrandsChrome || []).forEach((x) => cur.chrome.add(x));
+        if (r.deepLink) cur.deepLink = true;
+        cur.dates.push(doc.date);
+        byMall.set(r.label, cur);
+      }
+    }
+    const rows = [...byMall.entries()]
+      .map(([label, v]) => ({ label, id: v.id, deepLink: v.deepLink,
+        brands: [...v.brands], cats: [...v.cats], chrome: [...v.chrome], seenOn: v.dates }))
+      .filter((r) => r.brands.length || r.cats.length)
+      .sort((a, b) => (b.brands.length + b.cats.length) - (a.brands.length + a.cats.length));
+    return { since: fresh[0].slice('survey-delta-'.length, -5), until: fresh[fresh.length - 1].slice('survey-delta-'.length, -5),
+             rounds: fresh.length, malls: byMall.size, rows };
+  }
+
   if (OUT_DIR) {
     try {
       fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -185,6 +238,28 @@ function isDeepLink(url) {
       const file = path.join(OUT_DIR, `survey-delta-${stamp}.json`);
       fs.writeFileSync(file, JSON.stringify({ date: stamp, report }, null, 1), 'utf-8');
       log(`리포트 저장: ${file}`);
+
+      const dg = weeklyDigest(OUT_DIR);
+      if (dg) {
+        const dfile = path.join(OUT_DIR, `survey-digest-${stamp}.json`);
+        fs.writeFileSync(dfile, JSON.stringify(dg, null, 1), 'utf-8');
+        console.log('');
+        log(`━━ 주간 다이제스트 ${dg.since} ~ ${dg.until} (${dg.rounds}회차 · ${dg.malls}곳) ━━`);
+        if (!dg.rows.length) {
+          log('  반영 대기 중인 변화 없음');
+        } else {
+          for (const r of dg.rows) {
+            console.log(`  ${r.label}${r.deepLink ? '  ※ 기획전 딥링크(호스트 GNB 섞임 주의)' : ''}`);
+            if (r.brands.length) console.log(`     새 브랜드 ${r.brands.length}: ${r.brands.join(', ')}`);
+            if (r.cats.length) console.log(`     새 카테고리 ${r.cats.length}: ${r.cats.join(', ')}`);
+            if (r.chrome.length) console.log(`     (화면 부속 ${r.chrome.length}건은 제외하고 셌다)`);
+          }
+          console.log('');
+          log('  ↑ 이번 주 반영 여부를 사람이 정한다. 반영하면 data/online_catalog.json 과');
+          log('    _workspace/15_online_catalog_report.md 를 함께 고치고 config.js dataVersion 을 올릴 것.');
+        }
+        log(`다이제스트 저장: ${dfile}`);
+      }
     } catch (e) {
       log(`리포트 저장 실패(무시): ${e.message}`);
     }

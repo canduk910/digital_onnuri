@@ -217,12 +217,42 @@ export SURVEY_OUT_DIR=~/onnuri_batch/survey
 # 단계 E 는 fail-open 이어야 하므로 빈 값이면 E 만 스킵되게 둔다.
 export APP_BASE_URL=https://api.koscomlabor.cloud
 export APP_ADMIN_KEY=$(grep ^APP_ADMIN_KEY "$ENV" | cut -d= -f2- || true)
+# ── CI 게이트: 빨개진 코드는 가져가지 않는다 (2026-09-05) ──────────────────
+# 실패로 끝난 check-run 이 하나라도 있으면 당기지 않는다. **모르면 막지 않는다** —
+# 성공·진행중·skipped·cancelled·API 불통·검사 없음은 전부 통과다.
+ci_blocks_pull() {
+  local sha rc runs
+  sha=$(git ls-remote origin main 2>/dev/null | cut -f1) || return 1
+  [ -n "$sha" ] || return 1
+  runs=$(curl -s --max-time 20 \
+    "https://api.github.com/repos/canduk910/digital_onnuri/commits/$sha/check-runs") || return 1
+  rc=$(printf '%s' "$runs" | python3 -c "
+import sys,json
+try: d=json.load(sys.stdin)
+except Exception: print('unknown'); raise SystemExit
+rs=d.get('check_runs')
+if rs is None: print('unknown'); raise SystemExit
+bad=[r['name'] for r in rs
+     if r.get('status')=='completed'
+     and r.get('conclusion') in ('failure','timed_out','action_required')]
+print('|'.join(bad) if bad else 'ok')
+" 2>/dev/null) || return 1
+  case "$rc" in
+    ok|unknown) return 1 ;;
+    *) echo "$rc"; return 0 ;;
+  esac
+}
+
 cd "$REPO"
 # 배치가 만든 산출물(data/merchants·후보 CSV)은 버리고 당긴다. set -e + --ff-only 라
 # 산출물이 남아 있으면 pull 이 실패해 배치 전체가 죽는다 — 2026-09-01 실제로 그랬다
 # (저장소의 data/merchants 를 갱신한 순간 서버 로컬과 충돌).
 git checkout -- data/merchants _workspace/13_brand_candidates.csv 2>/dev/null || true
-git pull --ff-only origin main >>"$LOG" 2>&1
+if blocked=$(ci_blocks_pull); then
+  echo "[$(date '+%F %T')] CI 실패로 코드를 당기지 않는다: $blocked — 이번 회차는 $(git rev-parse --short HEAD) 로 돈다" >>"$LOG"
+else
+  git pull --ff-only origin main >>"$LOG" 2>&1
+fi
 # flock: 앞 배치가 안 끝났으면 이번 회차는 건너뛴다
 flock -n /tmp/onnuri_nightly.lock \
   python3 backend/tools/nightly_update.py >>"$LOG" 2>&1
@@ -230,6 +260,13 @@ SH
 chmod +x ~/onnuri_batch/run.sh
 ```
 
+> **CI 게이트(2026-09-05, C3).** `git pull` 앞에 `ci_blocks_pull()` 이 붙었다 —
+> 원격 HEAD 의 check-runs 중 **실패로 끝난 것이 하나라도 있으면 당기지 않고** 어제까지
+> 검증된 코드로 그 회차를 돈다. 판정 방향은 **"모르면 막지 않는다"** 다:
+> 성공·진행중·`skipped`·`cancelled`·API 불통·검사 없음 → **당긴다.** 확실한 실패만 막는다.
+> (막는 쪽으로 기울이면 API 가 며칠 안 될 때 아무 코드도 못 받으면서 원인은 조용해진다.)
+> 익명 GitHub API 를 쓴다 — 공개 저장소라 토큰이 필요 없고 하루 1회라 한도에 걸리지 않는다.
+>
 > **이 블록은 2026-09-05 에 서버의 실제 `run.sh` 와 대조해 맞춘 정본이다.**
 > 종전 블록은 2026-08-22 상태에 멈춰 있어 **그대로 복사하면 여섯 단계 중 셋이 조용히
 > 안 돌고, 산출물 충돌이 나는 순간 배치 전체가 죽었다.** 빠져 있던 것과 그 결과:
@@ -247,6 +284,33 @@ chmod +x ~/onnuri_batch/run.sh
 
 - 비밀값은 스크립트에 하드코딩하지 않는다 — 위 블록처럼 `.env`에서 런타임에 읽는다.
 - 서버에 `/opt/node20` 이 없으면 단계 D 가 스킵된다(설치는 아래 「단계 D」 절).
+
+### 채록 델타를 읽는 리듬 (2026-09-05, C4)
+
+단계 D 는 하루 3~4곳만 본다. 22곳을 한 바퀴 도는 **일주일을 통째로 봐야** 무엇을 반영할지가
+보인다. 그런데 회차 리포트가 날짜별 JSON 으로만 쌓여 **아무도 열지 않았다** —
+2026-08-23~09-05 14회차에 새 브랜드 209 · 카테고리 123 이 반영 없이 서버에만 있었다.
+
+그래서 배치가 **지난 다이제스트 이후 7회차가 쌓이면** 한 화면으로 합쳐 적는다.
+요일을 고정하지 않는 이유: 배치가 하루 걸러도 리듬이 밀리지 않게.
+
+```
+━━ 주간 다이제스트 2026-08-30 ~ 2026-09-05 (7회차 · 22곳) ━━
+  온누리 찬스
+     새 브랜드 118: 뉴트리원, 청정원, 매일유업, …
+  우체국쇼핑  ※ 기획전 딥링크(호스트 GNB 섞임 주의)
+     새 카테고리 13: food-kimchi, …
+     (화면 부속 13건은 제외하고 셌다)
+  ↑ 이번 주 반영 여부를 사람이 정한다.
+```
+
+- 파일로도 남는다: `$SURVEY_OUT_DIR/survey-digest-YYYY-MM-DD.json`
+- **여전히 자동 반영은 없다**(ADR-16). 반영하면 `data/online_catalog.json` 과
+  `_workspace/15_online_catalog_report.md` 를 함께 고치고 `config.js` 의 `dataVersion` 을 올린다.
+- **화면 부속은 갈라 놓는다.** 2026-09-05 실측에서 우체국쇼핑의 "새 브랜드" 13개가 전부
+  `TOP`·`Previous`·`↓`·`축소/확대 버튼` 같은 내비게이션 텍스트였다. 섞여 있으면 사람이
+  목록을 통째로 무시하게 되고 감시가 이름만 남는다. **자동 제외가 아니라 표시**다 —
+  자동 제외하면 LG전자·삼양식품 같은 진짜 브랜드까지 사라진다(2026-08-21 실측).
 
 ### 단계 D — 온라인 취급품목·브랜드 변화 탐지 (2026-08-22, ADR-16)
 
