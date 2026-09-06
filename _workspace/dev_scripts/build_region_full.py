@@ -40,6 +40,7 @@ import sys
 import time
 import urllib.request
 from collections import Counter, defaultdict
+from statistics import median
 from datetime import date
 from pathlib import Path
 
@@ -75,6 +76,86 @@ GYEONGGI_GU_BY_SI = {
     "부천시": {"원미구", "소사구", "오정구"},
 }
 GYEONGGI_GU = {g for gus in GYEONGGI_GU_BY_SI.values() for g in gus}
+
+
+# ── 지역 대조 (2026-09-06, 사용자 개선 요청) ───────────────────────────────────
+# 배정 지역(addrCd 원천)과 **다른 신호**를 견준다. 주소와 시장 두 가지다.
+# 어느 하나로도 지역을 다시 정하지 않는다 — addrCd 를 계층 원천으로 삼은 2026-09-01 결정을
+# 되돌리면 인천 자치구 개편분이 옛 구 이름으로 돌아간다. 여기서 하는 것은 두 가지뿐이다:
+#   ① 어긋난 것을 세어 보고한다(F18 과 같은 처분)
+#   ② 그 지역 지도에 그릴 근거가 없는 좌표만 비운다 — 목록에서는 빼지 않는다
+
+# 시도 이름은 긴 것부터 본다("경상남도"가 "경상"으로 먼저 걸리지 않게).
+# '광주'는 광주광역시와 경기 광주시가 겹치므로 넣지 않는다 — 읽지 못하면 판단하지 않는다.
+_SIDO_PREFIX = [
+    ("서울특별시", "서울"), ("서울", "서울"),
+    ("인천광역시", "인천"), ("인천", "인천"),
+    ("경기도", "경기"), ("부산광역시", "부산"), ("부산", "부산"),
+    ("대구광역시", "타시도"), ("대전광역시", "타시도"), ("울산광역시", "타시도"),
+    ("세종특별자치시", "타시도"), ("제주특별자치도", "타시도"),
+    ("강원특별자치도", "타시도"), ("강원도", "타시도"),
+    ("충청북도", "타시도"), ("충청남도", "타시도"),
+    ("전북특별자치도", "타시도"), ("전라북도", "타시도"), ("전라남도", "타시도"),
+    ("경상북도", "타시도"), ("경상남도", "타시도"),
+]
+
+
+def addr_sido(addr):
+    """주소 문자열이 말하는 시도. **읽지 못하면 None** — 모르는 것은 어긋난 것이 아니다.
+
+    '성남시 분당구 …' 처럼 도 이름 없이 적힌 주소가 실제로 있다(2026-09-06 실측 5건).
+    그것을 '다른 지역'으로 읽으면 멀쩡한 경기 가맹점을 어긋난 것으로 센다.
+    """
+    a = (addr or "").strip()
+    if not a:
+        return None
+    for pre, sido in _SIDO_PREFIX:
+        if a.startswith(pre):
+            return sido
+    return None
+
+
+def market_centers(rows, min_members=5, max_median_km=3.0):
+    """(시장, 시도) 무리의 좌표 중앙값. 한곳에 모여 있는 무리만 돌려준다.
+
+    rows 는 (시도, 항목) 쌍의 목록이다 — 항목 자체에는 지역 필드를 넣지 않는다(스키마 불변).
+
+    **산포를 최대-최소 폭으로 재면 안 된다.** 멀리 떨어진 레코드 하나가 그 무리의 폭을
+    통째로 늘려, 정작 찾으려던 무리(부전시장·수원남문로데오시장·송현시장)가 기준에서
+    빠진다 — 2026-09-06 에 실제로 그렇게 헛디뎠다. 중앙값 거리로 재면 이상치 하나에
+    흔들리지 않는다. '백년소상공인'처럼 장소가 아닌 지정 제도(153곳이 네 지역에 흩어져
+    있다)는 이 검사로 자동으로 빠진다.
+    """
+    groups = defaultdict(list)
+    for region, r in rows:
+        m = (r.get("market") or "").strip()
+        if m and r.get("lat") is not None and r.get("lng") is not None:
+            groups[(m, region)].append(r)
+    out = {}
+    for key, members in groups.items():
+        if len(members) < min_members:
+            continue
+        clat = median([float(x["lat"]) for x in members])
+        clng = median([float(x["lng"]) for x in members])
+        ds = sorted(haversine_km(float(x["lat"]), float(x["lng"]), clat, clng) for x in members)
+        if ds[len(ds) // 2] > max_median_km:
+            continue
+        out[key] = (clat, clng)
+    return out
+
+
+def haversine_km(lat1, lng1, lat2, lng2):
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lng2 - lng1)
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(h))
+
+
+# 자기 시장 무리에서 이만큼 넘게 떨어지면 그 지역 지도에 그릴 근거가 없다고 본다.
+# 2026-09-06 실측: 30km 초과가 8곳인데 53km 와 250km 사이가 비어 있다. 아래 다섯은
+# 안성·성남·화성·용인·의정부 주소로, 시장 조합에 이름만 올린 정상 사례로 보인다.
+COORD_FAR_KM = 100.0
 
 
 def si_gu_ok(si, gu):
@@ -396,13 +477,51 @@ def collect(collected_on):
 
 
 # ----------------------------------------------------------------- 빌드
+def _guard_same_day(args):
+    """같은 날 두 번째 재수집을 막는다 (2026-09-06, 사용자 결정 ④).
+
+    2026-09-05 에 같은 날 두 번 돌렸더니 공식 API 가 400 을 냈다. 그 차단은 그날로
+    끝나지 않고 **다음 날 00:30 배치까지 물었다** — 09-06 새벽 수집이 1분 만에 400 으로
+    죽었고 라이브에 중단 배너가 떴다(그날 11시에는 같은 호출이 정상이었다).
+
+    그때 조치는 DEPLOY.md 에 "같은 날 두 번 돌리지 말 것"을 적는 것까지였고 코드 가드는
+    없었다. 원인을 캐려는 사람이 정확히 그 자리를 밟는다 — 실제로 밟았다.
+
+    막되 길은 열어 둔다. `--force-refresh` 를 주면 강행한다. 판단은 사람 몫이고,
+    이 가드가 하는 일은 **모르고 밟는 것을 막는 것**뿐이다.
+    """
+    if args.force_refresh:
+        print("⚠ --force-refresh — 같은 날 두 번째 재수집을 강행한다. "
+              "공식 API 가 400 을 낼 수 있고 그 차단은 다음 날 배치까지 갈 수 있다.",
+              file=sys.stderr)
+        return
+    if not CACHE.exists():
+        return
+    try:
+        stamp = json.load(open(CACHE, encoding="utf-8")).get("collected_on")
+    except Exception:
+        return   # 캐시를 못 읽으면 막지 않는다 — 모르면 막지 않는다
+    if stamp != args.collected_on:
+        return
+    print(f"오늘({stamp}) 이미 재수집한 캐시가 있습니다. 같은 날 두 번 두드리면 공식 API 가",
+          file=sys.stderr)
+    print("400 을 내고, 그 차단이 다음 날 00:30 배치까지 갈 수 있습니다(2026-09-05·06 실측).",
+          file=sys.stderr)
+    print("  · 조립만 다시 하려면  --refresh 를 빼고 돌리세요(캐시를 씁니다)", file=sys.stderr)
+    print("  · 그래도 재수집하려면 --force-refresh 를 주세요", file=sys.stderr)
+    sys.exit(4)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--collected-on", default=date.today().isoformat())
     ap.add_argument("--refresh", action="store_true", help="API 재수집(캐시 무시)")
+    ap.add_argument("--force-refresh", action="store_true",
+                    help="같은 날 두 번째 재수집도 강행한다(진단용 — 대가를 알고 쓸 것)")
     args = ap.parse_args()
 
     if args.refresh or not CACHE.exists():
+        _guard_same_day(args)
         cache = collect(args.collected_on)
     else:
         cache = json.load(open(CACHE, encoding="utf-8"))
@@ -425,6 +544,7 @@ def main():
     cat_counter = Counter()
     dong_missing = 0
     si_gu_mismatch = []   # 시·구 조합이 실재하지 않는 레코드(F18)
+    addr_other = []       # 주소가 다른 시도를 가리키는 레코드(2026-09-06) — 보고만 한다
     for r in uniq_rows:
         region = r["_query_sido"]
         query_nm = r["_query_addrNm"]
@@ -447,6 +567,15 @@ def main():
         else:
             si = None
             gu = query_nm
+        # 주소가 말하는 시도가 배정과 다른가. **값은 고치지 않는다** — 어느 신호가 옳은지
+        # 데이터만으로 정할 수 없다(2026-09-06 실측: 7건 중 6건은 소속 시장이 우리 지역이라
+        # 주소 쪽이 낡았거나 잘못 적힌 것으로 보인다). 세어서 알리는 것까지만 한다.
+        a_sido = addr_sido(r.get("frcsAddr"))
+        if a_sido is not None and a_sido != region:
+            addr_other.append({"name": name, "region": region, "says": a_sido,
+                               "addr": (r.get("frcsAddr") or "").strip(),
+                               "market": r.get("mrktNm", "")})
+
         by_region[region].append({
             "id": r["frCd"], "name": name, "cat": cat,
             "brand": brand_of.get(r["frCd"]),   # 확정 브랜드명 or None
@@ -457,6 +586,33 @@ def main():
             "lat": r.get("latitude"), "lng": r.get("longitude"),
         })
         cat_counter[(region, cat)] += 1
+
+    # ── 좌표 처분 (2026-09-06) ────────────────────────────────────────────────
+    # 자기 시장 무리에서 아주 멀리 떨어진 좌표는 **그 지역 지도에 그릴 근거가 없다.**
+    # 주소와 시장이 서로 일치하는데 좌표만 튄 경우에 한해 좌표를 비운다(None).
+    #   · 레코드는 지운다 → 하지 않는다. 실재하는 가맹점이 목록에서 사라진다.
+    #   · 좌표를 시장 한가운데로 옮긴다 → 하지 않는다. 모르는 것을 아는 척하는 일이다.
+    #   · 비운다 = "여기 있다"도 "없다"도 아닌 "어디인지 모른다"(ADR-22 의 관측 실패와 같은 처분).
+    # 주소가 배정과 다른 건은 여기서 손대지 않는다 — 어느 신호가 옳은지 모르는 상태라
+    # 좌표를 비우는 것 자체가 한쪽 편을 드는 일이 된다. 그것은 addr_other 로 보고만 한다.
+    pairs = [(reg, x) for reg, v in by_region.items() for x in v]
+    centers = market_centers(pairs)
+    coord_cleared = []
+    for reg, r in pairs:
+        key = ((r.get("market") or "").strip(), reg)
+        if key not in centers or r.get("lat") is None or r.get("lng") is None:
+            continue
+        d = haversine_km(float(r["lat"]), float(r["lng"]), *centers[key])
+        if d <= COORD_FAR_KM:
+            continue
+        a_sido = addr_sido(r.get("addr"))
+        if a_sido is not None and a_sido != reg:
+            continue   # 주소가 다른 곳을 가리킨다 — 판단 보류(addr_other 가 보고한다)
+        coord_cleared.append({"name": r["name"], "region": reg, "km": round(d, 1),
+                              "market": r.get("market", ""), "addr": r.get("addr", ""),
+                              "lat": r["lat"], "lng": r["lng"]})
+        r["lat"] = None
+        r["lng"] = None
 
     n_brands = sum(1 for c in candidates if c["verdict"] == "브랜드")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -512,7 +668,29 @@ def main():
         if len(si_gu_mismatch) > 5:
             print(f"    … 그 밖 {len(si_gu_mismatch)-5}건", file=sys.stderr)
     else:
-        print("\n시·구 조합 점검: 어긋난 레코드 없음", file=sys.stderr)
+        print("\n시·구 조합 점검(경기): 어긋난 레코드 없음", file=sys.stderr)
+
+    # 지역 대조 — 보고만 한다(2026-09-06). 0 이면 한 줄로 끝낸다.
+    if addr_other:
+        print(f"\n⚠ 주소가 배정 지역과 다른 레코드 {len(addr_other)}건 — 값은 고치지 않았다",
+              file=sys.stderr)
+        for m in addr_other[:5]:
+            print(f"    {m['region']} 배정 · 주소는 {m['says']}  {m['name']}  "
+                  f"(시장 {m['market']}) {m['addr']}", file=sys.stderr)
+        if len(addr_other) > 5:
+            print(f"    … 그 밖 {len(addr_other)-5}건", file=sys.stderr)
+    else:
+        print("지역 대조: 주소가 배정과 다른 레코드 없음", file=sys.stderr)
+
+    if coord_cleared:
+        print(f"\n⚠ 좌표를 비운 레코드 {len(coord_cleared)}건 — 자기 시장에서 "
+              f"{COORD_FAR_KM:.0f}km 넘게 떨어져 지도에 그릴 근거가 없다(목록에는 남는다)",
+              file=sys.stderr)
+        for m in coord_cleared[:5]:
+            print(f"    {m['region']} {m['name']}  {m['km']}km  (시장 {m['market']}) "
+                  f"원좌표 {m['lat']},{m['lng']}", file=sys.stderr)
+    else:
+        print("좌표 점검: 시장에서 멀리 떨어진 좌표 없음", file=sys.stderr)
 
     print(f"\n고유 {len(uniq_rows)}건, brand 부여 {assigned}건 / null {len(uniq_rows)-assigned}", file=sys.stderr)
     print(f"확정 브랜드 {n_brands}종, 제외(7+·지점비율<40%) {len(candidates)-n_brands}종", file=sys.stderr)

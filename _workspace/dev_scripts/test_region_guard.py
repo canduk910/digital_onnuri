@@ -27,6 +27,10 @@ except SystemExit:      # 스크립트가 인자 없이 실행되면 종료할 �
     pass
 
 si_gu_ok = _mod.si_gu_ok
+addr_sido = _mod.addr_sido
+market_centers = _mod.market_centers
+haversine_km = _mod.haversine_km
+COORD_FAR_KM = _mod.COORD_FAR_KM
 BY_SI = _mod.GYEONGGI_GU_BY_SI
 FLAT = _mod.GYEONGGI_GU
 
@@ -72,6 +76,70 @@ check(si_gu_ok(None, "팔달구") is True, "si 가 없으면 판단하지 않는
 check(si_gu_ok("수원시", None) is True, "gu 가 없으면 판단하지 않는다(화이트리스트가 이미 거른 정상 경로)")
 check(si_gu_ok(None, None) is True, "둘 다 없으면 판단하지 않는다")
 check(si_gu_ok("", "팔달구") is True, "빈 문자열도 없는 것으로 본다")
+
+print("(e) 주소가 말하는 시도 — 읽지 못하면 판단하지 않는다")
+for a, want, why in [
+    ("서울특별시 종로구 …", "서울", "정식 표기"),
+    ("부산광역시 부산진구 …", "부산", "정식 표기"),
+    ("경기도 수원시 …", "경기", "도 이름"),
+    ("경상남도 진주시 …", "타시도", "우리 밖 — 긴 이름이 먼저 걸려야 한다"),
+    ("경상북도 …", "타시도", "'경상'으로 잘리면 안 된다"),
+    ("대구광역시 달서구 …", "타시도", "우리 밖"),
+    ("성남시 분당구 내정로174번길 42", None, "도 이름 없는 경기 주소 — 실제로 5건 있다"),
+    ("안양시 만안구 냉천로 196", None, "같은 경우"),
+    ("-", None, "주소가 비어 있는 것과 같다"),
+    ("", None, "빈 문자열"),
+    ("광주광역시 …", None, "'광주'는 경기 광주시와 겹쳐 사전에 없다 — 모르면 판단하지 않는다"),
+]:
+    check(addr_sido(a) == want, f"{a[:22]!r} → {want} ({why})", addr_sido(a))
+
+print("(f) 시장 무리 — 이상치 하나가 무리를 통째로 빼면 안 된다")
+
+
+def _row(lat, lng, market):
+    return {"lat": lat, "lng": lng, "market": market, "name": "x"}
+tight = [("부산", _row(35.15 + i * 0.001, 129.05 + i * 0.001, "가시장")) for i in range(8)]
+# 한 곳만 멀리 — 최대-최소 폭으로 재면 이 무리가 통째로 빠지고, 정작 찾으려던 것이 사라진다
+outlier = [("부산", _row(37.22, 127.22, "가시장"))]
+c = market_centers(tight + outlier)
+check(("가시장", "부산") in c, "이상치가 하나 있어도 무리는 기준으로 남는다 (중앙값 척도)")
+if ("가시장", "부산") in c:
+    d = haversine_km(37.22, 127.22, *c[("가시장", "부산")])
+    check(d > COORD_FAR_KM, f"그 이상치는 임계를 넘는다 ({d:.0f}km > {COORD_FAR_KM:.0f}km)")
+
+scattered = [("경기", _row(35.1 + i * 0.4, 126.5 + i * 0.4, "전국제도")) for i in range(8)]
+check(("전국제도", "경기") not in market_centers(scattered),
+      "흩어진 모임은 기준으로 쓰지 않는다 (「백년소상공인」 같은 지정 제도)")
+
+few = [("서울", _row(37.5, 127.0, "작은시장")) for _ in range(4)]
+check(("작은시장", "서울") not in market_centers(few), "표본이 5건 미만이면 기준으로 쓰지 않는다")
+
+print("(g) 같은 날 두 번 재수집 가드")
+import json as _json
+import subprocess
+import time as _time
+
+_cache = ROOT / "_workspace" / "raw" / "capital_merchants_raw.json"
+if not _cache.exists():
+    print("  [skip] 캐시가 없어 가드를 시험할 수 없다")
+else:
+    _day = _json.load(open(_cache, encoding="utf-8")).get("collected_on")
+    _r = subprocess.run([sys.executable, str(SRC), "--refresh", "--collected-on", _day],
+                        capture_output=True, text=True, cwd=str(ROOT))
+    check(_r.returncode == 4, "같은 날 재수집은 종료 코드 4로 막힌다", _r.returncode)
+    check("--force-refresh" in _r.stderr, "빠져나갈 길을 함께 알려 준다")
+    check("다음 날" in _r.stderr, "대가를 밝힌다 — 차단이 다음 날 배치까지 간다")
+    # 강제 인자를 주면 막지 않는다. 실제 수집이 시작되므로 곧바로 끊는다 —
+    # 여기서 끝까지 돌리면 이 테스트가 공식 API 를 두드리게 된다.
+    _p = subprocess.Popen([sys.executable, str(SRC), "--refresh", "--force-refresh",
+                           "--collected-on", _day],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                          text=True, cwd=str(ROOT))
+    _time.sleep(4)
+    _p.terminate()
+    _err = _p.stderr.read()
+    check("이미 재수집한 캐시" not in _err, "--force-refresh 는 막지 않는다")
+    check("force-refresh" in _err, "강행한다는 사실을 경고로 남긴다")
 
 print("(d) 실데이터에 적용 — 어긋난 것이 폭증하지 않는가")
 # **고정 숫자로 적지 않는다.** 가맹점은 매일 새로 수집되므로 이 값은 움직인다

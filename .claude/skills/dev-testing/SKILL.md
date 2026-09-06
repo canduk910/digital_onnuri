@@ -197,7 +197,13 @@ API 응답과 프론트 소비 코드를 **동시에 열고** 의미를 비교�
 `경기도 수원시 팔달구 …` 인데 `si` 가 `안양시` 로 붙어 있다. 경기는 설계상 `si` 를 공식 API 의
 `addrCd` 에서, `gu` 를 주소에서 가져오므로(2026-09-01, 인천 자치구 개편 때문에 정한 원칙)
 그 둘이 어긋나면 **있을 수 없는 조합**이 만들어진다. 자세한 것은 `23_backlog.md` 를 보라.
-| clusters 정합성 | sum(cluster.count) == /merchants total (서울·부산 편의점·GS25 전국 3조합) |
+| clusters 정합성 | sum(cluster.count) == /merchants total **− 좌표 없는 건수** (서울·부산 편의점·GS25 전국 3조합) |
+
+> **좌표 없는 건을 빼는 이유**(2026-09-06): `ClusterRepository` 는 `WHERE lat IS NOT NULL` 을 걸고
+> `MerchantSpecs`(목록 총계)는 안 건다. 종전에는 좌표 없는 레코드가 0건이라 두 값이 우연히
+> 같았을 뿐이다. 수집기가 "자기 시장에서 100km 넘게 떨어진 좌표"를 비우기 시작하면서
+> 그 항등식이 깨진다. 좌표 없는 건수는 `data/merchants/*.json` 에서 `lat == null` 을 세거나
+> `/api/merchants/map` 의 `total − pins.length` 로 얻는다(상한 초과 시에는 pins 가 비므로 못 쓴다).
 
 위 값은 **2026-09-01 수집분** 기준이다(v3 격자 순회로 수집 방식이 바뀐 첫 회차 — 이전 기준은 2026-08-28 v2 addrCd 순회분). 데이터가 갱신되면 이 표도 함께 올린다.
 
