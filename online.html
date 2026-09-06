@@ -892,9 +892,17 @@
   }
   function closeBrandModal() { el("brandModal").hidden = true; document.body.style.overflow = ""; }
   function renderBrandModal() {
-    var q = bmState.q.trim().toLowerCase();
+    /* 공백을 양쪽에서 지우고 견준다 — 브랜드 표기의 띄어쓰기는 몰마다 다르고 이용자가
+       치는 것과도 다르다. `삼천리자전거` 를 쳤는데 데이터가 `삼천리 자전거` 면(또는 그 반대면)
+       공백 하나 때문에 0항목이 된다. 착지 경로(applyBrand)가 이미 같은 규칙을 쓰므로
+       여기만 안 맞추면 **같은 브랜드를 링크로는 찾고 검색으로는 못 찾는** 상태가 된다.
+       표기를 하나로 모으는 것은 별칭 사전(data/brand_aliases.json)이 하고, 이것은 그 뒤에도
+       남는 변형을 견디는 장치다(2026-09-06, F12). */
+    var q = bmState.q.trim().toLowerCase().replace(/\s+/g, "");
     var list = brandRanked().slice().sort(function (a, b) { return a[0].localeCompare(b[0], "ko"); });
-    var rows = q ? list.filter(function (b) { return b[0].toLowerCase().indexOf(q) !== -1; }) : list;
+    var rows = q ? list.filter(function (b) {
+      return b[0].toLowerCase().replace(/\s+/g, "").indexOf(q) !== -1;
+    }) : list;
 
     var picked = multiList(state.brand);
     el("bmPicked").textContent = picked.length ? picked.length + "개 선택" : "";

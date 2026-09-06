@@ -2,7 +2,7 @@
  "meta": {
   "source": "_workspace/dev_scripts/survey_probe.js BRAND_ALIASES",
   "note": "브랜드 표기 표준화 사전의 사본. 손으로 고치지 말고 이 스크립트를 다시 돌린다. 코드와 어긋나면 test_survey_probe.js 가 실패한다.",
-  "generated_from_aliases": 8
+  "generated_from_aliases": 9
  },
  "aliases": {
   "ECOVACS": "에코백스",
@@ -10,6 +10,7 @@
   "NEXTU": "넥스트유",
   "Freewell": "프리웰",
   "씨제이제일제당": "CJ제일제당",
+  "삼천리 자전거": "삼천리자전거",
   "삼성": "삼성전자",
   "LG": "LG전자",
   "매일": "매일유업"
