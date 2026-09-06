@@ -108,6 +108,14 @@ def stage_a_merchants(conn, today, no_collect):
             [sys.executable, "_workspace/dev_scripts/build_region_full.py",
              "--refresh", "--collected-on", today],
             cwd=str(ROOT))
+        if r.returncode == 4:
+            # 수집기가 스스로 막았다 — 같은 날 두 번째 재수집(2026-09-06 가드).
+            # **공식 API 는 실패하지 않았다.** 이것을 다른 실패와 같이 다루면 화면에
+            # "온누리 공식 시스템이 자동 수집을 차단했습니다" 라는 **틀린 사유**가 뜬다.
+            # 가드가 걸렸다는 것은 오늘 이미 수집이 끝났다는 뜻이므로 데이터는 낡지 않았다.
+            log("A 건너뜀: 오늘 이미 재수집했다(수집기의 같은 날 가드). "
+                "중단 표시를 세우지 않는다 — 공식 API 실패가 아니고 데이터도 오늘 것이다.")
+            return False
         if r.returncode != 0:
             log(f"A 실패: 재수집 비정상 종료(exit={r.returncode}). 기존 데이터 유지.")
             _mark_stale(conn, today, f"공식 가맹점 API 재수집 실패(exit={r.returncode})")

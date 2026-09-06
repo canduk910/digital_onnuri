@@ -141,6 +141,16 @@ else:
     check("이미 재수집한 캐시" not in _err, "--force-refresh 는 막지 않는다")
     check("force-refresh" in _err, "강행한다는 사실을 경고로 남긴다")
 
+print("(h) 배치가 가드의 종료 코드 4를 공식 API 실패로 적지 않는다")
+_ny = (ROOT / "backend" / "tools" / "nightly_update.py").read_text(encoding="utf-8")
+check("if r.returncode == 4:" in _ny, "종료 코드 4를 따로 가른다")
+_i4 = _ny.find("if r.returncode == 4:")
+_ig = _ny.find("if r.returncode != 0:", _i4)
+check(0 < _i4 < _ig, "4 갈래가 일반 실패 갈래보다 먼저 온다 — 뒤에 있으면 영영 안 걸린다")
+check("_mark_stale" not in _ny[_i4:_ig],
+      "4 갈래에서는 중단 표시를 세우지 않는다 — 공식 API 실패가 아니다")
+check("공식 API 실패가 아니" in _ny[_i4:_ig], "로그가 그 사실을 말한다")
+
 print("(d) 실데이터에 적용 — 어긋난 것이 폭증하지 않는가")
 # **고정 숫자로 적지 않는다.** 가맹점은 매일 새로 수집되므로 이 값은 움직인다
 # (2026-09-06 실측 6건 / 30,021건 = 0.02%). 여기서 보는 것은 "갑자기 쏟아지지 않는가"다 —
