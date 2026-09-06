@@ -119,6 +119,10 @@ jobs:
       - name: 채록 반영 도구
         if: '!cancelled()'
         run: node _workspace/dev_scripts/test_apply_delta.js
+      # 가맹점 수집기의 시·구 조합 가드. data/merchants/*.json 을 읽지만 네트워크는 안 탄다.
+      - name: 수집기 시·구 가드
+        if: '!cancelled()'
+        run: python3 _workspace/dev_scripts/test_region_guard.py
       # 렌더 층(test_frontend_render.js)은 playwright 설치가 필요해 여기 없다 —
       # 그 설치가 40~70초라 1초짜리 잡의 성격이 통째로 바뀐다.
       #

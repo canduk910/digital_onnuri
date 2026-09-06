@@ -29,7 +29,7 @@ git log --since='YYYY-MM-DD 00:00' --format='%ad %h %s' --date=short
 for t in test_frontend_static.js test_survey_probe.js test_index_nightly.js test_apply_delta.js; do
   node _workspace/dev_scripts/$t >/dev/null 2>&1; echo "$t EXIT=$?"
 done
-for t in test_robots_watch.py test_canary_trend.py verify_build.py; do
+for t in test_robots_watch.py test_canary_trend.py test_region_guard.py verify_build.py; do
   python3 _workspace/dev_scripts/$t >/dev/null 2>&1; echo "$t EXIT=$?"
 done
 # 백엔드 — `./gradlew test` 를 그냥 부르면 UP-TO-DATE 로 **한 건도 안 돌고** 종료 코드 0이 난다

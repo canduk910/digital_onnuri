@@ -34,6 +34,7 @@ node   _workspace/dev_scripts/test_index_nightly.js    # 색인 크롤러
 python3 _workspace/dev_scripts/test_robots_watch.py    # robots 감시(urlopen 을 가로챈다)
 python3 _workspace/dev_scripts/test_canary_trend.py    # 카나리아 재시도 추세
 node   _workspace/dev_scripts/test_apply_delta.js      # 채록 반영 도구 + 주간 다이제스트
+python3 _workspace/dev_scripts/test_region_guard.py    # 수집기의 시·구 조합 가드
 
 # 프론트 — 브라우저 없이 계약만 본다
 node   _workspace/dev_scripts/test_frontend_static.js  # 캐시버스트·dataVersion·창구·죽은 링크

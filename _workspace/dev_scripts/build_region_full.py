@@ -63,12 +63,31 @@ OUT_DIR = Path("data/merchants")
 REGION_FILE = {"서울": "seoul", "인천": "incheon", "경기": "gyeonggi", "부산": "busan"}
 CAND_CSV = Path("_workspace/13_brand_candidates.csv")
 
-# 경기 실제 일반구 화이트리스트 — 주소 파싱 아티팩트(타 시도 구 오등록) 차단
-GYEONGGI_GU = {
-    "장안구", "권선구", "팔달구", "영통구", "수정구", "중원구", "분당구",
-    "만안구", "동안구", "상록구", "단원구", "덕양구", "일산동구", "일산서구",
-    "처인구", "기흥구", "수지구", "원미구", "소사구", "오정구",
+# 경기 실제 일반구 — 시별로 적는다. 주소 파싱 아티팩트(타 시도 구 오등록) 차단이 1차 목적이고,
+# 시별로 나눠 두면 **si 와 gu 가 서로 맞는지**도 볼 수 있다(2026-09-06, F18).
+GYEONGGI_GU_BY_SI = {
+    "수원시": {"장안구", "권선구", "팔달구", "영통구"},
+    "성남시": {"수정구", "중원구", "분당구"},
+    "안양시": {"만안구", "동안구"},
+    "안산시": {"상록구", "단원구"},
+    "고양시": {"덕양구", "일산동구", "일산서구"},
+    "용인시": {"처인구", "기흥구", "수지구"},
+    "부천시": {"원미구", "소사구", "오정구"},
 }
+GYEONGGI_GU = {g for gus in GYEONGGI_GU_BY_SI.values() for g in gus}
+
+
+def si_gu_ok(si, gu):
+    """경기 레코드의 시·구 조합이 실재하는가. 순수 함수 — 시험 가능하게 떼어 뒀다.
+
+    둘 중 하나가 비면 판단하지 않는다(True). 없는 것은 어긋난 것이 아니고,
+    gu 가 None 인 경우는 화이트리스트가 이미 걸러 낸 정상 경로다.
+    모르는 시(단일 구가 없는 시)도 판단하지 않는다 — 일반구가 없는 시가 대부분이라
+    그쪽은 애초에 gu 가 None 이고, 목록에 없는 시에 구가 붙었다면 그것도 어긋남이다.
+    """
+    if not si or not gu:
+        return True
+    return gu in GYEONGGI_GU_BY_SI.get(si, set())
 
 # 업종 카테고리(cat) — 이름 규칙(오탐 가드) 우선 → placeTypeNm 매핑
 NAME_RULES = [
@@ -405,6 +424,7 @@ def main():
     by_region = {"서울": [], "인천": [], "경기": [], "부산": []}
     cat_counter = Counter()
     dong_missing = 0
+    si_gu_mismatch = []   # 시·구 조합이 실재하지 않는 레코드(F18)
     for r in uniq_rows:
         region = r["_query_sido"]
         query_nm = r["_query_addrNm"]
@@ -416,6 +436,14 @@ def main():
         if region == "경기":
             si = query_nm
             gu = parsed_gu if parsed_gu in GYEONGGI_GU else None
+            # si 는 공식 API 의 addrCd 에서, gu 는 주소에서 온다(19~21행 계층 소스 원칙).
+            # 두 원천이 어긋나면 **있을 수 없는 조합**이 조용히 만들어진다 — 안양시에 팔달구는 없다.
+            # 값을 고치지 않는다. 주소를 믿어 si 를 덮어쓰면 2026-09-01 에 인천 자치구 개편 때문에
+            # 이 구조를 택한 이유가 무너진다(가맹점 주소에는 옛 구 이름이 다수 남아 있다).
+            # 세어서 알린다 — 조용히 남는 것이 문제였지 어느 쪽이 옳은지는 여기서 정할 일이 아니다.
+            if not si_gu_ok(si, gu):
+                si_gu_mismatch.append({"name": name, "si": si, "gu": gu,
+                                       "addr": (r.get("frcsAddr") or "").strip()})
         else:
             si = None
             gu = query_nm
@@ -475,6 +503,17 @@ def main():
 
     # 요약(stderr)
     assigned = sum(1 for v in brand_of.values() if v)
+    # 시·구 조합 점검(F18). 0 이면 한 줄로 끝내고, 있으면 표본을 보여 사람이 판단하게 한다.
+    if si_gu_mismatch:
+        print(f"\n⚠ 시·구 조합이 실재하지 않는 레코드 {len(si_gu_mismatch)}건 "
+              f"— 값은 고치지 않았다(si 는 공식 API, gu 는 주소에서 온다)", file=sys.stderr)
+        for m in si_gu_mismatch[:5]:
+            print(f"    {m['si']} {m['gu']}  {m['name']}  ({m['addr']})", file=sys.stderr)
+        if len(si_gu_mismatch) > 5:
+            print(f"    … 그 밖 {len(si_gu_mismatch)-5}건", file=sys.stderr)
+    else:
+        print("\n시·구 조합 점검: 어긋난 레코드 없음", file=sys.stderr)
+
     print(f"\n고유 {len(uniq_rows)}건, brand 부여 {assigned}건 / null {len(uniq_rows)-assigned}", file=sys.stderr)
     print(f"확정 브랜드 {n_brands}종, 제외(7+·지점비율<40%) {len(candidates)-n_brands}종", file=sys.stderr)
     print("확정 상위:", ", ".join(f"{c['brand']}({c['count']})"
