@@ -593,8 +593,17 @@ def main():
     #   · 레코드는 지운다 → 하지 않는다. 실재하는 가맹점이 목록에서 사라진다.
     #   · 좌표를 시장 한가운데로 옮긴다 → 하지 않는다. 모르는 것을 아는 척하는 일이다.
     #   · 비운다 = "여기 있다"도 "없다"도 아닌 "어디인지 모른다"(ADR-22 의 관측 실패와 같은 처분).
-    # 주소가 배정과 다른 건은 여기서 손대지 않는다 — 어느 신호가 옳은지 모르는 상태라
-    # 좌표를 비우는 것 자체가 한쪽 편을 드는 일이 된다. 그것은 addr_other 로 보고만 한다.
+    # 주소가 배정과 다른 건도 **똑같이 비운다**(2026-09-07 정정). 처음에는 "주소가 배정과
+    # 일치할 때만" 비우도록 했는데 그 조건이 틀렸다. 사용자가 인천 지도의 대구 마커와
+    # 경기 지도의 진주 마커를 제보해 드러났다.
+    #
+    #   어느 신호가 옳든 그 마커는 틀리다 —
+    #     · addrCd 가 옳다면(이 가게는 인천 것) 좌표(대구)가 틀렸으니 그리면 안 된다.
+    #     · 주소가 옳다면(인천 것이 아니다) 애초에 인천 지도에 있으면 안 된다.
+    #
+    # 즉 좌표를 비우는 데에는 **어느 쪽이 옳은지 정할 필요가 없다.** "어느 신호가 옳은지
+    # 판단하지 않는다"를 "아무것도 하지 않는다"로 잘못 읽은 것이었다. 어느 쪽이 옳은지는
+    # 여전히 정하지 않고 addr_other 로 보고만 한다 — 목록에서 빼지도 않는다.
     pairs = [(reg, x) for reg, v in by_region.items() for x in v]
     centers = market_centers(pairs)
     coord_cleared = []
@@ -605,9 +614,6 @@ def main():
         d = haversine_km(float(r["lat"]), float(r["lng"]), *centers[key])
         if d <= COORD_FAR_KM:
             continue
-        a_sido = addr_sido(r.get("addr"))
-        if a_sido is not None and a_sido != reg:
-            continue   # 주소가 다른 곳을 가리킨다 — 판단 보류(addr_other 가 보고한다)
         coord_cleared.append({"name": r["name"], "region": reg, "km": round(d, 1),
                               "market": r.get("market", ""), "addr": r.get("addr", ""),
                               "lat": r["lat"], "lng": r["lng"]})

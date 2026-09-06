@@ -114,6 +114,31 @@ check(("전국제도", "경기") not in market_centers(scattered),
 few = [("서울", _row(37.5, 127.0, "작은시장")) for _ in range(4)]
 check(("작은시장", "서울") not in market_centers(few), "표본이 5건 미만이면 기준으로 쓰지 않는다")
 
+print("(i) 좌표를 비우는 데에 주소 일치를 요구하지 않는다 (2026-09-07 정정)")
+# 처음에는 "주소가 배정과 일치할 때만" 비웠다. 그 조건 때문에 인천 지도에 대구 마커가,
+# 경기 지도에 진주 마커가 그대로 남았고 사용자가 그것을 제보했다.
+# 어느 신호가 옳든 그 마커는 틀리다 — addrCd 가 옳으면 좌표가 틀린 것이고,
+# 주소가 옳으면 애초에 그 지역 지도에 있으면 안 된다. 그래서 조건을 뺐다.
+_src = SRC.read_text(encoding="utf-8")
+_i = _src.find("coord_cleared.append(")
+_seg = _src[max(0, _i - 900):_i]
+check("continue   # 주소가 다른 곳을 가리킨다" not in _seg,
+      "주소가 달라도 좌표를 비우는 경로를 막지 않는다")
+check("어느 신호가 옳든" in _src or "어느 쪽이 옳은지 정할 필요가 없다" in _src,
+      "왜 조건을 뺐는지 코드가 설명한다")
+
+# 실데이터: 좌표를 비운 것이 세 파일에 흩어져 있어야 한다(한 지역에만 있으면 조건이 남은 것)
+import json as _j
+_regions = []
+for _f in sorted((ROOT / "data" / "merchants").glob("*.json")):
+    _d = _j.loads(_f.read_text(encoding="utf-8"))
+    _n = sum(1 for i in _d["items"] if i.get("lat") is None)
+    if _n:
+        _regions.append((_f.name, _n))
+check(len(_regions) >= 2,
+      "좌표를 비운 레코드가 두 지역 이상에 있다(주소 일치 조건이 남아 있으면 한 곳뿐이다)",
+      _regions)
+
 print("(g) 같은 날 두 번 재수집 가드")
 import json as _json
 import subprocess
