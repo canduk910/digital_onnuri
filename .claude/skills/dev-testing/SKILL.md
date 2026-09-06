@@ -140,7 +140,9 @@ cd backend && ./gradlew cleanTest test        # 이것을 쓴다. 테스트만 �
 ```
 
 `--rerun-tasks` 도 되지만 전체를 다시 빌드해 느리다. 실제로 몇 건이 돌았는지는 결과 파일에서
-센다 — `build/test-results/test/*.xml` 의 `tests=` 합계다. 앞선 실행이 **실패**한 상태였다면
+센다 — `build/test-results/test/*.xml` 의 `tests=` 합계다. **속성을 하나씩 따로 뽑아라**:
+실제 순서가 `tests skipped failures errors` 라, 한 정규식으로 `tests…failures…skipped` 를
+가정하면 **0 이 나오고 조용히 넘어간다**(2026-09-06 실제로 겪었다). 앞선 실행이 **실패**한 상태였다면
 gradle 이 알아서 다시 돌리므로, 이 함정은 빨강을 감추지는 않고 **초록을 부풀린다**.
 
 ## 프론트 검증 (Playwright)

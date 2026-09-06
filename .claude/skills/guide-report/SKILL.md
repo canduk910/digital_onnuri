@@ -34,7 +34,25 @@ for t in test_robots_watch.py test_canary_trend.py test_region_guard.py verify_b
 done
 # 백엔드 — `./gradlew test` 를 그냥 부르면 UP-TO-DATE 로 **한 건도 안 돌고** 종료 코드 0이 난다
 (cd backend && ./gradlew cleanTest test); echo "backend EXIT=$?"   # JAVA_HOME 은 dev-testing 참조
-#   실제로 몇 건이 돌았는지는 build/test-results/test/*.xml 의 tests= 합계로 센다
+#   실제로 몇 건이 돌았는지는 결과 파일에서 센다. **속성을 하나씩 따로 뽑아라** —
+#   한 정규식으로 tests…failures…skipped 순서를 가정하면 실제 순서가
+#   tests skipped failures errors 라 0 이 나오고 조용히 넘어간다(2026-09-06 실제로 겪었다).
+```
+
+건수는 결과 파일에서 센다. 아래를 그대로 쓰면 된다(2026-09-06 실측 확인).
+
+```python
+# backend/build/test-results/test/*.xml — 속성을 하나씩 따로 뽑는다
+import glob, re, io
+n = f = s = 0
+for p in glob.glob('backend/build/test-results/test/*.xml'):
+    h = io.open(p, encoding='utf-8').read()[:900]
+    g = lambda k: int((re.search(k + r'="(\d+)"', h) or [0, '0'])[1])
+    n += g('tests'); f += g('failures'); s += g('skipped')
+print(f'백엔드 {n}건 · 실패 {f} · 건너뜀 {s}')
+```
+
+```bash
 
 # 브라우저가 필요한 것 — NODE_PATH 를 빼면 실패가 아니라 종료 코드 2로 '건너뜀'이 된다.
 # NODE_PATH 값의 정본은 dev-testing 스킬의 「자동 테스트」 절이다. 그 값을 그대로 쓴다.
