@@ -100,10 +100,16 @@ public final class ProbeTargets {
             // ⚠ 2026-09-05 정정: 종전 주석은 "문구가 깨졌을 때만 토큰 0 판정이 unclear 대신
             //   none(medium) 을 낸다"고 적었으나 **그 폴백은 조임(ADR-22)으로 없어졌다.**
             //   이 몰은 문구 사전을 가지므로 문구가 깨지면 unclear 가 되고 카나리아가 알린다.
+            // ⚠ 2026-09-09 정정: 카나리아가 이틀 연속(09-08·09-09) absent 를 unclear 로 냈다.
+            //   실측 — 없음 화면에 "필터 추천순" 정렬 표시줄이 새로 끼어 종전엔 붙어 있던
+            //   "{q}" 검색 결과 검색 결과가 없습니다 가 두 조각으로 갈라졌다(온누리공공몰이
+            //   태그 위치를 바꾼 2026-09-05 와 같은 유형 — 없음-문구 사이에 새 UI 가 끼는 것).
+            //   {*} 로 짧은 끼어들기를 흡수(ProbeJudge.bindQuery). 옛·새 마크업 둘 다
+            //   ProbeJudgeTest 가 none 으로 고정한다.
             new ProbeTarget("onnuri-hotdeal",
                     "https://onnurideal.com/search?q={q}",
                     StandardCharsets.UTF_8, Scope.ONNURI_SCOPE,
-                    List.of("\"{q}\" 검색 결과 검색 결과가 없습니다"),
+                    List.of("\"{q}\" 검색 결과{*}검색 결과가 없습니다"),
                     List.of(),
                     false, 5, T_HOTDEAL, 0, "김치", 0, MEASURED, ROBOTS),
 

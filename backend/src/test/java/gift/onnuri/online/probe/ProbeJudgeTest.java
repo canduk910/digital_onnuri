@@ -108,6 +108,28 @@ class ProbeJudgeTest {
         }
     }
 
+    /**
+     * 온누리핫딜이 없음 화면에 **"필터 추천순" 정렬 표시줄**을 새로 넣었다 — 2026-09-09
+     * 야간 카나리아가 이틀 연속(09-08·09-09) `absent 기대=none 실제=unclear` 로 잡았다.
+     *
+     *   옛 마크업: `"{q}" 검색 결과 검색 결과가 없습니다`               (두 조각이 붙어 있었다)
+     *   새 마크업: `"{q}" 검색 결과 필터 추천순 검색 결과가 없습니다`   (그 사이에 낱말이 끼었다)
+     *
+     * 온누리공공몰(2026-09-05)과 같은 유형이지만 그때는 **공백 위치**가 옮겨 간 것이고
+     * 이번엔 **낱말 자체**가 끼었다 — `\s*` 는 리터럴 공백만 눅이므로 못 잡는다.
+     * `{*}` 로 짧은 끼어들기를 흡수하도록 템플릿과 bindQuery 를 함께 넓혔다.
+     * 픽스처는 그날 실측 응답 그대로다(onnuri-hotdeal-none-20260909.html).
+     */
+    @Test
+    void 핫딜_없음문구는_필터_UI가_끼어들어도_없음으로_읽힌다() {
+        ProbeTarget t = ProbeTargets.byId("onnuri-hotdeal").orElseThrow();
+        for (String fx : List.of("onnuri-hotdeal-none.html",              // 옛 마크업
+                                 "onnuri-hotdeal-none-20260909.html")) {  // 새 마크업(필터 UI 삽입)
+            Verdict v = ProbeJudge.judge(t, fixture(fx), ProbeQuery.of("zzqqxyw12345"));
+            assertEquals(Verdict.NONE, v.status(), fx + " 를 '없음'으로 읽지 못했다");
+        }
+    }
+
     @Test
     void 없음_픽스처에서는_상품명_샘플이_나오지_않는다() {
         // 샘플이 나오면 judge 가 likely 로 기울어 "없는데 있다"가 된다 — 가장 위험한 방향.

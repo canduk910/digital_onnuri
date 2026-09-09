@@ -54,22 +54,37 @@ public final class ProbeJudge {
         return toText(s);
     }
 
+    /** {*} 자리가 허용하는 최대 끼어들기 길이. 실측 삽입은 10자 안팎(2026-09-09 "필터 추천순")이라
+     * 넉넉히 잡아도 페이지 전체(수만 자)로 새어 나가지 않는다 — 무제한(.*)을 쓰지 않는 이유는
+     * "제한 없음"이 규칙이 아니라 우연히 안전한 상태이기 때문이다. */
+    private static final int WILDCARD_GAP = 60;
+
     /**
      * 없음-문구 템플릿을 정규식으로 컴파일한다.
      *
      * {q} 자리는 토큰 사이 공백을 허용하는 유연 매처가 된다 — 온누리시장은
      * `' zzqqxyw12345 '` 처럼 따옴표 안쪽에 공백을 넣어서, 정확 일치로 잡으면 놓친다.
      * 리터럴 구간의 공백도 \s* 로 눅여 마크업이 만드는 공백 차이를 흡수한다.
+     *
+     * {*} 자리는 짧은 끼어들기 텍스트를 흡수한다(2026-09-09 신설) — 온누리핫딜이 없음
+     * 화면에 "필터 추천순" 정렬 표시줄을 새로 넣어 종전에 붙어 있던 "{q}" 검색 결과
+     * 검색 결과가 없습니다 가 두 조각으로 갈라졌다. \s* 는 리터럴 공백만 눅이므로
+     * 템플릿에 없던 낱말이 끼면 못 잡는다 — {*} 는 그 자리에 정해 둔 길이만큼의
+     * 임의 문자를 허용해, 필터·정렬 UI 처럼 없음-문구 사이에 새로 끼는 요소를 흡수한다.
      */
     public static Pattern bindQuery(String template, ProbeQuery q) {
         StringBuilder re = new StringBuilder();
-        for (String part : template.split(Pattern.quote("{q}"), -1)) {
+        for (String qPart : template.split(Pattern.quote("{q}"), -1)) {
             if (re.length() > 0) {                       // {q} 자리
                 String tokens = String.join("\\s*",
                         q.countTokens().stream().map(Pattern::quote).toList());
                 re.append("\\s*").append(tokens).append("\\s*");
             }
-            re.append(Pattern.quote(part).replace(" ", "\\E\\s*\\Q"));
+            String[] gapParts = qPart.split(Pattern.quote("{*}"), -1);
+            for (int i = 0; i < gapParts.length; i++) {
+                if (i > 0) re.append(".{0,").append(WILDCARD_GAP).append("}?");  // {*} 자리
+                re.append(Pattern.quote(gapParts[i]).replace(" ", "\\E\\s*\\Q"));
+            }
         }
         return Pattern.compile(re.toString(), Pattern.CASE_INSENSITIVE);
     }
