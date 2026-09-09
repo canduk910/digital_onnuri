@@ -55,7 +55,11 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
     "Referer": "https://www.onnuri.gift/place",
 }
-THROTTLE_SEC = 0.7
+THROTTLE_SEC = 2.0     # 0.7 → 2.0(2026-09-10) — 09-08~10 사흘 연속 400, 실패 시점이 매일
+                       # 앞당겨졌다(411번째 → 211번째 → 약 10~15번째 요청). 요청 간격이
+                       # 원인이라는 확증은 아니지만 저희 쪽에서 바꿀 수 있는 유일한 변수라
+                       # 사용자 결정으로 늘린다. 전체 소요는 약 22분 → 약 49분으로 늘어난다
+                       # (1,300 요청 기준, 0.7→2.0초 증분만 계산). 되돌리려면 이 숫자만.
 GRID_KM = 2.8          # 반경 2km 원이 완전히 덮는 정사각형 한 변(2√2). 이보다 크면 사이가 빈다.
 GRID_SEED = Path("_workspace/raw/merchant_grid_seed.json")
 SIDO = {"11000": "서울", "28000": "인천", "41000": "경기", "26000": "부산"}
