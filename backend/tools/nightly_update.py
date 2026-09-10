@@ -94,8 +94,37 @@ def log(msg):
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
 
 
+# 단계 A 리포트 경로. 단계 B 가 끝난 뒤 여기에 교차확인을 이어 쓴다.
+_A_DIAG = {"path": None}
+
+
+def _diag_crosscheck(ok, detail=""):
+    """단계 A 리포트에 **단계 B 결과를 이어 쓴다**(2026-09-10 신설).
+
+    A 가 400 으로 죽은 뒤 몇 초 만에 단계 B 가 **같은 호스트**(www.onnuri.gift)의
+    다른 경로를 불러 200 을 받는다 — 09-08·09·10 세 밤 모두 그랬고, 그것이
+    "IP·호스트 전면 차단이 아니다"의 유일한 직접 증거였다. 지금은 그 사실이 로그
+    두 줄로 흩어져 있어 사람이 눈으로 짝지어야 한다.
+
+    **요청을 한 건도 늘리지 않는다** — 어차피 보내는 단계 B 의 결과를 옮겨 적을 뿐이다.
+    """
+    path = _A_DIAG.get("path")
+    if not path or not Path(path).exists():
+        return
+    try:
+        d = json.loads(Path(path).read_text(encoding="utf-8"))
+        d["crossCheck"] = {
+            "note": "단계 A 직후 같은 호스트(www.onnuri.gift) 다른 경로 호출 결과",
+            "stageBOk": bool(ok), "detail": detail[:300],
+            "at": datetime.now().isoformat(timespec="seconds"),
+        }
+        Path(path).write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    except Exception as e:
+        log(f"A 리포트 교차확인 기록 실패(무시): {type(e).__name__}")
+
+
 # ---------------------------------------------------------------- 단계 A: 가맹점
-def stage_a_merchants(conn, today, no_collect):
+def stage_a_merchants(conn, today, no_collect, diag_dir=None):
     t0 = time.time()
     log("=== 단계 A: 가맹점 (stage-swap) ===")
 
@@ -104,10 +133,17 @@ def stage_a_merchants(conn, today, no_collect):
         log("A1 재수집 생략(--no-collect) — 기존 data/merchants/*.json으로 스왑 검증")
     else:
         log(f"A1 build_region_full.py --refresh --collected-on {today} 실행")
-        r = subprocess.run(
-            [sys.executable, "_workspace/dev_scripts/build_region_full.py",
-             "--refresh", "--collected-on", today],
-            cwd=str(ROOT))
+        cmd = [sys.executable, "_workspace/dev_scripts/build_region_full.py",
+               "--refresh", "--collected-on", today]
+        # 회차 관측 리포트(2026-09-10 신설). 09-08~10 사흘 연속 400 인데 로그에
+        # traceback 밖에 없어 원인을 좁힐 수 없었다. **성공한 밤에도 쓴다** —
+        # 지연 분포·정상 200 헤더 같은 기준선은 성공 회차에서만 얻어지고,
+        # 그게 없으면 다음 실패 밤의 400 을 해석할 대조군이 없다.
+        # 저장소 밖(SURVEY_OUT_DIR)에 쓴다 — 응답 본문이 실리고 저장소는 공개다.
+        if diag_dir:
+            _A_DIAG["path"] = str(Path(diag_dir) / f"merchant-collect-{today}.json")
+            cmd += ["--diag-out", _A_DIAG["path"]]
+        r = subprocess.run(cmd, cwd=str(ROOT))
         if r.returncode == 4:
             # 수집기가 스스로 막았다 — 같은 날 두 번째 재수집(2026-09-06 가드).
             # **공식 API 는 실패하지 않았다.** 이것을 다른 실패와 같이 다루면 화면에
@@ -281,8 +317,10 @@ def stage_b_online(conn, today):
     recs, reason = _collect_online()
     if recs is None:
         log(f"B 스킵: {reason}. 기존 유지(배치 실패 아님).")
+        _diag_crosscheck(False, reason or "")
         return
     log(f"B1 수집 {len(recs)}건")
+    _diag_crosscheck(True, f"{len(recs)}건 수신")
 
     # upsert + removed 마킹 전체를 한 트랜잭션으로 — 부분 갱신 후 crash 시에도 원자성 보장.
     with conn.transaction(), conn.cursor() as cur:
@@ -1240,7 +1278,7 @@ def main():
             if args.skip_merchants:
                 log("단계 A 스킵(--skip-merchants)")
             else:
-                ok = stage_a_merchants(conn, today, args.no_collect)
+                ok = stage_a_merchants(conn, today, args.no_collect, args.survey_out)
                 merchant_failed = not ok
 
             if args.skip_online:

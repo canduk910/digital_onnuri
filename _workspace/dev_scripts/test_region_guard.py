@@ -176,6 +176,83 @@ check("_mark_stale" not in _ny[_i4:_ig],
       "4 갈래에서는 중단 표시를 세우지 않는다 — 공식 API 실패가 아니다")
 check("공식 API 실패가 아니" in _ny[_i4:_ig], "로그가 그 사실을 말한다")
 
+print("(j) 회차 관측 — 400 이 났을 때 무엇이 남는가 (2026-09-10 신설)")
+# 09-08~10 사흘 연속 400 인데 로그에 traceback 밖에 없어 원인을 좁힐 수 없었다.
+# 여기서 지키는 계약은 **가짜 HTTP 서버**로만 시험한다 — 공식 API 에 요청이 나가지 않는다.
+import threading, http.server, contextlib, io as _io, time as _time
+
+_body_none = json.dumps({"resCode": "0000", "data": {"totalPage": 1, "list": []}}).encode()
+_body_400 = json.dumps({"resCode": "9998", "resMsg": "접근 권한이 없습니다"},
+                       ensure_ascii=False).encode("utf-8")
+
+
+class _H(http.server.BaseHTTPRequestHandler):
+    n = 0
+    def log_message(self, *a):
+        pass
+    def do_POST(self):
+        _H.n += 1
+        self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        blocked = _H.n == 3
+        b = _body_400 if blocked else _body_none
+        self.send_response(400 if blocked else 200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("X-Cache", "MISS")
+        if blocked:
+            self.send_header("Set-Cookie", "sess=SECRETVALUE123; Path=/")
+        self.send_header("Content-Length", str(len(b)))
+        self.end_headers()
+        self.wfile.write(b)
+
+
+_srv = http.server.HTTPServer(("127.0.0.1", 0), _H)
+threading.Thread(target=_srv.serve_forever, daemon=True).start()
+_base = f"http://127.0.0.1:{_srv.server_address[1]}/api/v3/onrgt/place/search"
+
+_saved_throttle = _mod.THROTTLE_SEC
+_mod.THROTTLE_SEC = 0.0
+_mod._T0 = _time.time()
+_raised = None
+try:
+    for _i in range(5):
+        _mod.DIAG["cursor"] = {"gridIndex": _i + 1, "cell": [10, 20],
+                              "lat": 35.05, "lng": 129.0, "page": 1}
+        _mod.post(_base, {"latitude": "35.05", "longitude": "129.0"})
+except Exception as _e:
+    _raised = _e
+with contextlib.redirect_stderr(_io.StringIO()):
+    _d = _mod._diag_finish(False, "테스트")
+_mod.THROTTLE_SEC = _saved_throttle
+_srv.shutdown()
+
+check(type(_raised).__name__ == "HTTPError", "계측이 원래 오류를 삼키지 않는다")
+_f = _d.get("failure") or {}
+check(_f.get("reqNo") == 3, "**몇 번째 요청**에서 죽었는지 남는다 — 지금까지 없던 것", _f.get("reqNo"))
+check("접근 권한이 없습니다" in (_f.get("responseHead") or ""),
+      "400 의 응답 본문이 남는다 — 상대가 말한 이유를 처음으로 듣는다")
+check((_f.get("at") or {}).get("lat") == 35.05,
+      "실패 지점이 번호만이 아니라 **좌표로도** 남는다(격자가 바뀌면 번호는 뜻이 달라진다)")
+check((_d.get("firstOk") or {}).get("headers", {}).get("X-Cache") == "MISS",
+      "정상 200 의 헤더가 기준선으로 남는다 — 없으면 400 헤더를 해석할 수 없다")
+check("SECRETVALUE123" not in json.dumps(_d),
+      "쿠키 **값**은 파일에 남기지 않는다(존재 여부만) — 리포트가 서버 디스크에 남는다")
+check(_d["config"]["throttleSec"] == _saved_throttle or "throttleSec" in _d["config"],
+      "설정 스냅샷이 항상 실린다 — 없으면 0.7→2.0 을 모르는 사람이 추세를 오독한다")
+check(_d["grid"] == {} or "sha" in _d.get("grid", {}),
+      "격자 지문 자리가 있다(collect 를 거치면 채워진다)")
+
+# 성공한 밤에도 리포트를 써야 한다 — 기준선은 성공 회차에서만 얻어진다.
+_src = (ROOT / "backend" / "tools" / "nightly_update.py").read_text(encoding="utf-8")
+check("--diag-out" in _src, "야간 배치가 수집기에 리포트 경로를 준다")
+check("_diag_crosscheck" in _src, "단계 B 결과를 A 리포트에 이어 쓴다(요청 추가 0건)")
+_i_ok = _src.find("_diag_crosscheck(True")
+_i_skip = _src.find("_diag_crosscheck(False")
+check(_i_ok > 0 and _i_skip > 0, "단계 B 의 성공·스킵 두 갈래 모두에서 기록한다")
+_bs = (ROOT / "_workspace" / "dev_scripts" / "build_region_full.py").read_text(encoding="utf-8")
+check("_diag_write(args.diag_out)" in _bs.split("except BaseException")[0]
+      or _bs.count("_diag_write(args.diag_out)") >= 2,
+      "성공 경로에서도 리포트를 쓴다 — 실패 전용이면 성공한 밤에 아무 증거도 안 남는다")
+
 print("(d) 실데이터에 적용 — 어긋난 것이 폭증하지 않는가")
 # **고정 숫자로 적지 않는다.** 가맹점은 매일 새로 수집되므로 이 값은 움직인다
 # (2026-09-06 실측 6건 / 30,021건 = 0.02%). 여기서 보는 것은 "갑자기 쏟아지지 않는가"다 —

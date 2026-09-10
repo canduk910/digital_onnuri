@@ -33,15 +33,17 @@ data/merchants/{seoul,incheon,gyeonggi}.json을 재생성한다. 공공데이터
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import re
 import sys
 import time
+import urllib.error
 import urllib.request
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from statistics import median
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 # 2026-09-01: 공식이 v2(onr)를 닫고 v3(onrgt)로 옮겼다. v2 는 이제 resCode 9998("접근 권한이 없습니다").
@@ -347,16 +349,152 @@ def categorize(name, biz_type):
     return BIZ_MAP.get(biz_type, "기타")
 
 
+# --------------------------------------------------------- 회차 관측(2026-09-10 신설)
+#
+# 09-08~10 사흘 연속 HTTP 400 으로 죽었는데 **로그에 남은 것이 traceback 한 덩어리뿐**이라
+# 원인을 좁힐 수가 없었다. 특히 셋이 비어 있었다:
+#   ① 400 의 응답 본문 — 이 API 는 본문에 resCode/resMsg 를 싣는데 `urlopen` 이
+#      HTTPError 로 튕기면 본문을 읽지 않고 버린다. 상대가 이유를 말해 줬는데 못 들은 것이다.
+#   ② 몇 번째 요청에서 죽었는지 — 200 지점마다 찍는 체크포인트뿐이라 그 사이는 모른다.
+#      실제로 09-09 의 '211' 을 실패 지점으로 오독해 잘못 보고한 일이 있었다(그건 체크포인트다).
+#   ③ 정상 200 이 어떤 헤더를 다는지 — 기준선이 없으면 400 헤더를 봐도 해석할 수 없다
+#      (X-Cache 가 원래 늘 붙는 것인지 그날만 붙은 것인지 구분 불가).
+#
+# **이 관측은 요청을 한 건도 늘리지 않고 요청 바이트를 한 글자도 바꾸지 않는다.** 지금은
+# THROTTLE_SEC 0.7→2.0 의 판별 회차라(F23) 여기에 재시도·헤더 보정을 섞으면 완주해도
+# 무엇이 들었는지 말할 수 없게 된다. 그것들은 이 회차 결과를 본 뒤 하나씩 따로 넣는다.
+DIAG = {
+    "startedAt": None, "config": {}, "grid": {},
+    "requests": {"total": 0, "byEndpoint": {}}, "bytes": 0,
+    "firstOk": None,          # 정상 200 기준선(헤더 전체) — 실패한 밤에도 앞부분에서 얻어진다
+    "failure": None,          # 실패 시 상세(순번·좌표·경과·헤더·본문)
+    "latency": {},            # 지연 분위수 + 마지막 N건 롤링
+}
+_LAT = []                     # 요청별 urlopen 구간 소요(초)
+_RECENT = deque(maxlen=30)    # 마지막 30건 (순번, 소요초)
+_T0 = None
+
+
+def _endpoint(url):
+    """호스트를 뺀 경로. 리포트 키로 쓴다(가변부 {sido} 는 뭉갠다)."""
+    p = re.sub(r"^https?://[^/]+", "", url)
+    return re.sub(r"/\d+$", "/{code}", p)
+
+
+def _diag_headers(hdrs):
+    """헤더를 dict 로. 값은 잘라 담는다 — 쿠키 값 전체를 파일에 남기지 않는다."""
+    out = {}
+    try:
+        for k, v in (hdrs.items() if hasattr(hdrs, "items") else []):
+            v = str(v)
+            if k.lower() in ("set-cookie", "cookie"):
+                v = v.split("=")[0] + "=<값 생략>"   # 존재 여부만 본다
+            out[k] = v[:200]
+    except Exception:
+        pass
+    return out
+
+
 # --------------------------------------------------------------- 수집(전수)
 def post(url, body):
     req = urllib.request.Request(
         url, data=json.dumps(body).encode("utf-8"), headers=HEADERS, method="POST")
-    with urllib.request.urlopen(req, timeout=30) as res:
-        payload = json.loads(res.read().decode("utf-8"))
+    ep = _endpoint(url)
+    DIAG["requests"]["total"] += 1
+    DIAG["requests"]["byEndpoint"][ep] = DIAG["requests"]["byEndpoint"].get(ep, 0) + 1
+    n = DIAG["requests"]["total"]
+    t = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=30) as res:
+            raw = res.read()
+            dt = time.time() - t
+            _LAT.append(dt)
+            _RECENT.append([n, round(dt, 3)])
+            DIAG["bytes"] += len(raw)
+            if DIAG["firstOk"] is None:      # 기준선 한 건 — 요청 추가 0건
+                DIAG["firstOk"] = {"reqNo": n, "endpoint": ep, "status": res.status,
+                                   "finalUrl": res.geturl(), "bytes": len(raw),
+                                   "elapsedSec": round(dt, 3),
+                                   "headers": _diag_headers(res.headers)}
+            payload = json.loads(raw.decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        # 여기가 핵심이다 — 지금까지 이 본문을 한 번도 못 봤다.
+        # 읽다가 또 터지면 원래 오류를 가려 버리므로 무슨 일이 있어도 삼킨다.
+        body_text, ehdrs, final = "", {}, None
+        try:
+            body_text = e.read()[:2048].decode("utf-8", errors="replace")
+        except Exception as ex:
+            body_text = f"<본문을 읽지 못했다: {type(ex).__name__}>"
+        try:
+            ehdrs, final = _diag_headers(e.headers), e.geturl()
+        except Exception:
+            pass
+        DIAG["failure"] = {"kind": "HTTPError", "status": e.code, "reqNo": n,
+                           "endpoint": ep, "finalUrl": final,
+                           "elapsedSec": round(time.time() - (_T0 or t), 1),
+                           "requestBody": body, "responseHead": body_text,
+                           "responseHeaders": ehdrs}
+        raise
+    except Exception as e:
+        DIAG["failure"] = {"kind": type(e).__name__, "status": None, "reqNo": n,
+                           "endpoint": ep, "elapsedSec": round(time.time() - (_T0 or t), 1),
+                           "requestBody": body, "detail": str(e)[:500]}
+        raise
     time.sleep(THROTTLE_SEC)
     if payload.get("resCode") != "0000":
+        DIAG["failure"] = {"kind": "resCode", "status": 200, "reqNo": n, "endpoint": ep,
+                           "elapsedSec": round(time.time() - (_T0 or t), 1),
+                           "requestBody": body,
+                           "resCode": payload.get("resCode"), "resMsg": payload.get("resMsg")}
         raise RuntimeError(f"API 오류 {payload.get('resCode')}: {payload.get('resMsg')}")
     return payload["data"]
+
+
+def _diag_finish(ok, note=""):
+    """회차 리포트를 마무리해 dict 로 돌려준다. **성공한 밤에도 쓴다** —
+    성공 회차만이 지연 분포·정상 헤더 같은 기준선을 만들 수 있고, 그게 없으면
+    다음 실패 밤의 400 을 해석할 대조군이 없다."""
+    DIAG["ok"] = bool(ok)
+    if note:
+        DIAG["note"] = note
+    # 설정 스냅샷은 **여기서 항상** 채운다. main() 에서만 넣으면 경로에 따라 비고,
+    # 비면 추세가 거짓말한다 — 0.7→2.0 을 모르는 다음 사람은 "요청 수는 그대로인데
+    # 소요가 두 배" 를 이상 징후로 읽는다(그건 우리가 의도한 변경이다).
+    DIAG["config"] = {"throttleSec": THROTTLE_SEC, "gridKm": GRID_KM, "timeoutSec": 30,
+                      "userAgent": HEADERS.get("User-Agent"),
+                      "acceptHeader": HEADERS.get("Accept"), "retries": 0}
+    DIAG["elapsedSec"] = round(time.time() - _T0, 1) if _T0 else None
+    # 실패 지점을 **번호와 좌표 둘 다** 로 남긴다. 번호는 격자가 바뀌면 뜻이 달라지고,
+    # 좌표는 안 바뀐다. 어느 쪽이 보존되는지가 곧 가설을 가른다.
+    if DIAG.get("failure") and DIAG.get("cursor"):
+        DIAG["failure"]["at"] = DIAG["cursor"]
+    if _LAT:
+        s = sorted(_LAT)
+        q = lambda p: round(s[min(len(s) - 1, int(len(s) * p))], 3)
+        DIAG["latency"] = {"count": len(s), "p50": q(.5), "p90": q(.9), "max": round(s[-1], 3),
+                           "first20Mean": round(sum(_LAT[:20]) / min(20, len(_LAT)), 3),
+                           "recent": list(_RECENT)}
+        # 상대가 보는 실제 속도. 설정값(THROTTLE_SEC)이 아니라 달성값이라야 밤끼리 비교된다.
+        if DIAG.get("elapsedSec") and DIAG["requests"]["total"]:
+            DIAG["achievedSecPerReq"] = round(DIAG["elapsedSec"] / DIAG["requests"]["total"], 3)
+    return DIAG
+
+
+def _diag_write(path):
+    """리포트를 파일로. 저장소 안에 쓰지 않는다 — 공개 저장소이고 응답 본문이 실린다.
+    호출자(야간 배치)가 저장소 밖 경로를 준다. 실패해도 조용히 넘어간다(관측이 배치를 죽이지 않는다)."""
+    if not path:
+        return None
+    try:
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(DIAG, f, ensure_ascii=False, indent=1)
+        print(f"수집 리포트: {p}", file=sys.stderr)
+        return str(p)
+    except Exception as e:
+        print(f"수집 리포트 저장 실패(무시): {type(e).__name__}", file=sys.stderr)
+        return None
 
 
 def load_districts():
@@ -433,12 +571,21 @@ def collect(collected_on):
     seed, grid = load_grid()
     print(f"격자 {len(grid)}지점(시드 {len(seed)} + 이웃 1칸)", file=sys.stderr)
 
+    # 격자 지문. 실패 회차는 save_grid() 앞에서 죽으므로 사흘간 격자가 우연히 고정돼
+    # '몇 번째 요청' 을 밤끼리 비교할 수 있었다 — 그건 설계가 아니라 실패의 부산물이다.
+    # 한 번 성공하면 시드가 누적돼 순서가 밀리고, 그때부터 '20번째'는 지난주 '20번째'와
+    # 다른 좌표다. 지문이 바뀌면 번호를 비교하지 않도록 리포트에 함께 싣는다.
+    grid_sha = hashlib.sha256(repr(grid).encode()).hexdigest()[:12]
+    DIAG["grid"] = {"seedCells": len(seed), "points": len(grid), "sha": grid_sha}
+
     n_req, empty = 0, 0
     found = {}
     for n, (r, c) in enumerate(grid, 1):
         lat, lng = _center(r, c)
         page, total_page = 1, 1
         while page <= total_page:
+            DIAG["cursor"] = {"gridIndex": n, "cell": [r, c],
+                              "lat": round(lat, 6), "lng": round(lng, 6), "page": page}
             data = post(API_SEARCH, {
                 "keyword": "", "addrCd": "", "addrNm": "", "placeTypeList": [],
                 "paperYn": "", "cardYn": "", "qrYn": "",
@@ -522,11 +669,25 @@ def main():
     ap.add_argument("--refresh", action="store_true", help="API 재수집(캐시 무시)")
     ap.add_argument("--force-refresh", action="store_true",
                     help="같은 날 두 번째 재수집도 강행한다(진단용 — 대가를 알고 쓸 것)")
+    ap.add_argument("--diag-out", default=None,
+                    help="회차 관측 리포트를 쓸 경로(JSON). **저장소 밖**을 줄 것 — "
+                         "응답 본문이 실리고 이 저장소는 공개다. 안 주면 파일을 쓰지 않는다.")
     args = ap.parse_args()
 
     if args.refresh or not CACHE.exists():
         _guard_same_day(args)
-        cache = collect(args.collected_on)
+        global _T0
+        _T0 = time.time()
+        DIAG["startedAt"] = datetime.now().isoformat(timespec="seconds")
+        DIAG["collectedOn"] = args.collected_on
+        try:
+            cache = collect(args.collected_on)
+        except BaseException as e:
+            _diag_finish(False, f"{type(e).__name__}: {str(e)[:200]}")
+            _diag_write(args.diag_out)
+            raise
+        _diag_finish(True)
+        _diag_write(args.diag_out)
     else:
         cache = json.load(open(CACHE, encoding="utf-8"))
         print(f"캐시 재사용: {CACHE} ({len(cache['rows'])}행, {cache['collected_on']})", file=sys.stderr)
