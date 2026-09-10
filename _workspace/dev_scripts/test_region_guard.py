@@ -253,6 +253,219 @@ check("_diag_write(args.diag_out)" in _bs.split("except BaseException")[0]
       or _bs.count("_diag_write(args.diag_out)") >= 2,
       "성공 경로에서도 리포트를 쓴다 — 실패 전용이면 성공한 밤에 아무 증거도 안 남는다")
 
+print("(k) 셀 단위 재시도·스킵·이어받기 (2026-09-11 사용자 결정)")
+# 09-11 계측이 보여 준 것: 실패는 격자 9번 **한 지점**이었고 상대가 낸 것은
+# HTTP 500 · resCode 9999(시스템 오류)였다. 그런데 그 한 셀 때문에 1,267 셀이 통째로
+# 죽는다. 셀을 건너뛰되 **그 안의 가맹점은 지우지 않는다**(그 셀 중앙값이 77곳이다).
+# 전부 가짜 HTTP 서버로만 시험한다 — 공식 API 에 요청이 나가지 않는다.
+import http.server as _hs, tempfile as _tf
+
+
+def _serve(fn):
+    class _H(_hs.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+        def do_POST(self):
+            b = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            code, payload = fn(b)
+            raw = json.dumps(payload, ensure_ascii=False).encode()
+            self.send_response(code)
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+    srv = _hs.HTTPServer(("127.0.0.1", 0), _H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+def _ok(body):
+    lng = body.get("longitude", "0")
+    return 200, {"resCode": "0000", "data": {"totalPage": 1, "list": [
+        {"frCd": f"F{lng}", "frcsNm": "가게", "frcsAddr": "부산광역시 강서구 x",
+         "addrCd": "26000", "latitude": 35.05, "longitude": float(lng),
+         "placeTypeNm": "가공식품", "mrktNm": "", "mrktType": "",
+         "paperYn": "Y", "cardYn": "Y", "qrYn": "Y"}]}}
+
+
+def _boom(body):
+    return 500, {"resCode": "9999", "resMsg": "시스템에 오류가 발생하였습니다.", "data": None}
+
+
+def _collect_with(handler, grid_n=40, prev_rows=()):
+    """가짜 서버를 세우고 collect() 를 돌린다. (캐시dict, stderr) 를 돌려준다."""
+    _spec2 = importlib.util.spec_from_file_location("brf_t", SRC)
+    mm = importlib.util.module_from_spec(_spec2)
+    try:
+        _spec2.loader.exec_module(mm)
+    except SystemExit:
+        pass
+    srv = _serve(handler)
+    mm.API_SEARCH = f"http://127.0.0.1:{srv.server_address[1]}/x"
+    mm.THROTTLE_SEC = 0.0
+    mm.CELL_RETRY_BACKOFF = (0.0, 0.0)
+    mm._T0 = _time.time()
+    mm.load_districts = lambda: {"26000": ("강서구", "부산")}
+    mm.load_grid = lambda: ({(1389, 4185)}, [(1389, 4180 + i) for i in range(grid_n)])
+    mm.save_grid = lambda seed, rows: None
+    mm.CACHE = Path(_tf.mkdtemp()) / "c.json"
+    mm.CACHE.write_text(json.dumps({"collected_on": "2026-09-07", "rows": list(prev_rows)},
+                                   ensure_ascii=False), encoding="utf-8")
+    buf = _io.StringIO()
+    out = exc = None
+    with contextlib.redirect_stderr(buf):
+        try:
+            out = mm.collect("2026-09-12")
+        except Exception as e:      # noqa: BLE001
+            exc = e
+    srv.shutdown()
+    return out, exc, buf.getvalue(), mm
+
+
+_BADLNG = "128.969167"          # 09-11 에 실제로 터진 격자 9번의 경도
+_PREV = [{"frCd": f"OLD{i}", "frcsNm": f"기존{i}", "frcsAddr": "부산광역시 강서구 y",
+          "addrCd": "26000", "latitude": 35.0505, "longitude": 128.9692,
+          "placeTypeNm": "가공식품", "mrktNm": "", "mrktType": "",
+          "paperYn": "Y", "cardYn": "Y", "qrYn": "Y"} for i in range(96)]
+
+# ① 한 셀만 계속 실패 — 스킵하되 그 안의 가맹점은 이어받는다
+_hits = {"n": 0}
+def _one_bad(body):
+    if body.get("longitude") == _BADLNG:
+        _hits["n"] += 1
+        return _boom(body)
+    return _ok(body)
+
+_out, _exc, _log, _m = _collect_with(_one_bad, prev_rows=_PREV)
+check(_exc is None, "셀 하나가 죽어도 회차 전체가 죽지 않는다")
+check(_hits["n"] == 3, "셀당 3번 시도한다(첫 시도 + 재시도 2회)", _hits["n"])
+_carried = [r for r in (_out or {}).get("rows", []) if r["frCd"].startswith("OLD")]
+check(len(_carried) == 96,
+      "**스킵한 셀의 가맹점을 지우지 않는다** — 이전 수집분을 그대로 이어받는다", len(_carried))
+check(len([r for r in _out["rows"] if r["frCd"].startswith("F")]) == 39,
+      "나머지 셀은 정상적으로 새로 수집된다")
+check("스킵한 셀 1개" in _log, "스킵한 셀 **개수**가 로그에 남는다(사용자 요청)")
+check("2026-09-07" in _log, "어느 회차 수집분을 이어받았는지 로그가 말한다")
+check(json.loads(_m.CACHE.read_text(encoding="utf-8")).get("skipped_cells"),
+      "스킵 내역이 캐시에도 남아 다음 회차가 추적할 수 있다")
+
+# ①-b 이어받기 기준은 '셀 안'이 아니라 **그 셀 조회가 덮었을 반경 2km** 다.
+#     격자 색인은 경도 폭을 위도로 나누는데 _cell() 은 점의 위도를, _center() 는 행의 중앙
+#     위도를 쓴다 — 어긋나서 '셀 안'과 '조회로 나옴'이 다른 집합이 된다.
+#     실측(79,800곳): 덮는 셀이 하나뿐인 가맹점 37,111곳 중 **9,797곳은 자기 셀이 아닌
+#     이웃 셀 조회로만 나온다.** 멤버십으로 이어받으면 그 부류가 조용히 사라진다.
+_C = (1389, 4185)
+_ctr = _mod._center(*_C)
+# 실측 좌표를 쓴다 — 2026-09-11 캐시에 실제로 있던 가맹점 위치다.
+# 셀 (1390,4185) 에 속하는데 셀 (1389,4185) 중심에서 1.789km 라 그 조회에 나온다.
+_near = {"frCd": "NEAR", "latitude": 35.063815, "longitude": 128.980103}
+# FAR 는 **이웃 범위 안이면서 반경 밖**이어야 한다. 너무 멀리 두면 이웃 훑기에서
+# 아예 빠져 반경 검사를 타지 않고, 그러면 이 검사는 무엇을 넣어도 통과하는 죽은 검사가 된다
+# (2026-09-11 변조 실험이 실제로 그렇게 적발했다). 2칸 북쪽 ≈ 5.6km.
+_far = {"frCd": "FAR", "latitude": _ctr[0] + 2 * (2.8 / 111.0), "longitude": _ctr[1]}
+_idx = {}
+for _row in (_near, _far):
+    _idx.setdefault(_mod._cell(_row["latitude"], _row["longitude"]), []).append(_row)
+_got = {r["frCd"] for r in _mod._prev_rows_near(_idx, _C[0], _C[1], *_ctr)}
+check(_mod._cell(_near["latitude"], _near["longitude"]) != _C,
+      "시험 재료 확인 — NEAR 는 그 셀 '안'이 아니다(그런데 조회에는 나온다)")
+check("NEAR" in _got,
+      "**셀 밖이어도 조회 반경 안이면 이어받는다** — 멤버십 기준이면 놓쳤을 9,797곳 부류")
+check(abs(_mod._cell(_far["latitude"], _far["longitude"])[0] - _C[0]) <= _mod.CARRY_NEIGHBOR,
+      "시험 재료 확인 — FAR 는 이웃 훑기 **범위 안**이다(그래야 반경 검사를 시험한다)")
+check("FAR" not in _got, "조회 반경 밖은 이어받지 않는다 — 없던 가맹점을 만들어 내면 안 된다")
+
+# ② 일시적 실패 — 재시도로 회복하면 스킵이 아니다
+_st = {"n": 0}
+def _flaky(body):
+    if body.get("longitude") == _BADLNG:
+        _st["n"] += 1
+        if _st["n"] == 1:
+            return _boom(body)
+    return _ok(body)
+
+_out2, _exc2, _log2, _ = _collect_with(_flaky)
+check(_exc2 is None and len(_out2["rows"]) == 40, "재시도로 회복하면 전 셀이 수집된다")
+check("스킵한 셀 없음" in _log2, "회복했으면 스킵으로 세지 않는다")
+
+# ③ 차단기 — API 가 전면적으로 죽은 날 재시도가 요청을 세 배로 늘리면 안 된다
+_cnt = {"n": 0}
+def _dead(body):
+    _cnt["n"] += 1
+    return _boom(body)
+
+_out3, _exc3, _log3, _ = _collect_with(_dead, grid_n=1267, prev_rows=_PREV)
+check(_exc3 is not None and "연속" in str(_exc3),
+      "연속 실패가 이어지면 '나쁜 셀'이 아니라 API 문제로 보고 중단한다")
+check(_cnt["n"] <= 3 * _mod.MAX_CONSECUTIVE_SKIPS,
+      f"차단기가 요청 폭증을 막는다(1,267셀×3=3,801 이 될 뻔했다)", _cnt["n"])
+
+# ④ 스킵이 너무 많으면 그것을 '오늘 수집분'이라 부르지 않는다
+def _scattered(body):
+    i = round((float(body.get("longitude", 0)) - 128.815101) / 0.030813)
+    return _boom(body) if (i > 0 and i % 3 == 0) else _ok(body)
+
+_out4, _exc4, _log4, _ = _collect_with(_scattered, grid_n=1267, prev_rows=_PREV)
+check(_exc4 is not None and "%" in str(_exc4),
+      "스킵이 5%를 넘으면 중단한다 — 확인하지 않은 것의 날짜를 올리지 않는다")
+
+# ⑤ 이어받을 재료가 없으면 **스킵을 허용하지 않는다.** `_workspace/raw/` 는 .gitignore
+#    대상이라 신선한 클론에는 캐시가 없고, 그 상태의 스킵은 '유지'가 아니라 '삭제'다.
+#    2026-09-11 적대적 검토가 잡았다 — 그때 로그는 "지우지 않는다"고 **거짓을 말하고 있었다**.
+_out5, _exc5, _log5, _ = _collect_with(_one_bad2 := (lambda b: _boom(b) if b.get("longitude") == _BADLNG else _ok(b)),
+                                       prev_rows=())          # 캐시 없음
+check(_exc5 is not None and "이어받을" in str(_exc5),
+      "**이어받을 것이 없으면 스킵하지 않고 회차를 실패시킨다** — 스킵이 삭제가 되면 안 된다")
+check(_out5 is None, "그 회차는 산출물을 내지 않는다(fail-open 으로 기존 데이터가 지켜진다)")
+check("지우지 않는다" not in _log5,
+      "이어받지 못한 회차가 '지우지 않는다'고 말하면 안 된다 — 검토가 잡은 거짓 문구")
+
+# ⑥ 재시도로 **성공**해도 요청은 세 배로 나간다. 차단기가 '스킵'만 세면 그 날이 조용히 지나간다.
+_wob = {"n": {}}
+def _wobbly(body):
+    k = body.get("longitude")
+    _wob["n"][k] = _wob["n"].get(k, 0) + 1
+    return _ok(body) if _wob["n"][k] >= 3 else _boom(body)
+
+_out6, _exc6, _log6, _ = _collect_with(_wobbly, grid_n=1267, prev_rows=_PREV)
+check(_exc6 is not None and ("재시도" in str(_exc6) or "예산" in str(_exc6)),
+      "**재시도가 쌓이면 스킵이 0이어도 중단한다** — 종전엔 요청 3배·회차 +7시간이 침묵으로 지나갔다")
+
+# ⑦ 같은 셀이 여러 회차 실패하면 이어받기가 누적된다. 그때 **나이를 정직하게** 말해야 한다.
+#    캐시 스탬프(prev_on)는 매 회차 오늘로 갱신되므로 그걸 관측일이라 쓰면 매일 "어제 것"이라
+#    보고하게 된다 — 실제로는 며칠째 같은 관측분이다(2026-09-11 적대적 검토가 재현해 잡았다).
+_agecache = Path(_tf.mkdtemp()) / "c.json"
+_agecache.write_text(json.dumps({"collected_on": "2026-09-07", "rows": _PREV},
+                                ensure_ascii=False), encoding="utf-8")
+_ages = []
+for _day in ("2026-09-12", "2026-09-13", "2026-09-14"):
+    _sp = importlib.util.spec_from_file_location("brf_age", SRC)
+    _mm = importlib.util.module_from_spec(_sp)
+    try:
+        _sp.loader.exec_module(_mm)
+    except SystemExit:
+        pass
+    _srv = _serve(_one_bad)
+    _mm.API_SEARCH = f"http://127.0.0.1:{_srv.server_address[1]}/x"
+    _mm.THROTTLE_SEC = 0.0
+    _mm.CELL_RETRY_BACKOFF = (0.0, 0.0)
+    _mm._T0 = _time.time()
+    _mm.load_districts = lambda: {"26000": ("강서구", "부산")}
+    _mm.load_grid = lambda: ({(1389, 4185)}, [(1389, 4180 + i) for i in range(40)])
+    _mm.save_grid = lambda seed, rows: None
+    _mm.CACHE = _agecache
+    with contextlib.redirect_stderr(_io.StringIO()):
+        _mm.collect(_day)
+    _ages.append(_mm.DIAG["skipped"])
+    _srv.shutdown()
+
+check(all(a["carriedOldestObserved"] == "2026-09-07" for a in _ages),
+      "**실제 관측일이 회차를 거듭해도 안 움직인다** — 이어받기는 데이터를 늙게 만들지 젊게 하지 않는다",
+      [a["carriedOldestObserved"] for a in _ages])
+check([a["carriedMaxRounds"] for a in _ages] == [1, 2, 3],
+      "몇 회차째 이어받는 중인지 센다 — 이어받기는 하루짜리 응급처치다")
+check(_ages[-1]["carriedFrom"] != _ages[-1]["carriedOldestObserved"],
+      "캐시 스탬프와 실제 관측일을 구분한다(둘을 같은 것으로 쓰면 매일 '어제 것'이라 거짓 보고)")
+
 print("(d) 실데이터에 적용 — 어긋난 것이 폭증하지 않는가")
 # **고정 숫자로 적지 않는다.** 가맹점은 매일 새로 수집되므로 이 값은 움직인다
 # (2026-09-06 실측 6건 / 30,021건 = 0.02%). 여기서 보는 것은 "갑자기 쏟아지지 않는가"다 —

@@ -63,6 +63,20 @@ THROTTLE_SEC = 2.0     # 0.7 → 2.0(2026-09-10) — 09-08~10 사흘 연속 400,
                        # 사용자 결정으로 늘린다. 전체 소요는 약 22분 → 약 49분으로 늘어난다
                        # (1,300 요청 기준, 0.7→2.0초 증분만 계산). 되돌리려면 이 숫자만.
 GRID_KM = 2.8          # 반경 2km 원이 완전히 덮는 정사각형 한 변(2√2). 이보다 크면 사이가 빈다.
+
+# ── 셀 단위 재시도·스킵 (2026-09-11 사용자 결정) ────────────────────────────────
+# 09-11 에 계측이 보여 준 것: 실패는 **격자 9번 한 지점**에서 났고 상대가 낸 응답은
+# HTTP 500 · `resCode 9999 "시스템에 오류가 발생하였습니다."` 였다. 차단(9998)이 아니라
+# 그쪽 서버가 그 지점에서 터진 것이다. 그런데 지금 구조는 **그 한 셀 때문에 1,267 셀
+# 전체가 죽는다** — 그날 수집이 통째로 날아간다.
+CELL_RETRIES = 2                 # 첫 시도 + 재시도 2회 = 셀당 최대 3번
+CELL_RETRY_BACKOFF = (5, 15)     # 재시도 전 대기(초). 일시적인 것이면 이 사이에 풀린다.
+MAX_CONSECUTIVE_SKIPS = 10       # 연속 스킵이 이만큼이면 '나쁜 셀'이 아니라 API 가 죽은 것
+MAX_SKIP_RATIO = 0.05            # 스킵이 격자의 5%를 넘으면 '오늘 수집분'이라 부를 수 없다
+MAX_RETRY_RATIO = 0.10           # 재시도가 격자의 10%를 넘으면 '비틀거리는 상대'다 — 중단한다
+REQUEST_BUDGET = 1.4             # 회차 총 요청 상한 = 격자 지점 수 × 이 값
+SEARCH_RADIUS_KM = 2.0           # v3 가 고정으로 쓰는 조회 반경. 이어받기 범위를 이것으로 잡는다.
+CARRY_NEIGHBOR = 3               # 이어받기 후보를 훑을 이웃 셀 범위(±N). 실측으로 정한 값이다.
 GRID_SEED = Path("_workspace/raw/merchant_grid_seed.json")
 SIDO = {"11000": "서울", "28000": "인천", "41000": "경기", "26000": "부산"}
 CACHE = Path("_workspace/raw/capital_merchants_raw.json")
@@ -565,6 +579,97 @@ def save_grid(seed, rows):
         json.dump({"grid_km": GRID_KM, "cells": sorted(cells)}, f)
 
 
+def _fetch_cell(n, r, c, lat, lng):
+    """셀 하나의 전 페이지를 걷는다. **모두 성공해야 돌려준다** — 중간에 터지면 예외를
+    그대로 올리고, 부분 결과는 버린다(반쯤 걷힌 셀을 성공으로 치면 그 셀만 조용히 얇아진다).
+
+    돌려주는 것: ({frCd: row}, 이번에 보낸 요청 수)
+    """
+    out, page, total_page, pages = {}, 1, 1, 0
+    DIAG["_cellPages"] = 0
+    while page <= total_page:
+        DIAG["cursor"] = {"gridIndex": n, "cell": [r, c],
+                          "lat": round(lat, 6), "lng": round(lng, 6), "page": page}
+        data = post(API_SEARCH, {
+            "keyword": "", "addrCd": "", "addrNm": "", "placeTypeList": [],
+            "paperYn": "", "cardYn": "", "qrYn": "",
+            "latitude": f"{lat:.6f}", "longitude": f"{lng:.6f}",
+            "baseRange": 2, "currPage": page})
+        pages += 1
+        DIAG["_cellPages"] = pages
+        total_page = data.get("totalPage") or 1
+        for row in data.get("list") or []:
+            out[row["frCd"]] = row
+        page += 1
+    return out, pages
+
+
+def _prev_rows_near(prev_by_cell, r, c, lat, lng):
+    """스킵한 셀의 조회가 **반환했을** 이전 회차 행들. 반경 2km 안을 그대로 되살린다.
+
+    처음에는 '그 셀 안에 있는(_cell 이 그 셀인) 행'을 이어받게 만들었는데 **틀렸다.**
+    격자 색인은 경도 폭을 위도로 나누는데 `_cell()` 은 점의 위도를, `_center()` 는 그 행의
+    중앙 위도를 쓴다 — 둘이 어긋나 자기 셀 중심에서 2km 를 넘는 가맹점이 22.5%나 된다.
+    그래서 '셀 안에 있다'와 '그 셀 조회로 나온다'가 서로 다른 집합이 된다.
+
+    실측(2026-09-11, 79,800곳): 덮는 셀이 하나뿐인 가맹점이 37,111곳이고 **그중 9,797곳은
+    자기 셀이 아닌 이웃 셀 조회로만 나온다.** 멤버십으로 이어받으면 그 셀이 스킵될 때
+    이 9,797곳 부류가 조용히 사라진다 — 사용자가 막으라고 한 바로 그 일이다.
+
+    그래서 기준을 조회와 똑같이 맞춘다: **중심에서 2km 안**. 후보는 이웃 ±CARRY_NEIGHBOR
+    셀에서만 훑는다(전수 스캔을 피하려는 것이고, 그 범위로 충분함을 실측으로 확인했다).
+    """
+    out, seen = [], set()
+    for dr in range(-CARRY_NEIGHBOR, CARRY_NEIGHBOR + 1):
+        for dc in range(-CARRY_NEIGHBOR, CARRY_NEIGHBOR + 1):
+            for row in prev_by_cell.get((r + dr, c + dc), ()):
+                fr = row.get("frCd")
+                if fr in seen:
+                    continue
+                try:
+                    d = haversine_km(float(row["latitude"]), float(row["longitude"]), lat, lng)
+                except (TypeError, ValueError, KeyError):
+                    continue
+                if d <= SEARCH_RADIUS_KM:
+                    seen.add(fr)
+                    out.append(row)
+    return out
+
+
+def _prev_rows_by_cell():
+    """직전 회차 캐시를 셀별로 색인한다. 스킵한 셀의 가맹점을 이어받는 재료다.
+
+    **출력이 아니라 캐시(raw)를 쓴다.** 캐시 행은 갓 수집한 행과 모양이 완전히 같아서
+    (업종 분류·브랜드 탐지·지역 배정이 뒤에서 똑같이 돈다) 이어받은 레코드가 특별 취급을
+    받지 않는다. 화면 산출물에서 되읽으면 좌표를 비운 레코드가 셀을 잃는 등 결이 달라진다.
+
+    돌려주는 것: ({(r, c): [row, ...]}, 그 캐시의 수집일, 직전 회차가 스킵한 셀 집합)
+    """
+    if not CACHE.exists():
+        # 신선한 클론에는 캐시가 없다 — `_workspace/raw/` 는 .gitignore 대상이다.
+        # 이 상태에서 스킵을 허용하면 **스킵이 곧 삭제**가 된다.
+        print("이전 수집 캐시가 없다 — 이어받을 재료가 없으므로 셀 스킵을 허용하지 않는다",
+              file=sys.stderr)
+        return {}, None, set()
+    try:
+        d = json.load(open(CACHE, encoding="utf-8"))
+    except Exception as e:
+        print(f"이전 캐시를 읽지 못했다 — 이어받을 재료가 없으므로 셀 스킵을 허용하지 않는다: "
+              f"{type(e).__name__}", file=sys.stderr)
+        return {}, None, set()
+    idx = defaultdict(list)
+    for row in d.get("rows", []):
+        lat, lng = row.get("latitude"), row.get("longitude")
+        if lat is None or lng is None:
+            continue
+        try:
+            idx[_cell(float(lat), float(lng))].append(row)
+        except (TypeError, ValueError):
+            continue
+    prev_skipped = {tuple(x.get("cell") or []) for x in d.get("skipped_cells") or []}
+    return idx, d.get("collected_on"), prev_skipped
+
+
 def collect(collected_on):
     districts = load_districts()
     print(f"구·군 {len(districts)}개 로드", file=sys.stderr)
@@ -578,29 +683,123 @@ def collect(collected_on):
     grid_sha = hashlib.sha256(repr(grid).encode()).hexdigest()[:12]
     DIAG["grid"] = {"seedCells": len(seed), "points": len(grid), "sha": grid_sha}
 
+    prev_by_cell, prev_on, prev_skipped = _prev_rows_by_cell()
+    # 이어받을 재료가 있는가. 없으면 스킵은 '유지'가 아니라 '삭제'다 — 그럴 바에는
+    # 회차를 실패시켜 fail-open 으로 기존 데이터를 지키는 편이 낫다(사용자 지시의 취지).
+    can_carry = bool(prev_by_cell)
+
     n_req, empty = 0, 0
     found = {}
+    skipped, carried, consecutive, retried = [], 0, 0, 0
+    budget = int(len(grid) * REQUEST_BUDGET)
     for n, (r, c) in enumerate(grid, 1):
         lat, lng = _center(r, c)
-        page, total_page = 1, 1
-        while page <= total_page:
-            DIAG["cursor"] = {"gridIndex": n, "cell": [r, c],
-                              "lat": round(lat, 6), "lng": round(lng, 6), "page": page}
-            data = post(API_SEARCH, {
-                "keyword": "", "addrCd": "", "addrNm": "", "placeTypeList": [],
-                "paperYn": "", "cardYn": "", "qrYn": "",
-                "latitude": f"{lat:.6f}", "longitude": f"{lng:.6f}",
-                "baseRange": 2, "currPage": page})
-            n_req += 1
-            total_page = data.get("totalPage") or 1
-            lst = data.get("list") or []
-            if page == 1 and not lst:
-                empty += 1
-            for row in lst:
-                found[row["frCd"]] = row
-            page += 1
+
+        # 셀 하나를 통째로 시도한다(전 페이지). 중간에 실패하면 그 셀은 없던 일로 하고
+        # 처음부터 다시 — 반쯤 걷힌 셀을 성공으로 치면 그 셀만 조용히 얇아진다.
+        cell_rows, err, tries = None, None, 0
+        for attempt in range(CELL_RETRIES + 1):
+            tries = attempt + 1
+            try:
+                cell_rows, pages = _fetch_cell(n, r, c, lat, lng)
+                n_req += pages
+                break
+            except Exception as e:                       # noqa: BLE001 — 무엇이든 셀 단위로 받는다
+                err = e
+                n_req += DIAG.get("_cellPages", 0)
+                if attempt < CELL_RETRIES:
+                    retried += 1
+                    time.sleep(CELL_RETRY_BACKOFF[attempt])
+
+        if cell_rows is None and not can_carry:
+            raise RuntimeError(
+                f"셀 {n}/{len(grid)} ({lat:.6f},{lng:.6f}) 가 {tries}번 실패했는데 "
+                f"**이어받을 이전 수집분이 없다** — 지금 건너뛰면 그 셀의 가맹점이 "
+                f"그냥 사라진다. 중단하고 기존 데이터를 유지한다. 마지막 오류: {err}")
+
+        if cell_rows is None:
+            # 세 번 다 실패 — 이 셀은 건너뛴다. **가맹점을 지우는 것이 아니다**:
+            # 직전 회차에서 이 셀에 있던 레코드를 그대로 이어받는다. 안 그러면
+            # 셀 하나가 스킵될 때마다 그 안의 가맹점이(중앙값 77곳) 화면에서 사라진다.
+            prev = _prev_rows_near(prev_by_cell, r, c, lat, lng)
+            for row in prev:
+                # 행마다 나이를 실어 나른다. 이것이 없으면 리포트의 carriedFrom 이
+                # **직전 회차 날짜**를 말해 매일 "어제 것"이라 보고하는데, 실제로는
+                # 며칠째 같은 관측분이다(2026-09-11 적대적 검토가 재현해 잡았다).
+                row.setdefault("_carried_since", prev_on or collected_on)
+                row["_carried_rounds"] = int(row.get("_carried_rounds") or 0) + 1
+                found.setdefault(row["frCd"], row)
+            carried += len(prev)
+            again = (r, c) in prev_skipped
+            skipped.append({"gridIndex": n, "cell": [r, c],
+                            "lat": round(lat, 6), "lng": round(lng, 6),
+                            "tries": tries, "carriedRows": len(prev),
+                            "repeatOfPrevRound": again,
+                            "error": f"{type(err).__name__}: {str(err)[:120]}"})
+            print(f"  ! 셀 스킵 {n}/{len(grid)} ({lat:.6f},{lng:.6f}) — "
+                  f"{tries}번 시도 실패, 이전 수집분 {len(prev)}건 유지 · {err}", file=sys.stderr)
+
+            consecutive += 1
+            # 차단기 둘. 스킵은 '나쁜 셀 하나'를 넘기려는 장치이지 API 가 죽은 날을
+            # 버티려는 장치가 아니다. 그대로 두면 1,267 셀 × 3회 = 약 3,800 요청이
+            # 나가는데, 이 저장소는 '더 두드리면 차단이 다음 날까지 간다'를 이미 겪었다.
+            if consecutive >= MAX_CONSECUTIVE_SKIPS:
+                raise RuntimeError(
+                    f"연속 {consecutive}개 셀이 실패했다 — 셀 문제가 아니라 API 쪽 문제로 본다. "
+                    f"재시도를 계속하면 요청만 세 배로 늘린다. 중단하고 기존 데이터를 유지한다.")
+            if len(skipped) > max(1, int(len(grid) * MAX_SKIP_RATIO)):
+                raise RuntimeError(
+                    f"스킵한 셀이 {len(skipped)}개로 전체의 {MAX_SKIP_RATIO:.0%}를 넘었다 — "
+                    f"이걸 '오늘 수집분'이라 부를 수 없다. 중단하고 기존 데이터를 유지한다.")
+            continue
+
+        consecutive = 0
+        if not cell_rows:
+            empty += 1
+        found.update(cell_rows)
+
+        # **재시도도 센다.** 종전에는 차단기 둘이 '스킵'만 봐서, 상대가 죽지는 않고
+        # 비틀거리는 날(두세 번 물으면 답하는 상태) 모든 셀이 재시도로 성공하면
+        # 스킵 0 · 차단기 침묵 · 로그는 "스킵한 셀 없음" 인데 실제로는 요청이 세 배로
+        # 나가고 백오프 때문에 회차가 7시간 길어진다. 그 침묵이 가장 나쁘다.
+        if retried > max(1, int(len(grid) * MAX_RETRY_RATIO)):
+            raise RuntimeError(
+                f"재시도가 {retried}회로 격자의 {MAX_RETRY_RATIO:.0%}를 넘었다 — 상대가 "
+                f"비틀거리는 중이다. 계속하면 요청만 늘고 회차가 몇 시간 길어진다. 중단한다.")
+        if n_req > budget:
+            raise RuntimeError(
+                f"요청이 {n_req}건으로 예산({budget}건)을 넘었다 — 재시도가 쌓인 것이다. "
+                f"중단하고 기존 데이터를 유지한다.")
+
         if n % 200 == 0:
             print(f"  {n}/{len(grid)} 지점 · 요청 {n_req} · 고유 {len(found)}건", file=sys.stderr)
+
+    carried_rows = [x for x in found.values() if x.get("_carried_since")]
+    oldest = min((x["_carried_since"] for x in carried_rows), default=None)
+    max_rounds = max((int(x.get("_carried_rounds") or 0) for x in carried_rows), default=0)
+    DIAG["skipped"] = {"cells": len(skipped), "carriedRows": carried,
+                       "carriedFrom": prev_on, "carriedOldestObserved": oldest,
+                       "carriedMaxRounds": max_rounds, "retried": retried,
+                       "requestBudget": budget, "list": skipped[:20]}
+    # 사용자 요청(2026-09-11): 회차가 끝나면 스킵한 셀 수를 로그에서 바로 볼 수 있게 한다.
+    if skipped:
+        repeats = [x for x in skipped if x.get("repeatOfPrevRound")]
+        print(f"⚠ 스킵한 셀 {len(skipped)}개 / 격자 {len(grid)}개 — "
+              f"그 안의 가맹점 {carried}건은 지우지 않고 유지했다"
+              f"(실제 관측일 {oldest or '알 수 없음'}, 최장 {max_rounds}회차째 이어받는 중). "
+              f"좌표는 수집 리포트에 있다.", file=sys.stderr)
+        if repeats:
+            # 이어받기는 하루짜리 응급처치다. 같은 셀이 매일 스킵되면 그 셀의 가맹점은
+            # 며칠째 확인되지 않은 채 '오늘 수집분'으로 실린다 — 이 저장소가 가장 싫어하는 모양이다.
+            # f-string 안에서 같은 따옴표를 겹쳐 쓰지 않는다 — 그 문법(PEP 701)은 3.12+ 이고
+            # **야간 배치 서버는 Python 3.10.12** 다(2026-09-11 SSH 로 확인). 겹쳐 쓰면 수집기가
+            # 실행 전에 SyntaxError 로 죽어 매일 밤 거짓 사유의 중단 배너가 뜬다.
+            coords = ", ".join("(%s,%s)" % (x["lat"], x["lng"]) for x in repeats[:5])
+            print(f"⚠ 그중 {len(repeats)}개는 **직전 회차에도 스킵된 셀**이다 — "
+                  f"이어받기로 버티는 중이라 그 안의 가맹점은 며칠째 확인되지 않았다. "
+                  f"좌표: {coords}", file=sys.stderr)
+    else:
+        print(f"스킵한 셀 없음 — 격자 {len(grid)}개 전부 응답을 받았다", file=sys.stderr)
 
     # 격자는 시도 경계를 넘어 인접 지역(대구·경남 등)까지 물어온다.
     # addrCd 로 우리 4개 시도만 남긴다 — 안 걸러내면 "부산 사람에게 대구 가맹점"이 나간다.
@@ -617,11 +816,15 @@ def collect(collected_on):
         district_counts[f"{sido_nm} {addr_nm}"] += 1
 
     print(f"수집 {len(found)}건 → 대상 {len(rows)}건 (범위 밖 {outside}건 제외), "
-          f"요청 {n_req} · 빈 지점 {empty}", file=sys.stderr)
+          f"요청 {n_req} · 빈 지점 {empty} · 스킵한 셀 {len(skipped)} · 재시도 {retried}회",
+          file=sys.stderr)
     save_grid(seed, rows)
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     with open(CACHE, "w", encoding="utf-8") as f:
+        # 스킵 내역을 캐시에도 남긴다 — 이 캐시가 다음 회차의 이어받기 재료가 되므로,
+        # 어느 셀이 며칠째 이어받기로만 버티는지 추적하려면 여기 실려 있어야 한다.
         json.dump({"collected_on": collected_on, "n_requests": n_req,
+                   "skipped_cells": skipped, "carried_rows": carried,
                    "district_counts": dict(district_counts), "rows": rows}, f, ensure_ascii=False)
     return {"collected_on": collected_on, "rows": rows,
             "district_counts": dict(district_counts)}

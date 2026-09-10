@@ -89,8 +89,9 @@ jobs:
           # cache 를 켜지 마라 — 저장소에 package.json·lock 파일이 없어 액션이 실패한다.
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"   # 서버(Ubuntu 22.04) 추정값. SSH 로 확인한 것은 아니다.
-                                   # 로컬 3.9.6·3.13.5 양쪽에서 통과를 확인했으므로 폭이 넓다.
+          python-version: "3.10"   # **서버 실측값**(2026-09-11 SSH: Python 3.10.12).
+                                   # 종전 주석은 "추정값"이라 적혀 있었는데 이제 확인했다.
+                                   # 이 버전을 맞추는 것이 중요한 이유는 아래 문법 검사에 있다.
 
       - name: psycopg 설치
         # nightly_update.py 가 모듈 최상단에서 import 하고 없으면 sys.exit 한다.
@@ -98,6 +99,14 @@ jobs:
         # 저장소에 requirements.txt 가 없어 여기서 고정한다. 안 고정하면 저장소를
         # 아무도 안 건드린 날 상위 메이저가 나와 CI 가 깨진다.
         run: pip install 'psycopg[binary]==3.3.4'
+
+      # **문법 검사를 테스트보다 먼저 세운다** (2026-09-11 신설).
+      # 2026-09-11 에 f-string 안에서 같은 따옴표를 겹쳐 쓴 줄을 넣었다가 잡혔다 —
+      # 그 문법(PEP 701)은 3.12+ 이고 **서버는 3.10.12** 라 수집기가 실행 전에
+      # SyntaxError 로 죽는다. 개발 기계가 3.13 이면 테스트는 전부 초록이라 아무 신호가 없다.
+      # 테스트는 '실행되는 코드'만 보므로, 실행되지 않는 줄의 문법 오류는 테스트가 못 잡는다.
+      - name: 파이썬 문법 (서버와 같은 버전으로 컴파일)
+        run: python3 -m compileall -q _workspace/dev_scripts backend/tools
 
       # 네 개를 별도 step 으로 두고 뒤 셋에 `!cancelled()` 를 건다 —
       # 앞이 실패해도 나머지가 돌아 **한 회차에 모든 실패가 보인다**.

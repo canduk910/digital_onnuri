@@ -143,7 +143,15 @@ def stage_a_merchants(conn, today, no_collect, diag_dir=None):
         if diag_dir:
             _A_DIAG["path"] = str(Path(diag_dir) / f"merchant-collect-{today}.json")
             cmd += ["--diag-out", _A_DIAG["path"]]
-        r = subprocess.run(cmd, cwd=str(ROOT))
+        # 단계 A 만 시간 상한이 없었다(C·D·F 는 있다). 재시도·백오프가 쌓이면
+        # 회차가 몇 시간 길어져 단계 B~F 가 아침 업무시간에 상대 몰로 나간다.
+        # 2.0초 스로틀 × 1,300 요청 ≈ 49분이므로 3시간이면 넉넉하다.
+        try:
+            r = subprocess.run(cmd, cwd=str(ROOT), timeout=3 * 60 * 60)
+        except subprocess.TimeoutExpired:
+            log("A 실패: 재수집이 3시간을 넘겨 중단했다. 기존 데이터 유지.")
+            _mark_stale(conn, today, "공식 가맹점 API 재수집 시간 초과")
+            return False
         if r.returncode == 4:
             # 수집기가 스스로 막았다 — 같은 날 두 번째 재수집(2026-09-06 가드).
             # **공식 API 는 실패하지 않았다.** 이것을 다른 실패와 같이 다루면 화면에
