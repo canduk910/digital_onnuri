@@ -466,6 +466,55 @@ check([a["carriedMaxRounds"] for a in _ages] == [1, 2, 3],
 check(_ages[-1]["carriedFrom"] != _ages[-1]["carriedOldestObserved"],
       "캐시 스탬프와 실제 관측일을 구분한다(둘을 같은 것으로 쓰면 매일 '어제 것'이라 거짓 보고)")
 
+# ⑧ 2026-09-11 적대적 검토가 잡은 계측 결함 3건. 셋 다 **셀 스킵이 들어오면서** 생겼다 —
+#    스킵 전에는 실패=즉사라 드러날 수 없던 것들이다.
+#    ㉠ 실패 좌표를 회차 **끝**에서 붙이면 cursor 가 마지막 셀로 덮여 엉뚱한 좌표가 적힌다.
+#       하필 '실패 좌표가 매일 같은가'가 다음 회차의 판별점이라 이 필드가 곧 판정 근거다.
+#    ㉡ 보낸 요청을 post() **뒤**에 세면 페이지 1 실패가 0건으로 잡혀 요청 예산이 눈먼다.
+#    ㉢ 조회 반경 2km 원이 겹쳐 한 가맹점이 여러 스킵 셀에 들면 이어받기가 중복 계상된다
+#       — 한 회차의 첫 스킵만으로 "최장 10회차째"라는 거짓이 찍힌다.
+_many = {}
+def _two_bad(body):
+    lng = body.get("longitude")
+    # 이웃한 두 셀을 모두 죽인다 — 반경 2km 원이 겹쳐 같은 가맹점이 양쪽에 든다
+    return _boom(body) if lng in ("128.969167", "128.999980") else _ok(body)
+
+# 겹치는 자리에 레코드를 놓는다. 두 셀 중심은 2.8km 떨어져 있어 _PREV(한쪽 중심 위)는
+# 양쪽 반경에 들지 않는다 — 그 상태로는 이 검사가 무엇을 넣어도 통과하는 죽은 검사가 된다
+# (2026-09-11 변조 실험이 그렇게 적발했다). 두 중심의 중간점은 각각 1.402km 라 둘 다에 든다.
+_MIDLNG = (_mod._center(1389, 4185)[1] + _mod._center(1389, 4186)[1]) / 2
+_OVERLAP = [{"frCd": "MID%d" % i, "frcsNm": "겹침%d" % i, "frcsAddr": "부산광역시 강서구 z",
+             "addrCd": "26000", "latitude": _mod._center(1389, 4185)[0], "longitude": _MIDLNG,
+             "placeTypeNm": "가공식품", "mrktNm": "", "mrktType": "",
+             "paperYn": "Y", "cardYn": "Y", "qrYn": "Y"} for i in range(5)]
+_outb, _excb, _logb, _mb = _collect_with(_two_bad, prev_rows=_PREV + _OVERLAP)
+_ff = (_mb.DIAG.get("firstFailure") or _mb.DIAG.get("failure") or {})
+_at = _ff.get("at") or {}
+_body = _ff.get("requestBody") or {}
+# at 은 round(,6) 한 float, requestBody 는 "%.6f" 문자열이라 표기가 다르다 — 수치로 견준다.
+check(abs(float(_at.get("lat", 0)) - float(_body.get("latitude", -1))) < 1e-6
+      and abs(float(_at.get("lng", 0)) - float(_body.get("longitude", -1))) < 1e-6,
+      "㉠ 실패 좌표(at)가 그 실패의 requestBody 와 일치한다 — 마지막 셀로 덮이면 안 된다",
+      (_at.get("lat"), _at.get("lng"), _body.get("latitude"), _body.get("longitude")))
+check(_mb.DIAG.get("firstFailure") is not None,
+      "㉠ 첫 실패를 따로 보존한다 — 뒤의 실패가 덮으면 '그날 처음 무엇이 터졌나'가 사라진다")
+_sk = _mb.DIAG.get("skipped") or {}
+check(_sk.get("carriedMaxRounds") == 1,
+      "㉢ 한 회차에 두 셀을 스킵해도 이어받기 횟수는 1이다(겹치는 원 때문에 2가 되면 안 된다)",
+      _sk.get("carriedMaxRounds"))
+_alive = len([r for r in _outb["rows"] if r["frCd"].startswith(("OLD", "MID"))])
+check(_sk.get("carriedRows") == _alive,
+      "㉢ 이어받은 건수가 실제 살아난 레코드 수와 같다(중복 계상 금지)",
+      (_sk.get("carriedRows"), _alive))
+check(any(r["frCd"].startswith("MID") for r in _outb["rows"]),
+      "시험 재료 확인 — 두 스킵 셀에 **동시에** 드는 레코드가 실제로 이어받아졌다")
+
+# ㉡ 실패한 요청도 요청으로 센다 — 소스에서 순서를 고정한다(카운터가 post 앞에 있어야 한다)
+_srcf = (ROOT / "_workspace" / "dev_scripts" / "build_region_full.py").read_text(encoding="utf-8")
+_seg = _srcf[_srcf.index("def _fetch_cell"):_srcf.index("def _prev_rows_near")]
+check(_seg.index('DIAG["_cellPages"] = pages') < _seg.index("data = post(API_SEARCH"),
+      "㉡ 보낸 요청을 post() **앞에서** 센다 — 뒤에서 세면 실패한 요청이 예산에 안 잡힌다")
+
 print("(d) 실데이터에 적용 — 어긋난 것이 폭증하지 않는가")
 # **고정 숫자로 적지 않는다.** 가맹점은 매일 새로 수집되므로 이 값은 움직인다
 # (2026-09-06 실측 6건 / 30,021건 = 0.02%). 여기서 보는 것은 "갑자기 쏟아지지 않는가"다 —

@@ -446,22 +446,35 @@ def post(url, body):
         DIAG["failure"] = {"kind": "HTTPError", "status": e.code, "reqNo": n,
                            "endpoint": ep, "finalUrl": final,
                            "elapsedSec": round(time.time() - (_T0 or t), 1),
+                           "at": DIAG.get("cursor"),
                            "requestBody": body, "responseHead": body_text,
                            "responseHeaders": ehdrs}
+        _diag_first_failure()
         raise
     except Exception as e:
         DIAG["failure"] = {"kind": type(e).__name__, "status": None, "reqNo": n,
                            "endpoint": ep, "elapsedSec": round(time.time() - (_T0 or t), 1),
+                           "at": DIAG.get("cursor"),
                            "requestBody": body, "detail": str(e)[:500]}
+        _diag_first_failure()
         raise
     time.sleep(THROTTLE_SEC)
     if payload.get("resCode") != "0000":
         DIAG["failure"] = {"kind": "resCode", "status": 200, "reqNo": n, "endpoint": ep,
                            "elapsedSec": round(time.time() - (_T0 or t), 1),
+                           "at": DIAG.get("cursor"),
                            "requestBody": body,
                            "resCode": payload.get("resCode"), "resMsg": payload.get("resMsg")}
+        _diag_first_failure()
         raise RuntimeError(f"API 오류 {payload.get('resCode')}: {payload.get('resMsg')}")
     return payload["data"]
+
+
+def _diag_first_failure():
+    """첫 실패를 따로 보존한다. `failure` 는 뒤의 실패가 덮어쓰므로, 스킵으로 회차가
+    계속되는 지금은 '그날 처음 무엇이 터졌는가'가 사라진다 — 그게 가장 알고 싶은 것이다."""
+    if "firstFailure" not in DIAG and DIAG.get("failure"):
+        DIAG["firstFailure"] = dict(DIAG["failure"])
 
 
 def _diag_finish(ok, note=""):
@@ -478,10 +491,11 @@ def _diag_finish(ok, note=""):
                       "userAgent": HEADERS.get("User-Agent"),
                       "acceptHeader": HEADERS.get("Accept"), "retries": 0}
     DIAG["elapsedSec"] = round(time.time() - _T0, 1) if _T0 else None
-    # 실패 지점을 **번호와 좌표 둘 다** 로 남긴다. 번호는 격자가 바뀌면 뜻이 달라지고,
-    # 좌표는 안 바뀐다. 어느 쪽이 보존되는지가 곧 가설을 가른다.
-    if DIAG.get("failure") and DIAG.get("cursor"):
-        DIAG["failure"]["at"] = DIAG["cursor"]
+    # `at` 은 실패한 **그 순간** post() 안에서 박는다(2026-09-11 정정).
+    # 종전에는 여기서 마지막 `cursor` 를 붙였는데, 셀 스킵이 들어와 실패 뒤에도 회차가
+    # 계속 돌게 되면서 `cursor` 가 **마지막으로 시도한 셀**로 덮인다 — 9번 셀의 실패가
+    # 1267번 좌표로 적히고, 같은 객체의 requestBody(진짜 좌표)와 모순된다.
+    # 하필 '실패 좌표가 매일 같은가'가 다음 회차의 판별점이라 이 필드가 곧 판정 근거다.
     if _LAT:
         s = sorted(_LAT)
         q = lambda p: round(s[min(len(s) - 1, int(len(s) * p))], 3)
@@ -590,13 +604,16 @@ def _fetch_cell(n, r, c, lat, lng):
     while page <= total_page:
         DIAG["cursor"] = {"gridIndex": n, "cell": [r, c],
                           "lat": round(lat, 6), "lng": round(lng, 6), "page": page}
+        # **보내기 전에** 센다. 뒤에서 세면 페이지 1 이 터졌을 때 0 을 보고하고,
+        # 그러면 실패한 요청이 요청 예산에 한 건도 안 잡힌다 — 예산 차단기는
+        # '재시도가 쌓이는 것'을 막으려고 만든 것인데 바로 그 상황에서 눈이 먼다.
+        pages += 1
+        DIAG["_cellPages"] = pages
         data = post(API_SEARCH, {
             "keyword": "", "addrCd": "", "addrNm": "", "placeTypeList": [],
             "paperYn": "", "cardYn": "", "qrYn": "",
             "latitude": f"{lat:.6f}", "longitude": f"{lng:.6f}",
             "baseRange": 2, "currPage": page})
-        pages += 1
-        DIAG["_cellPages"] = pages
         total_page = data.get("totalPage") or 1
         for row in data.get("list") or []:
             out[row["frCd"]] = row
@@ -691,6 +708,7 @@ def collect(collected_on):
     n_req, empty = 0, 0
     found = {}
     skipped, carried, consecutive, retried = [], 0, 0, 0
+    carried_seen = set()   # 이 회차에 이미 이어받은 frCd — 중복 계상을 막는다
     budget = int(len(grid) * REQUEST_BUDGET)
     for n, (r, c) in enumerate(grid, 1):
         lat, lng = _center(r, c)
@@ -722,14 +740,25 @@ def collect(collected_on):
             # 직전 회차에서 이 셀에 있던 레코드를 그대로 이어받는다. 안 그러면
             # 셀 하나가 스킵될 때마다 그 안의 가맹점이(중앙값 77곳) 화면에서 사라진다.
             prev = _prev_rows_near(prev_by_cell, r, c, lat, lng)
+            newly = 0
             for row in prev:
-                # 행마다 나이를 실어 나른다. 이것이 없으면 리포트의 carriedFrom 이
-                # **직전 회차 날짜**를 말해 매일 "어제 것"이라 보고하는데, 실제로는
-                # 며칠째 같은 관측분이다(2026-09-11 적대적 검토가 재현해 잡았다).
+                fr = row["frCd"]
+                # **회차당 한 번만 센다.** 격자 셀은 2.8km 인데 조회 반경은 2km 라
+                # 원이 겹친다 — 한 가맹점이 여러 스킵 셀에 동시에 들 수 있고,
+                # 그때마다 같은 dict 를 제자리 증가시키면 한 회차의 첫 스킵만으로도
+                # _carried_rounds 가 차단기 상한(10)까지 올라 "최장 10회차째"라는
+                # 거짓이 로그에 찍힌다(2026-09-11 적대적 검토가 잡았다).
+                if fr in carried_seen:
+                    continue
+                carried_seen.add(fr)
+                # 행마다 나이를 실어 나른다. 이것이 없으면 carriedFrom 이 직전 회차
+                # 날짜를 말해 매일 "어제 것"이라 보고하는데 실제로는 며칠째 같은 관측분이다.
                 row.setdefault("_carried_since", prev_on or collected_on)
                 row["_carried_rounds"] = int(row.get("_carried_rounds") or 0) + 1
-                found.setdefault(row["frCd"], row)
-            carried += len(prev)
+                if fr not in found:
+                    newly += 1
+                found.setdefault(fr, row)
+            carried += newly
             again = (r, c) in prev_skipped
             skipped.append({"gridIndex": n, "cell": [r, c],
                             "lat": round(lat, 6), "lng": round(lng, 6),
